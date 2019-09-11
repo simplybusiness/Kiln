@@ -39,4 +39,19 @@ Tools (data producers) are wrapped in a docker container, which includes a small
 ![Kiln architecture diagram](https://github.com/simplybusiness/Kiln/blob/23f4f8db5862a4b33d9d0e10be8a6628e59666f5/docs/images/Kiln%20Architecture%20diagram.png)
 
 ## Contributing
+To contribute to Kiln, you'll need the following tools installed:
+- Serverless framework
+- Yarn (for Serverless framework dependencies
+- Rust (stable channel, assuming 1.37 as minimum)
+- Clippy (For linting)
+- Docker
 
+Contributiosn are welcome! If you want to make a change to the project:
+- Open an issue to discuss the change (if the change is significant)
+- Create a new branch
+- Make your change
+- Add new tests & ensure existing tests pass
+- Ensure linting passes
+- Open a PR and explain what changes you have made
+- Wait for CI to pass and PR to be reviewed
+- Merge!
