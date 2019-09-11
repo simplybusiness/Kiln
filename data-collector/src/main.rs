@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use lambda_http::{lambda, IntoResponse, Request};
 use lambda_runtime::{error::HandlerError, Context};
 use serde_json::json;
@@ -6,31 +7,30 @@ fn main() {
     lambda!(handler)
 }
 
-fn handler(
-    _: Request,
-    _: Context,
-) -> Result<impl IntoResponse, HandlerError> {
-    // `serde_json::Values` impl `IntoResponse` by default
-    // creating an application/json response
-    Ok(json!({
-        "message": "Go Serverless v1.0! Your function executed successfully!"
-    }))
+fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
+    Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn handler_handles() {
-        let request = Request::default();
-        let expected = json!({
-            "message": "Go Serverless v1.0! Your function executed successfully!"
-        })
-        .into_response();
-        let response = handler(request, Context::default())
-            .expect("expected Ok(_) value")
-            .into_response();
-        assert_eq!(response.body(), expected.body())
-    }
+struct ToolReport {
+    application_name: String,
+    git_branch: String,
+    git_commit_hash: String,
+    tool_name: String,
+    tool_output: String,
+    output_format: OutputFormat,
+    start_time: DateTime<Utc>,
+    end_time: DateTime<Utc>,
+    environment: Environment,
+    tool_version: String,
 }
+
+enum OutputFormat {
+    Json,
+    PlainText,
+}
+
+enum Environment {
+    Local,
+    CI,
+}
+
