@@ -6,8 +6,6 @@ jobs:
         name: Data-collector build
         runs-on: ubuntu-18.04
         steps:
-            - name: Install Serverless Framework
-              run: npm install -g serverless
             - name: Checkout
               uses: actions/checkout@v1
             - name: Install dependencies
@@ -22,3 +20,5 @@ jobs:
             - name: Test
               run: cargo test
               working-directory: data-collector/
+            - name: Serverless package
+              run: npx serverless package
