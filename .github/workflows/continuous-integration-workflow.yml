@@ -22,3 +22,4 @@ jobs:
               working-directory: data-collector/
             - name: Serverless package
               run: npx serverless package
+              working-directory: data-collector/
