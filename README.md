@@ -36,7 +36,7 @@ All integrations are Kafka consumers that process the events in the tool output 
 
 Tools (data producers) are wrapped in a docker container, which includes a small binary that takes the output from the tool and sends it to the data-collector endpoint to be recorded.
 
-![Kiln architecture diagram](docs/images/Kiln\ Architecture\ Diagram.png)
+![Kiln architecture diagram](docs/images/Kiln Architecture diagram.png)
 
 ## Contributing
 
