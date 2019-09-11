@@ -1,0 +1,19 @@
+service: data-collector
+provider:
+  name: aws
+  runtime: rust
+  memorySize: 128
+
+package:
+  individually: true
+
+plugins:
+  - serverless-rust
+
+functions:
+  hello:
+    handler: hello
+    events:
+      - http:
+          path: '/'
+          method: GET
