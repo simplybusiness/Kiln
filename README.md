@@ -25,6 +25,10 @@ Kiln is a collection of dockerised application security tools, with some special
     - [ ] Trufflehog
     - [ ] Graudit
 
+## Integrations
+- [ ] Slack
+- [ ] Trello
+
 ## Architecture
 
 ## Contributing
