@@ -1,0 +1,20 @@
+name: CI
+on: [push]
+
+jobs:
+    build-data-collector:
+        name: Data-collector build
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Install Serverless Framework
+              run: npm install -g serverless
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Install dependencies
+              run: yarn
+              working-directory: data-collector/
+            - name: Build
+              run: cargo build
+              working-directory: data-collector/
+            - name: Lint
+            - name: Test
