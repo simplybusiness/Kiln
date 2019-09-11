@@ -1,0 +1,5 @@
+CI:
+- .github/workflows/**
+
+data-collector:
+- data-collector/**
