@@ -3,3 +3,7 @@ CI:
 
 data-collector:
 - data-collector/**
+
+documentation:
+- docs/**
+- README.md
