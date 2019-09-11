@@ -1,8 +1,13 @@
 service: data-collector
+tags: ${self:custom.tags}
+
 provider:
   name: aws
+  region: ${self:custom.region}
   runtime: rust
   memorySize: 128
+  stage: ${opt:stage, 'dev'}
+  stackTags: ${self:custom.tags}
 
 package:
   individually: true
@@ -17,3 +22,8 @@ functions:
       - http:
           path: '/'
           method: GET
+vpc:
+  securityGroupIds: ${self:custom.securityGroupIds}
+  subnetIds: ${self:custom.subnetIds}
+
+custom: ${file(config/${self:provider.stage}.yml)}
