@@ -17,4 +17,8 @@ jobs:
               run: cargo build
               working-directory: data-collector/
             - name: Lint
+              run: clippy
+              working-directory: data-collector/
             - name: Test
+              run: cargo test
+              working-directory: data-collector/
