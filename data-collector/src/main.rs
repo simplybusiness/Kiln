@@ -21,7 +21,7 @@ struct ToolReport {
     start_time: DateTime<Utc>,
     end_time: DateTime<Utc>,
     environment: Environment,
-    tool_version: String,
+    tool_version: Option<String>,
 }
 
 enum OutputFormat {
