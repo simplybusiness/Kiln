@@ -30,7 +30,7 @@ Kiln is a collection of dockerised application security tools, with some special
 - [ ] Trello
 
 ## Architecture
-Kiln is architected as a module, event sourcing system with only two required components: the data collector and an Apache Kafka cluster. Tool output is send to the data-collector from the docker container running the tool, which inserts the tool output and some additional metadata into a Kafka topic.
+Kiln is architected as a module, event sourcing system with only two required components: the data collector and an Apache Kafka cluster. Tool output is send to the data-collector from the docker container running the tool, which inserts the tool output and some additional metadata into a Kafka topic. For an introduction to Event Sourcing, checkout https://dev.to/barryosull/event-sourcing-what-it-is-and-why-its-awesome.
 
 All integrations are Kafka consumers that process the events in the tool output topic and respond accordingly. For example, a Slack notification integration can consume events as they're added to the topic, compare the application name to a list of applications it knows about and send a message to the appropriate Slack channel with new security findings.
 
