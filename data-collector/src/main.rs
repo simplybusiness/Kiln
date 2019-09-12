@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn handler_returns_error_when_body_contains_bytes() {
         let mut builder = Request::builder();
-        let request = builder.body(Body::from(r#"{}"#)).unwrap();
+        let request = builder.body(Body::from(r#"{}"#.as_bytes())).unwrap();
         let expected = json!({
             "error_code": 101,
             "error_message": "Request body not correct media type"
