@@ -1,14 +1,60 @@
 use chrono::{DateTime, Utc};
-use lambda_http::{lambda, IntoResponse, Request};
+use lambda_http::{Body, lambda, IntoResponse, Request, Response};
 use lambda_runtime::{error::HandlerError, Context};
-use serde_json::json;
+use serde::Serialize;
+use http::status::StatusCode;
 
 fn main() {
     lambda!(handler)
 }
 
 fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
-    Ok("Not a valid response")
+    let body = req.body();
+    if let Body::Empty = body {
+        return Ok(app_errors::BODY_EMPTY);
+    };
+
+    if let Body::Binary(_) = body {
+        return Ok(app_errors::BODY_MEDIA_TYPE_INCORRECT);
+    };
+    Ok(AppResult::Success)
+}
+
+
+#[derive(Debug)]
+pub enum AppResult<'a> {
+    Success,
+    BodyEmpty{error_details: ErrorDetails<'a>},
+    BodyMediaTypeIncorrect{error_details: ErrorDetails<'a>}
+}
+
+#[derive(Serialize, Debug)]
+pub struct ErrorDetails<'a> {
+    pub error_code: u8,
+    pub error_message: &'a str
+}
+
+pub mod app_errors {
+    use super::*;
+
+    pub const BODY_EMPTY: AppResult = AppResult::BodyEmpty{ error_details: ErrorDetails{ error_code: 100, error_message: "Request body empty" }};
+    pub const BODY_MEDIA_TYPE_INCORRECT: AppResult = AppResult::BodyMediaTypeIncorrect{ error_details: ErrorDetails{ error_code: 101, error_message: "Request body not correct media type" }};
+}
+
+impl IntoResponse for AppResult<'_> {
+    fn into_response(self) -> Response<Body> {
+        match self {
+            AppResult::Success => Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::Empty).unwrap(),
+            AppResult::BodyEmpty{error_details} => Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(Body::from(serde_json::to_string(&error_details).unwrap())).unwrap(),
+            AppResult::BodyMediaTypeIncorrect{error_details} => Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .body(Body::from(serde_json::to_string(&error_details).unwrap())).unwrap(),
+        }
+    }
 }
 
 struct ToolReport {
@@ -41,7 +87,7 @@ mod tests {
     use http::status::StatusCode;
     use lambda_http::Body;
     use lambda_http::http::Request;
-
+    use serde_json::json;
 
     #[test]
     fn handler_returns_error_when_body_empty() {
