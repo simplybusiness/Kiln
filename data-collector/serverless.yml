@@ -16,8 +16,8 @@ plugins:
   - serverless-rust
 
 functions:
-  hello:
-    handler: hello
+  data-collector:
+    handler: data_collector 
     events:
       - http:
           path: '/'
