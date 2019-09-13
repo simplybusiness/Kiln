@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use lambda_http::{Body, lambda, IntoResponse, Request, Response};
 use lambda_runtime::{error::HandlerError, Context};
 use serde::Serialize;
+use serde_json::value::Value;
 use http::status::StatusCode;
 
 fn main() {
@@ -20,7 +21,7 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
 
     if let Body::Text(body_text) = body {
         let b = body_text.clone();
-        let json: serde_json::value::Value = serde_json::from_str(&b).unwrap();
+        let json: Value = serde_json::from_str(&b).unwrap();
         return match ToolReport::parse(&json) {
             Ok(_) => Ok(Response::builder().status(StatusCode::OK).body(Body::from("")).unwrap()),
             Err(validation_error) => Ok(validation_error.into_response())
@@ -65,7 +66,7 @@ struct ToolReport {
 }
 
 impl ToolReport {
-    pub fn parse(json_value: &serde_json::value::Value) -> Result<Self, ValidationError> {
+    pub fn parse(json_value: &Value) -> Result<Self, ValidationError> {
         Err(validation_errors::BODY_EMPTY)
     }
 }
