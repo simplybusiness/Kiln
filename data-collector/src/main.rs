@@ -18,7 +18,16 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
         return Ok(validation_errors::BODY_MEDIA_TYPE_INCORRECT.into_response());
     };
 
-    Ok(Response::builder().status(StatusCode::OK).body(Body::from("")).unwrap())
+    if let Body::Text(body_text) = body {
+        let b = body_text.clone();
+        let json: serde_json::value::Value = serde_json::from_str(&b).unwrap();
+        return match ToolReport::parse(&json) {
+            Ok(_) => Ok(Response::builder().status(StatusCode::OK).body(Body::from("")).unwrap()),
+            Err(validation_error) => Ok(validation_error.into_response())
+        };
+    };
+
+    Ok(Response::builder().status(StatusCode::INTERNAL_SERVER_ERROR).body(Body::from("Unknown error")).unwrap())
 }
 
 #[derive(Debug, Serialize)]
@@ -53,6 +62,12 @@ struct ToolReport {
     end_time: DateTime<Utc>,
     environment: Environment,
     tool_version: Option<String>,
+}
+
+impl ToolReport {
+    pub fn parse(json_value: &serde_json::value::Value) -> Result<Self, ValidationError> {
+        Err(validation_errors::BODY_EMPTY)
+    }
 }
 
 enum OutputFormat {
