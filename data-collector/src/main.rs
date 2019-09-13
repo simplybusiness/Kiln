@@ -57,6 +57,9 @@ pub mod validation_errors {
     pub const TOOL_NAME_EMPTY: ValidationError = ValidationError { error_code: 118, error_message: "Tool name present but empty"};
     pub const TOOL_NAME_MISSING: ValidationError = ValidationError { error_code: 105, error_message: "Tool name required"};
     pub const TOOL_NAME_NOT_A_STRING: ValidationError = ValidationError { error_code: 119, error_message: "Tool name not a valid string"};
+    pub const TOOL_OUTPUT_EMPTY: ValidationError = ValidationError { error_code: 120, error_message: "Tool output present but empty"};
+    pub const TOOL_OUTPUT_MISSING: ValidationError = ValidationError { error_code: 106, error_message: "Tool output required"};
+    pub const TOOL_OUTPUT_NOT_A_STRING: ValidationError = ValidationError { error_code: 121, error_message: "Tool output not a valid string"};
 }
 
 impl IntoResponse for ValidationError<'_> {
@@ -86,6 +89,7 @@ impl ToolReport {
         let git_branch = ToolReport::parse_git_branch(json_value)?;
         let git_commit_hash = ToolReport::parse_git_commit_hash(json_value)?;
         let tool_name = ToolReport::parse_tool_name(json_value)?;
+        let tool_output = ToolReport::parse_tool_output(json_value)?;
         Err(validation_errors::BODY_EMPTY)
     }
 
@@ -141,6 +145,19 @@ impl ToolReport {
         }?;
         if value.is_empty() {
             Err(validation_errors::TOOL_NAME_EMPTY)
+        } else {
+            Ok(value.into())
+        }
+    }
+
+    fn parse_tool_output(json_value: &Value) -> Result<String, ValidationError> {
+        let value = match &json_value["tool_output"] {
+            Value::Null => Err(validation_errors::TOOL_OUTPUT_MISSING),
+            Value::String(value) => Ok(value),
+            _ => Err(validation_errors::TOOL_OUTPUT_NOT_A_STRING)
+        }?;
+        if value.is_empty() {
+            Err(validation_errors::TOOL_OUTPUT_EMPTY)
         } else {
             Ok(value.into())
         }
