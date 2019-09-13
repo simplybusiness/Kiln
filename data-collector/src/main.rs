@@ -163,7 +163,7 @@ mod tests {
         }"#)).unwrap();
         let expected = json!({
             "error_code": 103,
-            "error_message": "Git branch required"
+            "error_message": "Git branch name required"
         })
         .into_response();
         let response = handler(request, Context::default())
