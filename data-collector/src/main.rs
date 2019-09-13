@@ -11,11 +11,11 @@ fn main() {
 fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
     let body = req.body();
     if let Body::Empty = body {
-        return Ok(app_errors::BODY_EMPTY);
+        return Ok(validation_errors::BODY_EMPTY);
     };
 
     if let Body::Binary(_) = body {
-        return Ok(app_errors::BODY_MEDIA_TYPE_INCORRECT);
+        return Ok(validation_errors::BODY_MEDIA_TYPE_INCORRECT);
     };
     Ok(AppResult::Success)
 }
@@ -24,8 +24,7 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
 #[derive(Debug)]
 pub enum AppResult<'a> {
     Success,
-    BodyEmpty{error_details: ErrorDetails<'a>},
-    BodyMediaTypeIncorrect{error_details: ErrorDetails<'a>}
+    ValidationError{ error_details: ErrorDetails<'a> }
 }
 
 #[derive(Serialize, Debug)]
@@ -34,11 +33,11 @@ pub struct ErrorDetails<'a> {
     pub error_message: &'a str
 }
 
-pub mod app_errors {
+pub mod validation_errors {
     use super::*;
 
-    pub const BODY_EMPTY: AppResult = AppResult::BodyEmpty{ error_details: ErrorDetails{ error_code: 100, error_message: "Request body empty" }};
-    pub const BODY_MEDIA_TYPE_INCORRECT: AppResult = AppResult::BodyMediaTypeIncorrect{ error_details: ErrorDetails{ error_code: 101, error_message: "Request body not correct media type" }};
+    pub const BODY_EMPTY: AppResult = AppResult::ValidationError{ error_details: ErrorDetails{ error_code: 100, error_message: "Request body empty" }};
+    pub const BODY_MEDIA_TYPE_INCORRECT: AppResult = AppResult::ValidationError{ error_details: ErrorDetails{ error_code: 101, error_message: "Request body not correct media type" }};
 }
 
 impl IntoResponse for AppResult<'_> {
@@ -47,10 +46,7 @@ impl IntoResponse for AppResult<'_> {
             AppResult::Success => Response::builder()
                 .status(StatusCode::OK)
                 .body(Body::Empty).unwrap(),
-            AppResult::BodyEmpty{error_details} => Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body(Body::from(serde_json::to_string(&error_details).unwrap())).unwrap(),
-            AppResult::BodyMediaTypeIncorrect{error_details} => Response::builder()
+            AppResult::ValidationError{error_details} => Response::builder()
                 .status(StatusCode::BAD_REQUEST)
                 .body(Body::from(serde_json::to_string(&error_details).unwrap())).unwrap(),
         }
