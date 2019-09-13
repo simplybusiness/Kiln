@@ -4,6 +4,7 @@ use lambda_runtime::{error::HandlerError, Context};
 use serde::Serialize;
 use serde_json::value::Value;
 use http::status::StatusCode;
+use regex::Regex;
 
 fn main() {
     lambda!(handler)
@@ -48,6 +49,11 @@ pub mod validation_errors {
     pub const GIT_BRANCH_NAME_EMPTY: ValidationError = ValidationError { error_code: 113, error_message: "Git branch name present but empty"};
     pub const GIT_BRANCH_NAME_MISSING: ValidationError = ValidationError { error_code: 103, error_message: "Git branch name required"};
     pub const GIT_BRANCH_NAME_NOT_A_STRING: ValidationError = ValidationError { error_code: 114, error_message: "Git branch name not a valid string"};
+
+    pub const GIT_COMMIT_HASH_EMPTY: ValidationError = ValidationError { error_code: 115, error_message: "Git commit hash present but empty"};
+    pub const GIT_COMMIT_HASH_MISSING: ValidationError = ValidationError { error_code: 104, error_message: "Git commit hash required"};
+    pub const GIT_COMMIT_HASH_NOT_A_STRING: ValidationError = ValidationError { error_code: 117, error_message: "Git commit hash not a valid string"};
+    pub const GIT_COMMIT_HASH_NOT_VALID: ValidationError = ValidationError { error_code: 116, error_message: "Git commit hash not valid"};
 }
 
 impl IntoResponse for ValidationError<'_> {
@@ -75,6 +81,7 @@ impl ToolReport {
     pub fn parse(json_value: &Value) -> Result<Self, ValidationError> {
         let application_name = ToolReport::parse_application_name(json_value)?;
         let git_branch = ToolReport::parse_git_branch(json_value)?;
+        let git_commit_hash = ToolReport::parse_git_commit_hash(json_value)?;
         Err(validation_errors::BODY_EMPTY)
     }
 
@@ -101,6 +108,24 @@ impl ToolReport {
             Err(validation_errors::GIT_BRANCH_NAME_EMPTY)
         } else {
             Ok(value.into())
+        }
+    }
+
+    fn parse_git_commit_hash(json_value: &Value) -> Result<String, ValidationError> {
+        let value = match &json_value["git_commit_hash"] {
+            Value::Null => Err(validation_errors::GIT_COMMIT_HASH_MISSING),
+            Value::String(value) => Ok(value),
+            _ => Err(validation_errors::GIT_COMMIT_HASH_NOT_A_STRING)
+        }?;
+        if value.is_empty() {
+            return Err(validation_errors::GIT_COMMIT_HASH_EMPTY)
+        }; 
+
+        let re = Regex::new(r"^[0-9a-fA-F]{40}$").unwrap();
+        if re.is_match(value) {
+            Ok(value.into())
+        } else {
+            Err(validation_errors::GIT_COMMIT_HASH_NOT_VALID)
         }
     }
 }
