@@ -11,24 +11,18 @@ fn main() {
 fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
     let body = req.body();
     if let Body::Empty = body {
-        return Ok(validation_errors::BODY_EMPTY);
+        return Ok(validation_errors::BODY_EMPTY.into_response());
     };
 
     if let Body::Binary(_) = body {
-        return Ok(validation_errors::BODY_MEDIA_TYPE_INCORRECT);
+        return Ok(validation_errors::BODY_MEDIA_TYPE_INCORRECT.into_response());
     };
-    Ok(AppResult::Success)
+
+    Ok(Response::builder().status(StatusCode::OK).body(Body::from("")).unwrap())
 }
 
-
-#[derive(Debug)]
-pub enum AppResult<'a> {
-    Success,
-    ValidationError{ error_details: ErrorDetails<'a> }
-}
-
-#[derive(Serialize, Debug)]
-pub struct ErrorDetails<'a> {
+#[derive(Debug, Serialize)]
+pub struct ValidationError<'a> { 
     pub error_code: u8,
     pub error_message: &'a str
 }
@@ -36,20 +30,15 @@ pub struct ErrorDetails<'a> {
 pub mod validation_errors {
     use super::*;
 
-    pub const BODY_EMPTY: AppResult = AppResult::ValidationError{ error_details: ErrorDetails{ error_code: 100, error_message: "Request body empty" }};
-    pub const BODY_MEDIA_TYPE_INCORRECT: AppResult = AppResult::ValidationError{ error_details: ErrorDetails{ error_code: 101, error_message: "Request body not correct media type" }};
+    pub const BODY_EMPTY: ValidationError = ValidationError { error_code: 100, error_message: "Request body empty" };
+    pub const BODY_MEDIA_TYPE_INCORRECT: ValidationError = ValidationError { error_code: 101, error_message: "Request body not correct media type" };
 }
 
-impl IntoResponse for AppResult<'_> {
+impl IntoResponse for ValidationError<'_> {
     fn into_response(self) -> Response<Body> {
-        match self {
-            AppResult::Success => Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::Empty).unwrap(),
-            AppResult::ValidationError{error_details} => Response::builder()
+            Response::builder()
                 .status(StatusCode::BAD_REQUEST)
-                .body(Body::from(serde_json::to_string(&error_details).unwrap())).unwrap(),
-        }
+                .body(Body::from(serde_json::to_string(&self).unwrap())).unwrap()
     }
 }
 
