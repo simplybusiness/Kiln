@@ -54,6 +54,9 @@ pub mod validation_errors {
     pub const GIT_COMMIT_HASH_MISSING: ValidationError = ValidationError { error_code: 104, error_message: "Git commit hash required"};
     pub const GIT_COMMIT_HASH_NOT_A_STRING: ValidationError = ValidationError { error_code: 117, error_message: "Git commit hash not a valid string"};
     pub const GIT_COMMIT_HASH_NOT_VALID: ValidationError = ValidationError { error_code: 116, error_message: "Git commit hash not valid"};
+    pub const TOOL_NAME_EMPTY: ValidationError = ValidationError { error_code: 118, error_message: "Tool name present but empty"};
+    pub const TOOL_NAME_MISSING: ValidationError = ValidationError { error_code: 105, error_message: "Tool name required"};
+    pub const TOOL_NAME_NOT_A_STRING: ValidationError = ValidationError { error_code: 119, error_message: "Tool name not a valid string"};
 }
 
 impl IntoResponse for ValidationError<'_> {
@@ -82,6 +85,7 @@ impl ToolReport {
         let application_name = ToolReport::parse_application_name(json_value)?;
         let git_branch = ToolReport::parse_git_branch(json_value)?;
         let git_commit_hash = ToolReport::parse_git_commit_hash(json_value)?;
+        let tool_name = ToolReport::parse_tool_name(json_value)?;
         Err(validation_errors::BODY_EMPTY)
     }
 
@@ -126,6 +130,19 @@ impl ToolReport {
             Ok(value.into())
         } else {
             Err(validation_errors::GIT_COMMIT_HASH_NOT_VALID)
+        }
+    }
+
+    fn parse_tool_name(json_value: &Value) -> Result<String, ValidationError> {
+        let value = match &json_value["tool_name"] {
+            Value::Null => Err(validation_errors::TOOL_NAME_MISSING),
+            Value::String(value) => Ok(value),
+            _ => Err(validation_errors::TOOL_NAME_NOT_A_STRING)
+        }?;
+        if value.is_empty() {
+            Err(validation_errors::TOOL_NAME_EMPTY)
+        } else {
+            Ok(value.into())
         }
     }
 }
