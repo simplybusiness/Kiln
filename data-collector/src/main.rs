@@ -45,6 +45,9 @@ pub mod validation_errors {
     pub const APPLICATION_NAME_EMPTY: ValidationError = ValidationError { error_code: 111, error_message: "Application name present but empty"};
     pub const APPLICATION_NAME_MISSING: ValidationError = ValidationError { error_code: 102, error_message: "Application name required"};
     pub const APPLICATION_NAME_NOT_A_STRING: ValidationError = ValidationError { error_code: 112, error_message: "Application name not a valid string"};
+    pub const GIT_BRANCH_NAME_EMPTY: ValidationError = ValidationError { error_code: 113, error_message: "Git branch name present but empty"};
+    pub const GIT_BRANCH_NAME_MISSING: ValidationError = ValidationError { error_code: 103, error_message: "Git branch name required"};
+    pub const GIT_BRANCH_NAME_NOT_A_STRING: ValidationError = ValidationError { error_code: 114, error_message: "Git branch name not a valid string"};
 }
 
 impl IntoResponse for ValidationError<'_> {
@@ -71,6 +74,7 @@ struct ToolReport {
 impl ToolReport {
     pub fn parse(json_value: &Value) -> Result<Self, ValidationError> {
         let application_name = ToolReport::parse_application_name(json_value)?;
+        let git_branch = ToolReport::parse_git_branch(json_value)?;
         Err(validation_errors::BODY_EMPTY)
     }
 
@@ -82,6 +86,19 @@ impl ToolReport {
         }?;
         if value.is_empty() {
             Err(validation_errors::APPLICATION_NAME_EMPTY)
+        } else {
+            Ok(value.into())
+        }
+    }
+
+    fn parse_git_branch(json_value: &Value) -> Result<String, ValidationError> {
+        let value = match &json_value["git_branch"] {
+            Value::Null => Err(validation_errors::GIT_BRANCH_NAME_MISSING),
+            Value::String(value) => Ok(value),
+            _ => Err(validation_errors::GIT_BRANCH_NAME_NOT_A_STRING)
+        }?;
+        if value.is_empty() {
+            Err(validation_errors::GIT_BRANCH_NAME_EMPTY)
         } else {
             Ok(value.into())
         }
