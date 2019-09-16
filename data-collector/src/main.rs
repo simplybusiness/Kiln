@@ -22,9 +22,9 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
 
     if let Body::Text(body_text) = body {
         let b = body_text.clone();
-        let Json: Value = serde_json::from_str(&b).unwrap();
-        return match ToolReport::parse(&Json) {
-            Ok(_) => Ok(Response::builder().status(StatusCode::OK).body(Body::from("")).unwrap()),
+        let json: Value = serde_json::from_str(&b).unwrap();
+        return match ToolReport::parse(&json) {
+            Ok(_) => Ok(Response::builder().status(StatusCode::OK).body(Body::Empty).unwrap()),
             Err(validation_error) => Ok(validation_error.into_response())
         };
     };
