@@ -74,6 +74,8 @@ pub mod validation_errors {
     pub const ENVIRONMENT_NOT_A_VALID_OPTION: ValidationError = ValidationError { error_code: 128, error_message: "Environment not a valid option"};
     pub const ENVIRONMENT_MISSING: ValidationError = ValidationError { error_code: 110, error_message: "Environment required"};
     pub const ENVIRONMENT_NOT_A_STRING: ValidationError = ValidationError { error_code: 127 , error_message: "Environment not a valid string"};
+    pub const TOOL_VERSION_NOT_A_STRING: ValidationError = ValidationError { error_code: 130, error_message: "Tool version not a valid string"};
+    pub const TOOL_VERSION_PRESENT_BUT_EMPTY: ValidationError = ValidationError { error_code: 129, error_message: "Tool version present but empty"};
 }
 
 impl IntoResponse for ValidationError<'_> {
@@ -108,7 +110,19 @@ impl ToolReport {
         let start_time = ToolReport::parse_tool_start_time(json_value)?;
         let end_time = ToolReport::parse_tool_end_time(json_value)?;
         let environment = ToolReport::parse_environment(json_value)?;
-        Err(validation_errors::BODY_EMPTY)
+        let tool_version =  ToolReport::parse_tool_version(json_value)?;
+        Ok(ToolReport {
+            application_name,
+            git_branch,
+            git_commit_hash,
+            tool_name,
+            tool_output,
+            output_format,
+            start_time,
+            end_time,
+            environment,
+            tool_version
+        })
     }
 
     fn parse_application_name(json_value: &Value) -> Result<String, ValidationError> {
@@ -235,6 +249,24 @@ impl ToolReport {
             _ => Err(validation_errors::ENVIRONMENT_NOT_A_VALID_OPTION)
         }
     }
+
+    fn parse_tool_version(json_value: &Value) -> Result<Option<String>, ValidationError> {
+        let value = match &json_value["tool_version"] {
+            Value::Null => Ok(None),
+            Value::String(value) => Ok(Some(value.to_owned())),
+            _ => Err(validation_errors::TOOL_VERSION_NOT_A_STRING)
+        }?;
+
+        match value {
+            None => Ok(None),
+            Some(value) => {
+                match value.is_empty() {
+                    true => Err(validation_errors::TOOL_VERSION_PRESENT_BUT_EMPTY),
+                    false => Ok(Some(value))
+                }
+            }
+        }
+    }
 }
 
 enum OutputFormat {
@@ -298,7 +330,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -324,7 +356,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -350,7 +382,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -376,7 +408,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -402,7 +434,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -428,7 +460,7 @@ mod tests {
             "tool_output": "{}",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -454,7 +486,7 @@ mod tests {
             "tool_output": "{}",
             "output_format": "Json",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -480,7 +512,7 @@ mod tests {
             "tool_output": "{}",
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -533,7 +565,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -560,7 +592,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -587,7 +619,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -614,7 +646,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -641,7 +673,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -668,7 +700,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -695,7 +727,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -722,7 +754,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -749,7 +781,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -776,7 +808,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -803,7 +835,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -830,7 +862,7 @@ mod tests {
             "output_format": "",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -857,7 +889,7 @@ mod tests {
             "output_format": false,
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -884,7 +916,7 @@ mod tests {
             "output_format": "msgpack",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -911,7 +943,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "not a timestamp",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -938,7 +970,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "not a timestamp",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -1019,7 +1051,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": ""
         }"#)).unwrap();
         let expected = json!({
@@ -1046,7 +1078,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": false
         }"#)).unwrap();
         let expected = json!({
@@ -1073,7 +1105,7 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "local",
+            "environment": "Local",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = Request::default();
