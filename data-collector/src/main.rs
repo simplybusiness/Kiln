@@ -86,6 +86,7 @@ impl IntoResponse for ValidationError<'_> {
     }
 }
 
+#[allow(dead_code)]
 struct ToolReport {
     application_name: String,
     git_branch: String,
