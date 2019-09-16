@@ -22,8 +22,8 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
 
     if let Body::Text(body_text) = body {
         let b = body_text.clone();
-        let json: Value = serde_json::from_str(&b).unwrap();
-        return match ToolReport::parse(&json) {
+        let Json: Value = serde_json::from_str(&b).unwrap();
+        return match ToolReport::parse(&Json) {
             Ok(_) => Ok(Response::builder().status(StatusCode::OK).body(Body::from("")).unwrap()),
             Err(validation_error) => Ok(validation_error.into_response())
         };
@@ -60,6 +60,17 @@ pub mod validation_errors {
     pub const TOOL_OUTPUT_EMPTY: ValidationError = ValidationError { error_code: 120, error_message: "Tool output present but empty"};
     pub const TOOL_OUTPUT_MISSING: ValidationError = ValidationError { error_code: 106, error_message: "Tool output required"};
     pub const TOOL_OUTPUT_NOT_A_STRING: ValidationError = ValidationError { error_code: 121, error_message: "Tool output not a valid string"};
+
+    pub const TOOL_OUTPUT_FORMAT_EMPTY: ValidationError = ValidationError { error_code: 122, error_message: "Tool output format present but empty"};
+    pub const TOOL_OUTPUT_FORMAT_MISSING: ValidationError = ValidationError { error_code: 107, error_message: "Tool output format required"};
+    pub const TOOL_OUTPUT_FORMAT_NOT_A_STRING: ValidationError = ValidationError { error_code: 123, error_message: "Tool output format not a valid string"};
+    pub const TOOL_OUTPUT_FORMAT_INVALID: ValidationError = ValidationError { error_code: 124, error_message: "Tool output format not acceptable"};
+
+    pub const START_TIME_MISSING: ValidationError = ValidationError { error_code: 108, error_message: "Start time required"};
+    pub const START_TIME_NOT_A_TIMESTAMP: ValidationError = ValidationError { error_code: 125, error_message: "Start time not a valid timestamp"};
+    pub const END_TIME_MISSING: ValidationError = ValidationError { error_code: 109, error_message: "End time required"};
+    pub const END_TIME_NOT_A_TIMESTAMP: ValidationError = ValidationError { error_code: 126, error_message: "End time not a valid timestamp"};
+    
 }
 
 impl IntoResponse for ValidationError<'_> {
@@ -90,6 +101,9 @@ impl ToolReport {
         let git_commit_hash = ToolReport::parse_git_commit_hash(json_value)?;
         let tool_name = ToolReport::parse_tool_name(json_value)?;
         let tool_output = ToolReport::parse_tool_output(json_value)?;
+        let output_format = ToolReport::parse_output_format(json_value)?;
+        let start_time = ToolReport::parse_tool_start_time(json_value)?;
+        let end_time = ToolReport::parse_tool_end_time(json_value)?;
         Err(validation_errors::BODY_EMPTY)
     }
 
@@ -162,10 +176,51 @@ impl ToolReport {
             Ok(value.into())
         }
     }
+
+    fn parse_output_format(json_value: &Value) -> Result<OutputFormat, ValidationError> {
+        let value = match &json_value["output_format"] {
+            Value::Null => Err(validation_errors::TOOL_OUTPUT_FORMAT_MISSING),
+            Value::String(value) => Ok(value),
+            _ => Err(validation_errors::TOOL_OUTPUT_FORMAT_NOT_A_STRING)
+        }?;
+        if value.is_empty() {
+            return Err(validation_errors::TOOL_OUTPUT_FORMAT_EMPTY)
+        };
+
+        match value.as_ref() {
+            "Json" => Ok(OutputFormat::JSON),
+            "PlainText" => Ok(OutputFormat::PlainText),
+            _ => Err(validation_errors::TOOL_OUTPUT_FORMAT_INVALID)
+        }
+    }
+
+    fn parse_tool_start_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError> {
+        let value = match &json_value["start_time"] {
+            Value::Null => Err(validation_errors::START_TIME_MISSING),
+            Value::String(value) => Ok(value),
+            _ => Err(validation_errors::START_TIME_NOT_A_TIMESTAMP)
+        }?;
+
+        DateTime::parse_from_rfc3339(value)
+            .map(|dt| DateTime::<Utc>::from(dt))
+            .map_err(|_| validation_errors::START_TIME_NOT_A_TIMESTAMP)
+    }
+
+    fn parse_tool_end_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError> {
+        let value = match &json_value["end_time"] {
+            Value::Null => Err(validation_errors::END_TIME_MISSING),
+            Value::String(value) => Ok(value),
+            _ => Err(validation_errors::END_TIME_NOT_A_TIMESTAMP)
+        }?;
+
+        DateTime::parse_from_rfc3339(value)
+            .map(|dt| DateTime::<Utc>::from(dt))
+            .map_err(|_| validation_errors::END_TIME_NOT_A_TIMESTAMP)
+    }
 }
 
 enum OutputFormat {
-    Json,
+    JSON,
     PlainText,
 }
 
@@ -222,9 +277,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -248,9 +303,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -274,9 +329,9 @@ mod tests {
             "git_branch": "master",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -300,9 +355,9 @@ mod tests {
             "git_branch": "master",
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -326,9 +381,9 @@ mod tests {
             "git_branch": "master",
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -345,7 +400,7 @@ mod tests {
     }
 
     #[test]
-    fn handler_returns_error_when_output_format_missing() {
+    fn handler_returns_error_when_tool_output_format_missing() {
         let mut builder = Request::builder();
         let request = builder.body(Body::from(r#"{
             "application_name": "Test application",
@@ -353,8 +408,8 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -379,8 +434,8 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -405,8 +460,8 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -431,9 +486,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
@@ -457,9 +512,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -484,9 +539,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -511,9 +566,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -538,9 +593,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -565,9 +620,9 @@ mod tests {
             "git_commit_hash": "",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -592,9 +647,9 @@ mod tests {
             "git_commit_hash": "zzz",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -619,9 +674,9 @@ mod tests {
             "git_commit_hash": false,
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -646,9 +701,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -673,9 +728,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": false,
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -700,9 +755,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -727,9 +782,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": false,
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -755,8 +810,8 @@ mod tests {
             "tool_name": "example tool",
             "tool_output": "{}",
             "output_format": "",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -780,10 +835,10 @@ mod tests {
             "git_branch": "master",
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
-            "tool_output": false,
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "tool_output": "{}",
+            "output_format": false,
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -809,8 +864,8 @@ mod tests {
             "tool_name": "example tool",
             "tool_output": "{}",
             "output_format": "msgpack",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -835,9 +890,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
+            "output_format": "Json",
             "start_time": "not a timestamp",
-            "end_time": 1568236831,
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -860,10 +915,10 @@ mod tests {
             "application_name": "Test application",
             "git_branch": "master",
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-            "tool_name": "",
+            "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "not a timestamp",
             "environment": "local",
             "tool_version": "1.0"
@@ -889,9 +944,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -916,9 +971,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "the moon",
             "tool_version": "1.0"
         }"#)).unwrap();
@@ -943,9 +998,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": ""
         }"#)).unwrap();
@@ -970,9 +1025,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": false
         }"#)).unwrap();
@@ -997,9 +1052,9 @@ mod tests {
             "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
             "tool_name": "example tool",
             "tool_output": "{}",
-            "output_format": "json",
-            "start_time": 1568236802,
-            "end_time": 1568236831,
+            "output_format": "Json",
+            "start_time": "2019-09-13T19:35:38+00:00",
+            "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "local",
             "tool_version": "1.0"
         }"#)).unwrap();
