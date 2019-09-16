@@ -17,7 +17,7 @@ plugins:
 
 functions:
   data-collector:
-    handler: data_collector 
+    handler: data-collector 
     events:
       - http:
           path: '/'
