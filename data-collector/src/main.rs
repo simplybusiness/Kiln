@@ -220,7 +220,7 @@ impl ToolReport {
         }?;
 
         DateTime::parse_from_rfc3339(value)
-            .map(|dt| DateTime::<Utc>::from(dt))
+            .map(DateTime::<Utc>::from)
             .map_err(|_| validation_errors::START_TIME_NOT_A_TIMESTAMP)
     }
 
@@ -232,7 +232,7 @@ impl ToolReport {
         }?;
 
         DateTime::parse_from_rfc3339(value)
-            .map(|dt| DateTime::<Utc>::from(dt))
+            .map(DateTime::<Utc>::from)
             .map_err(|_| validation_errors::END_TIME_NOT_A_TIMESTAMP)
     }
 
@@ -260,9 +260,10 @@ impl ToolReport {
         match value {
             None => Ok(None),
             Some(value) => {
-                match value.is_empty() {
-                    true => Err(validation_errors::TOOL_VERSION_PRESENT_BUT_EMPTY),
-                    false => Ok(Some(value))
+                if value.is_empty() {
+                    Err(validation_errors::TOOL_VERSION_PRESENT_BUT_EMPTY)
+                } else {
+                    Ok(Some(value))
                 }
             }
         }
