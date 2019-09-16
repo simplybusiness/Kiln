@@ -71,6 +71,9 @@ pub mod validation_errors {
     pub const END_TIME_MISSING: ValidationError = ValidationError { error_code: 109, error_message: "End time required"};
     pub const END_TIME_NOT_A_TIMESTAMP: ValidationError = ValidationError { error_code: 126, error_message: "End time not a valid timestamp"};
     
+    pub const ENVIRONMENT_NOT_A_VALID_OPTION: ValidationError = ValidationError { error_code: 128, error_message: "Environment not a valid option"};
+    pub const ENVIRONMENT_MISSING: ValidationError = ValidationError { error_code: 110, error_message: "Environment required"};
+    pub const ENVIRONMENT_NOT_A_STRING: ValidationError = ValidationError { error_code: 127 , error_message: "Environment not a valid string"};
 }
 
 impl IntoResponse for ValidationError<'_> {
@@ -104,6 +107,7 @@ impl ToolReport {
         let output_format = ToolReport::parse_output_format(json_value)?;
         let start_time = ToolReport::parse_tool_start_time(json_value)?;
         let end_time = ToolReport::parse_tool_end_time(json_value)?;
+        let environment = ToolReport::parse_environment(json_value)?;
         Err(validation_errors::BODY_EMPTY)
     }
 
@@ -216,6 +220,20 @@ impl ToolReport {
         DateTime::parse_from_rfc3339(value)
             .map(|dt| DateTime::<Utc>::from(dt))
             .map_err(|_| validation_errors::END_TIME_NOT_A_TIMESTAMP)
+    }
+
+    fn parse_environment(json_value: &Value) -> Result<Environment, ValidationError> {
+        let value = match &json_value["environment"] {
+            Value::Null => Err(validation_errors::ENVIRONMENT_MISSING),
+            Value::String(value) => Ok(value),
+            _ => Err(validation_errors::ENVIRONMENT_NOT_A_STRING)
+        }?;
+
+        match value.as_ref() {
+            "Local" => Ok(Environment::Local),
+            "CI" => Ok(Environment::CI),
+            _ => Err(validation_errors::ENVIRONMENT_NOT_A_VALID_OPTION)
+        }
     }
 }
 
@@ -936,7 +954,7 @@ mod tests {
     }
 
     #[test]
-    fn handler_returns_error_when_environment_empty() {
+    fn handler_returns_error_when_environment_not_a_string() {
         let mut builder = Request::builder();
         let request = builder.body(Body::from(r#"{
             "application_name": "Test application",
@@ -947,12 +965,12 @@ mod tests {
             "output_format": "Json",
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
-            "environment": "",
+            "environment": false,
             "tool_version": "1.0"
         }"#)).unwrap();
         let expected = json!({
             "error_code": 127,
-            "error_message": "Environment present but empty"
+            "error_message": "Environment not a valid string" 
         })
         .into_response();
         let response = handler(request, Context::default())
@@ -979,7 +997,7 @@ mod tests {
         }"#)).unwrap();
         let expected = json!({
             "error_code": 128,
-            "error_message": "Environment not acceptable"
+            "error_message": "Environment not a valid option"
         })
         .into_response();
         let response = handler(request, Context::default())
