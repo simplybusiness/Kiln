@@ -20,9 +20,10 @@ To contribute to Kiln, you'll need the following tools installed:
 - Clippy (For linting)
 - Docker
 
-Contributiosn are welcome! If you want to make a change to the project:
+Kiln is still in it's early stages and isn't ready for production use. However, contributions are welcome! If you want to make a change to the project:
 - Open an issue to discuss the change (if the change is significant)
-- Create a new branch
+- Fork this repo
+- Create a new branch in your fork
 - Make your change
 - Add new tests & ensure existing tests pass
 - Ensure linting passes
