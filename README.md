@@ -1,5 +1,7 @@
 # Kiln
 ![](https://github.com/simplybusiness/kiln/workflows/CI/badge.svg)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v1.4%20adopted-ff69b4.svg)](CODE_OF_CONDUCT.md)
+
 
 Kiln is a collection of dockerised application security tools, with some special sauce to collect the output and send it to an Apache Kafka cluster. This data can then be analysed and used to perform Slack notification, raise items on a team's backlog, or determine trends in security findings, among other things.
 
@@ -13,6 +15,9 @@ Kiln Security Scanners are docker containers with security tools baked into the 
 ![Kiln architecture diagram](https://github.com/simplybusiness/Kiln/blob/7cafc19b16ca1c13f4e187e6309b2efc16eed7bc/docs/images/Kiln%20Architecture%20diagram.png)
 
 ## Contributing
+Please note that this project is released with a Contributor Code of Conduct. By participating in this project, you agree to abide by its terms. The Code of Conduct can be found [here](CODE_OF_CONDUCT.md).
+
+
 To contribute to Kiln, you'll need the following tools installed:
 - Serverless framework
 - Yarn (for Serverless framework dependencies
