@@ -10,7 +10,7 @@ All Kiln Connectors are Kafka consumers that process the events in the tool outp
 
 Kiln Security Scanners are docker containers with security tools baked into the image and also include a small binary that takes the output from the tool and sends it to the Kiln Data Collector to be recorded.
 
-![Kiln architecture diagram](https://github.com/simplybusiness/Kiln/blob/7cafc19b16ca1c13f4e187e6309b2efc16eed7bc/docs/images/Kiln%20Architecture%20diagram.png)
+![Kiln architecture diagram](docs/images/Kiln%20Architecture%20diagram.png)
 
 ## Contributing
 To contribute to Kiln, you'll need the following tools installed:
