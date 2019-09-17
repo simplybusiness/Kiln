@@ -1,7 +1,9 @@
 # Kiln
 ![](https://github.com/simplybusiness/kiln/workflows/CI/badge.svg)
 
-Kiln is a collection of dockerised application security tools, with some special sauce to collect the output and send it to an Apache Kafka cluster. This data can then be analysed and used to perform Slack notification, raise items on a team's backlog, or determine trends in security findings, among other things.
+Kiln is a collection of dockerised application security tools, a validating HTTP proxy to forward the tool output to an Apache Kafka cluster and a collection of connectors to consume data from the Apache Kafka cluster and perform tasks like Slack notifications, raising items on a team's backlog, or determine trends in security findings.
+
+The main goal of Kiln is to make security tools easy for teams to adopt while also gathering useful data for a security team.
 
 ## Architecture
 Kiln is architected as a modular, event sourcing system with only two required components: the Kiln Data Collector and an Apache Kafka cluster. When you run a Kiln Security Sncanner, the tool output is send to the data-collector, which acts as a data validation point and HTTP interface to the Apache Kafka cluster. The data-collector then inserts the tool output and some additional metadata into a Kafka topic. For an introduction to Event Sourcing, checkout https://dev.to/barryosull/event-sourcing-what-it-is-and-why-its-awesome.
@@ -20,7 +22,7 @@ To contribute to Kiln, you'll need the following tools installed:
 - Clippy (For linting)
 - Docker
 
-Contributiosn are welcome! If you want to make a change to the project:
+Contributions are welcome! If you want to make a change to the project:
 - Open an issue to discuss the change (if the change is significant)
 - Create a new branch
 - Make your change
