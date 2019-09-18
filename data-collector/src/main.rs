@@ -192,7 +192,6 @@ struct ToolReport {
 }
 
 impl TryFrom<&Value> for ToolReport {
-    
     type Error = ValidationError<'static>;
 
     fn try_from(json_value: &Value) -> Result<Self, Self::Error> {
@@ -309,7 +308,9 @@ impl ToolReport {
         }
     }
 
-    fn parse_tool_start_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError<'static>> {
+    fn parse_tool_start_time(
+        json_value: &Value,
+    ) -> Result<DateTime<Utc>, ValidationError<'static>> {
         let value = match &json_value["start_time"] {
             Value::Null => Err(validation_errors::START_TIME_MISSING),
             Value::String(value) => Ok(value),
@@ -420,7 +421,11 @@ mod tests {
     #[test]
     fn handler_returns_error_when_body_is_not_json() {
         let mut builder = Request::builder();
-        let request = builder.body(Body::from("<report><title>Not a valid report</title></report>")).unwrap();
+        let request = builder
+            .body(Body::from(
+                "<report><title>Not a valid report</title></report>",
+            ))
+            .unwrap();
         let expected = json!({
             "error_code": 101,
             "error_message": "Request body not correct media type"
