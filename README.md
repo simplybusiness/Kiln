@@ -3,7 +3,9 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v1.4%20adopted-ff69b4.svg)](CODE_OF_CONDUCT.md)
 
 
-Kiln is a collection of dockerised application security tools, with some special sauce to collect the output and send it to an Apache Kafka cluster. This data can then be analysed and used to perform Slack notification, raise items on a team's backlog, or determine trends in security findings, among other things.
+Kiln is a collection of dockerised application security tools, a validating HTTP proxy to forward the tool output to an Apache Kafka cluster and a collection of connectors to consume data from the Apache Kafka cluster and perform tasks like Slack notifications, raising items on a team's backlog, or determine trends in security findings.
+
+The main goal of Kiln is to make security tools easy for teams to adopt while also gathering useful data for a security team.
 
 ## Architecture
 Kiln is architected as a modular, event sourcing system with only two required components: the Kiln Data Collector and an Apache Kafka cluster. When you run a Kiln Security Sncanner, the tool output is send to the data-collector, which acts as a data validation point and HTTP interface to the Apache Kafka cluster. The data-collector then inserts the tool output and some additional metadata into a Kafka topic. For an introduction to Event Sourcing, checkout https://dev.to/barryosull/event-sourcing-what-it-is-and-why-its-awesome.
@@ -12,7 +14,7 @@ All Kiln Connectors are Kafka consumers that process the events in the tool outp
 
 Kiln Security Scanners are docker containers with security tools baked into the image and also include a small binary that takes the output from the tool and sends it to the Kiln Data Collector to be recorded.
 
-![Kiln architecture diagram](https://github.com/simplybusiness/Kiln/blob/7cafc19b16ca1c13f4e187e6309b2efc16eed7bc/docs/images/Kiln%20Architecture%20diagram.png)
+![Kiln architecture diagram](docs/images/Kiln%20Architecture%20diagram.png)
 
 ## Contributing
 Please note that this project is released with a Contributor Code of Conduct. By participating in this project, you agree to abide by its terms. The Code of Conduct can be found [here](CODE_OF_CONDUCT.md).
