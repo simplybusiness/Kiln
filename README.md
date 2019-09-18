@@ -17,7 +17,6 @@ Kiln Security Scanners are docker containers with security tools baked into the 
 ## Contributing
 Please note that this project is released with a Contributor Code of Conduct. By participating in this project, you agree to abide by its terms. The Code of Conduct can be found [here](CODE_OF_CONDUCT.md).
 
-
 To contribute to Kiln, you'll need the following tools installed:
 - Serverless framework
 - Yarn (for Serverless framework dependencies
