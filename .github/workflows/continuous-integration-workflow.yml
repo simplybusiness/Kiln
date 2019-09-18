@@ -8,17 +8,35 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v1
-            - name: Install dependencies
-              run: yarn
-              working-directory: data-collector/
             - name: Build
               run: cargo build
               working-directory: data-collector/
+    test-data-collector:
+        name: Data-collector tests
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Test
+              run: cargo test
+              working-directory: data-collector/
+    lint-data-collector:
+        name: Data-collector lint
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
             - name: Lint
               run: cargo clippy
               working-directory: data-collector/
-            - name: Test
-              run: cargo test
+    test-serverless-package-data-collector:
+        name: Data-collector serverless package
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Install dependencies
+              run: yarn
               working-directory: data-collector/
             - name: Serverless package
               run: npx serverless package
