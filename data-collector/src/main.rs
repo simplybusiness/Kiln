@@ -22,13 +22,19 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
 
     if let Body::Text(body_text) = body {
         let b = body_text.clone();
-        let json: Value = serde_json::from_str(&b)?;
-        return match ToolReport::parse(&json) {
-            Ok(_) => Ok(Response::builder()
-                .status(StatusCode::OK)
-                .body(Body::Empty)
-                .unwrap()),
-            Err(validation_error) => Ok(validation_error.into_response()),
+        let try_json = serde_json::from_str(&b)
+            .map_err(|_| validation_errors::BODY_MEDIA_TYPE_INCORRECT);
+
+        if let Ok(json) = try_json {
+            return match ToolReport::parse(&json) {
+                Ok(_) => Ok(Response::builder()
+                    .status(StatusCode::OK)
+                    .body(Body::Empty)
+                    .unwrap()),
+                Err(validation_error) => Ok(validation_error.into_response()),
+            };
+        } else {
+            return Ok(try_json.unwrap_err().into_response());
         };
     };
 
