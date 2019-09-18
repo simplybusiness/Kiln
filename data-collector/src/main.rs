@@ -6,6 +6,8 @@ use regex::Regex;
 use serde::Serialize;
 use serde_json::value::Value;
 
+use std::convert::TryFrom;
+
 fn main() {
     lambda!(handler)
 }
@@ -202,8 +204,11 @@ struct ToolReport {
     tool_version: Option<String>,
 }
 
-impl ToolReport {
-    pub fn parse(json_value: &Value) -> Result<Self, ValidationError> {
+impl TryFrom<&Value> for ToolReport {
+    
+    type Error = ValidationError<'static>;
+
+    fn try_from(json_value: &Value) -> Result<Self, Self::Error> {
         let application_name = ToolReport::parse_application_name(json_value)?;
         let git_branch = ToolReport::parse_git_branch(json_value)?;
         let git_commit_hash = ToolReport::parse_git_commit_hash(json_value)?;
@@ -227,8 +232,10 @@ impl ToolReport {
             tool_version,
         })
     }
+}
 
-    fn parse_application_name(json_value: &Value) -> Result<String, ValidationError> {
+impl ToolReport {
+    fn parse_application_name(json_value: &Value) -> Result<String, ValidationError<'static>> {
         let value = match &json_value["application_name"] {
             Value::Null => Err(validation_errors::APPLICATION_NAME_MISSING),
             Value::String(value) => Ok(value),
@@ -241,7 +248,7 @@ impl ToolReport {
         }
     }
 
-    fn parse_git_branch(json_value: &Value) -> Result<String, ValidationError> {
+    fn parse_git_branch(json_value: &Value) -> Result<String, ValidationError<'static>> {
         let value = match &json_value["git_branch"] {
             Value::Null => Err(validation_errors::GIT_BRANCH_NAME_MISSING),
             Value::String(value) => Ok(value),
@@ -254,7 +261,7 @@ impl ToolReport {
         }
     }
 
-    fn parse_git_commit_hash(json_value: &Value) -> Result<String, ValidationError> {
+    fn parse_git_commit_hash(json_value: &Value) -> Result<String, ValidationError<'static>> {
         let value = match &json_value["git_commit_hash"] {
             Value::Null => Err(validation_errors::GIT_COMMIT_HASH_MISSING),
             Value::String(value) => Ok(value),
@@ -272,7 +279,7 @@ impl ToolReport {
         }
     }
 
-    fn parse_tool_name(json_value: &Value) -> Result<String, ValidationError> {
+    fn parse_tool_name(json_value: &Value) -> Result<String, ValidationError<'static>> {
         let value = match &json_value["tool_name"] {
             Value::Null => Err(validation_errors::TOOL_NAME_MISSING),
             Value::String(value) => Ok(value),
@@ -285,7 +292,7 @@ impl ToolReport {
         }
     }
 
-    fn parse_tool_output(json_value: &Value) -> Result<String, ValidationError> {
+    fn parse_tool_output(json_value: &Value) -> Result<String, ValidationError<'static>> {
         let value = match &json_value["tool_output"] {
             Value::Null => Err(validation_errors::TOOL_OUTPUT_MISSING),
             Value::String(value) => Ok(value),
@@ -298,7 +305,7 @@ impl ToolReport {
         }
     }
 
-    fn parse_output_format(json_value: &Value) -> Result<OutputFormat, ValidationError> {
+    fn parse_output_format(json_value: &Value) -> Result<OutputFormat, ValidationError<'static>> {
         let value = match &json_value["output_format"] {
             Value::Null => Err(validation_errors::TOOL_OUTPUT_FORMAT_MISSING),
             Value::String(value) => Ok(value),
@@ -315,7 +322,7 @@ impl ToolReport {
         }
     }
 
-    fn parse_tool_start_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError> {
+    fn parse_tool_start_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError<'static>> {
         let value = match &json_value["start_time"] {
             Value::Null => Err(validation_errors::START_TIME_MISSING),
             Value::String(value) => Ok(value),
@@ -327,7 +334,7 @@ impl ToolReport {
             .map_err(|_| validation_errors::START_TIME_NOT_A_TIMESTAMP)
     }
 
-    fn parse_tool_end_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError> {
+    fn parse_tool_end_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError<'static>> {
         let value = match &json_value["end_time"] {
             Value::Null => Err(validation_errors::END_TIME_MISSING),
             Value::String(value) => Ok(value),
@@ -339,7 +346,7 @@ impl ToolReport {
             .map_err(|_| validation_errors::END_TIME_NOT_A_TIMESTAMP)
     }
 
-    fn parse_environment(json_value: &Value) -> Result<Environment, ValidationError> {
+    fn parse_environment(json_value: &Value) -> Result<Environment, ValidationError<'static>> {
         let value = match &json_value["environment"] {
             Value::Null => Err(validation_errors::ENVIRONMENT_MISSING),
             Value::String(value) => Ok(value),
@@ -353,7 +360,7 @@ impl ToolReport {
         }
     }
 
-    fn parse_tool_version(json_value: &Value) -> Result<Option<String>, ValidationError> {
+    fn parse_tool_version(json_value: &Value) -> Result<Option<String>, ValidationError<'static>> {
         let value = match &json_value["tool_version"] {
             Value::Null => Ok(None),
             Value::String(value) => Ok(Some(value.to_owned())),
