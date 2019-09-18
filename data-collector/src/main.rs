@@ -22,7 +22,7 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
 
     if let Body::Text(body_text) = body {
         let b = body_text.clone();
-        let json: Value = serde_json::from_str(&b).unwrap();
+        let json: Value = serde_json::from_str(&b)?;
         return match ToolReport::parse(&json) {
             Ok(_) => Ok(Response::builder()
                 .status(StatusCode::OK)
@@ -405,6 +405,22 @@ mod tests {
     fn handler_returns_error_when_body_contains_bytes() {
         let mut builder = Request::builder();
         let request = builder.body(Body::from(r#"{}"#.as_bytes())).unwrap();
+        let expected = json!({
+            "error_code": 101,
+            "error_message": "Request body not correct media type"
+        })
+        .into_response();
+        let response = handler(request, Context::default())
+            .expect("expected Ok(_) value")
+            .into_response();
+        assert_eq!(response.body(), expected.body());
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn handler_returns_error_when_body_is_not_json() {
+        let mut builder = Request::builder();
+        let request = builder.body(Body::from("<report><title>Not a valid report</title></report>")).unwrap();
         let expected = json!({
             "error_code": 101,
             "error_message": "Request body not correct media type"
