@@ -1,5 +1,8 @@
 # Kiln
 ![](https://github.com/simplybusiness/kiln/workflows/CI/badge.svg)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v1.4%20adopted-ff69b4.svg)](CODE_OF_CONDUCT.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 Kiln is a collection of dockerised application security tools, a validating HTTP proxy to forward the tool output to an Apache Kafka cluster and a collection of connectors to consume data from the Apache Kafka cluster and perform tasks like Slack notifications, raising items on a team's backlog, or determine trends in security findings.
 
@@ -15,6 +18,8 @@ Kiln Security Scanners are docker containers with security tools baked into the 
 ![Kiln architecture diagram](docs/images/Kiln%20Architecture%20diagram.png)
 
 ## Contributing
+Please note that this project is released with a Contributor Code of Conduct. By participating in this project, you agree to abide by its terms. The Code of Conduct can be found [here](CODE_OF_CONDUCT.md).
+
 To contribute to Kiln, you'll need the following tools installed:
 - Serverless framework
 - Yarn (for Serverless framework dependencies
@@ -22,9 +27,10 @@ To contribute to Kiln, you'll need the following tools installed:
 - Clippy (For linting)
 - Docker
 
-Contributions are welcome! If you want to make a change to the project:
+Kiln is still in it's early stages and isn't ready for production use. However, contributions are welcome! If you want to make a change to the project:
 - Open an issue to discuss the change (if the change is significant)
-- Create a new branch
+- Fork this repo
+- Create a new branch in your fork
 - Make your change
 - Add new tests & ensure existing tests pass
 - Ensure linting passes
