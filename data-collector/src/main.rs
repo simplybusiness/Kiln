@@ -14,33 +14,23 @@ fn main() {
 
 fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
     let body = req.body();
-    if let Body::Empty = body {
-        return Ok(validation_errors::BODY_EMPTY.into_response());
-    };
+    let report = match body {
+        Body::Empty => Err(validation_errors::BODY_EMPTY),
+        Body::Binary(_) => Err(validation_errors::BODY_MEDIA_TYPE_INCORRECT),
+        Body::Text(body_text) => Ok(body_text),
+    }
+    .and_then(|body_text| {
+        serde_json::from_str(&body_text).map_err(|_| validation_errors::BODY_MEDIA_TYPE_INCORRECT)
+    })
+    .and_then(|json| ToolReport::try_from(&json));
 
-    if let Body::Binary(_) = body {
-        return Ok(validation_errors::BODY_MEDIA_TYPE_INCORRECT.into_response());
-    };
-
-    if let Body::Text(body_text) = body {
-        let b = body_text.clone();
-        let report = serde_json::from_str(&b)
-            .map_err(|_| validation_errors::BODY_MEDIA_TYPE_INCORRECT)
-            .and_then(|json| ToolReport::try_from(&json));
-
-        return match report {
-            Ok(_) => Ok(Response::builder()
-                                .status(StatusCode::OK)
-                                .body(Body::Empty)
-                                .unwrap()),
-            Err(validation_error) => Ok(validation_error.into_response()),
-        };
-    };
-
-    Ok(Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Body::from("Unknown error"))
-        .unwrap())
+    match report {
+        Ok(_) => Ok(Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::Empty)
+            .unwrap()),
+        Err(validation_error) => Ok(validation_error.into_response()),
+    }
 }
 
 #[derive(Debug, Serialize)]
