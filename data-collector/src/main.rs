@@ -24,19 +24,16 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
 
     if let Body::Text(body_text) = body {
         let b = body_text.clone();
-        let try_json = serde_json::from_str(&b)
-            .map_err(|_| validation_errors::BODY_MEDIA_TYPE_INCORRECT);
+        let report = serde_json::from_str(&b)
+            .map_err(|_| validation_errors::BODY_MEDIA_TYPE_INCORRECT)
+            .and_then(|json| ToolReport::try_from(&json));
 
-        if let Ok(json) = try_json {
-            return match ToolReport::parse(&json) {
-                Ok(_) => Ok(Response::builder()
-                    .status(StatusCode::OK)
-                    .body(Body::Empty)
-                    .unwrap()),
-                Err(validation_error) => Ok(validation_error.into_response()),
-            };
-        } else {
-            return Ok(try_json.unwrap_err().into_response());
+        return match report {
+            Ok(_) => Ok(Response::builder()
+                                .status(StatusCode::OK)
+                                .body(Body::Empty)
+                                .unwrap()),
+            Err(validation_error) => Ok(validation_error.into_response()),
         };
     };
 
