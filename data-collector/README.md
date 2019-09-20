@@ -22,3 +22,7 @@ subnetIds:
 
 region: eu-west-1
 ```
+
+## Request & Response Documentation
+
+You shouldn't generally need to make manual requests to the data-collector, instead prefer to use the ToolReport struct from kiln_lib and serialise that to JSON before sending to the data-collector. If you do need to make a manual request to the data-collector, see [docs/request-response.md](docs/request-response.md).
