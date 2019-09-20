@@ -21,6 +21,8 @@ subnetIds:
     - subnet-987654321fedcba
 
 region: eu-west-1
+
+kafka_bootstrap_tls: "b-1.kafka.a12bcd.c2.kafka.eu-west-1.amazonaws.com:9094,b-3.kafka.a12bcd.c2.kafka.eu-west-1.amazonaws.com:9094,b-2.kafka.a12bcd.c2.kafka.eu-west-1.amazonaws.com:9094"
 ```
 
 ## Request & Response Documentation
