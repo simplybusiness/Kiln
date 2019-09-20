@@ -8,6 +8,15 @@ provider:
   memorySize: 128
   stage: ${opt:stage, 'dev'}
   stackTags: ${self:custom.tags}
+  vpc:
+    securityGroupIds: ${self:custom.securityGroupIds}
+    subnetIds: ${self:custom.subnetIds}
+  iamRoleStatements:
+    - Effect: 'Allow'
+      Action:
+        - 'ec2:CreateNetworkInterface'
+        - 'ec2:DeleteNetworkInterface'
+      Resource: '*'
 
 package:
   individually: true
@@ -22,8 +31,5 @@ functions:
       - http:
           path: '/'
           method: GET
-vpc:
-  securityGroupIds: ${self:custom.securityGroupIds}
-  subnetIds: ${self:custom.subnetIds}
 
 custom: ${file(config/${self:provider.stage}.yml)}
