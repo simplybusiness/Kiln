@@ -15,3 +15,5 @@ Static analysis, composition analysis etc
 **What language/ecosystem does this tool work with?**
 Ruby, a particular packaging tool (like Yarn instead of NPM for example) etc
 
+**Any additional information you think would be useful?**
+
