@@ -259,16 +259,16 @@ pub mod tool_report {
     #[allow(dead_code)]
     #[derive(Debug)]
     pub struct ToolReport {
-        application_name: String,
-        git_branch: String,
-        git_commit_hash: String,
-        tool_name: String,
-        tool_output: String,
-        output_format: OutputFormat,
-        start_time: DateTime<Utc>,
-        end_time: DateTime<Utc>,
-        environment: Environment,
-        tool_version: Option<String>,
+        pub application_name: String,
+        pub git_branch: String,
+        pub git_commit_hash: String,
+        pub tool_name: String,
+        pub tool_output: String,
+        pub output_format: OutputFormat,
+        pub start_time: DateTime<Utc>,
+        pub end_time: DateTime<Utc>,
+        pub environment: Environment,
+        pub tool_version: Option<String>,
     }
 
     #[derive(Debug)]
