@@ -44,7 +44,7 @@ mod tests {
     use lambda_http::Body;
     use serde_json::json;
 
-    use kiln_lib::tool_report::{Environment, OutputFormat};
+    use kiln_lib::tool_report::{ApplicationName, GitCommitHash, GitBranch, ToolName, ToolOutput, ToolVersion, Environment, OutputFormat};
 
     #[test]
     fn handler_returns_ok_when_request_valid() {
@@ -163,16 +163,16 @@ mod tests {
             .unwrap();
 
         let expected = ToolReport {
-            application_name: "Test application".into(),
-            git_branch: "master".into(),
-            git_commit_hash: "e99f715d0fe787cd43de967b8a79b56960fed3e5".into(),
-            tool_name: "example tool".into(),
-            tool_output: "{}".into(),
+            application_name: ApplicationName::try_from("Test application".to_owned()).unwrap(),
+            git_branch: GitBranch::try_from("master".to_owned()).unwrap(),
+            git_commit_hash: GitCommitHash::try_from("e99f715d0fe787cd43de967b8a79b56960fed3e5".to_owned()).unwrap(),
+            tool_name: ToolName::try_from("example tool".to_owned()).unwrap(),
+            tool_output: ToolOutput::try_from("{}".to_owned()).unwrap(),
             output_format: OutputFormat::JSON,
             start_time: DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap()),
             end_time: DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap()),
             environment: Environment::Local,
-            tool_version: Some("1.0".into())
+            tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap()
         };
 
         let actual = parse_request(&request)
