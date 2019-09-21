@@ -7,3 +7,6 @@ data-collector:
 documentation:
 - docs/**
 - README.md
+
+kiln_lib:
+- kiln_lib/**

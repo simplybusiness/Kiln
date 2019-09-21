@@ -2,3 +2,4 @@
 */.serverless
 */target
 */rustfmt.toml
+target
