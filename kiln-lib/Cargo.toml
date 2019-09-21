@@ -1,9 +1,0 @@
-[package]
-name = "kiln-lib"
-version = "0.1.0"
-authors = ["Daniel Murphy <daniel.murphy@simplybusiness.co.uk>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
