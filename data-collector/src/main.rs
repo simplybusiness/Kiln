@@ -129,6 +129,21 @@ mod tests {
     }
 
     #[test]
+    fn parse_request_returns_error_when_body_is_not_json() {
+        let mut builder = Request::builder();
+        let request = builder
+            .body(Body::from(
+                "<report><title>Not a valid report</title></report>",
+            ))
+            .unwrap();
+        let expected = ValidationError::body_media_type_incorrect();
+        let response = parse_request(&request)
+            .expect_err("expected Err(_) value");
+
+        assert_eq!(expected, response);
+    }
+
+    #[test]
     fn parse_request_returns_tool_report_when_request_valid() {
         let mut builder = Request::builder();
         let request = builder
@@ -165,21 +180,6 @@ mod tests {
             .expect("expected Ok(_) value");
         
         assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn parse_request_returns_error_when_body_is_not_json() {
-        let mut builder = Request::builder();
-        let request = builder
-            .body(Body::from(
-                "<report><title>Not a valid report</title></report>",
-            ))
-            .unwrap();
-        let expected = ValidationError::body_media_type_incorrect();
-        let response = parse_request(&request)
-            .expect_err("expected Err(_) value");
-
-        assert_eq!(expected, response);
     }
 
     #[test]
