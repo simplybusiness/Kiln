@@ -36,7 +36,6 @@ pub fn parse_request(req: &Request) -> Result<ToolReport, ValidationError> {
 
 #[cfg(test)]
 mod tests {
-    // parse_request should test empty body, binary body, XML body, and valid body
     use super::*;
 
     use chrono::{DateTime, Utc};
