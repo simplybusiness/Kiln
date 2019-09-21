@@ -4,141 +4,231 @@ pub mod validation {
     use serde::Serialize;
 
     #[derive(Debug, PartialEq, Serialize)]
-    pub struct ValidationError<'a> {
+    pub struct ValidationError {
         pub error_code: u8,
-        pub error_message: &'a str,
+        pub error_message: String,
     }
 
-    pub mod validation_errors {
-        use super::*;
+    impl ValidationError {
+        pub fn body_empty() -> ValidationError {
+            ValidationError {
+                error_code: 100,
+                error_message: "Request body empty".into(),
+            }
+        }
 
-        pub const BODY_EMPTY: ValidationError = ValidationError {
-            error_code: 100,
-            error_message: "Request body empty",
-        };
-        pub const BODY_MEDIA_TYPE_INCORRECT: ValidationError = ValidationError {
-            error_code: 101,
-            error_message: "Request body not correct media type",
-        };
-        pub const APPLICATION_NAME_EMPTY: ValidationError = ValidationError {
-            error_code: 111,
-            error_message: "Application name present but empty",
-        };
-        pub const APPLICATION_NAME_MISSING: ValidationError = ValidationError {
-            error_code: 102,
-            error_message: "Application name required",
-        };
-        pub const APPLICATION_NAME_NOT_A_STRING: ValidationError = ValidationError {
-            error_code: 112,
-            error_message: "Application name not a valid string",
-        };
-        pub const GIT_BRANCH_NAME_EMPTY: ValidationError = ValidationError {
-            error_code: 113,
-            error_message: "Git branch name present but empty",
-        };
-        pub const GIT_BRANCH_NAME_MISSING: ValidationError = ValidationError {
-            error_code: 103,
-            error_message: "Git branch name required",
-        };
-        pub const GIT_BRANCH_NAME_NOT_A_STRING: ValidationError = ValidationError {
-            error_code: 114,
-            error_message: "Git branch name not a valid string",
-        };
-        pub const GIT_COMMIT_HASH_EMPTY: ValidationError = ValidationError {
-            error_code: 115,
-            error_message: "Git commit hash present but empty",
-        };
-        pub const GIT_COMMIT_HASH_MISSING: ValidationError = ValidationError {
-            error_code: 104,
-            error_message: "Git commit hash required",
-        };
-        pub const GIT_COMMIT_HASH_NOT_A_STRING: ValidationError = ValidationError {
-            error_code: 117,
-            error_message: "Git commit hash not a valid string",
-        };
-        pub const GIT_COMMIT_HASH_NOT_VALID: ValidationError = ValidationError {
-            error_code: 116,
-            error_message: "Git commit hash not valid",
-        };
-        pub const TOOL_NAME_EMPTY: ValidationError = ValidationError {
-            error_code: 118,
-            error_message: "Tool name present but empty",
-        };
-        pub const TOOL_NAME_MISSING: ValidationError = ValidationError {
-            error_code: 105,
-            error_message: "Tool name required",
-        };
-        pub const TOOL_NAME_NOT_A_STRING: ValidationError = ValidationError {
-            error_code: 119,
-            error_message: "Tool name not a valid string",
-        };
-        pub const TOOL_OUTPUT_EMPTY: ValidationError = ValidationError {
-            error_code: 120,
-            error_message: "Tool output present but empty",
-        };
-        pub const TOOL_OUTPUT_MISSING: ValidationError = ValidationError {
-            error_code: 106,
-            error_message: "Tool output required",
-        };
-        pub const TOOL_OUTPUT_NOT_A_STRING: ValidationError = ValidationError {
-            error_code: 121,
-            error_message: "Tool output not a valid string",
-        };
-        pub const TOOL_OUTPUT_FORMAT_EMPTY: ValidationError = ValidationError {
-            error_code: 122,
-            error_message: "Tool output format present but empty",
-        };
-        pub const TOOL_OUTPUT_FORMAT_MISSING: ValidationError = ValidationError {
-            error_code: 107,
-            error_message: "Tool output format required",
-        };
-        pub const TOOL_OUTPUT_FORMAT_NOT_A_STRING: ValidationError = ValidationError {
-            error_code: 123,
-            error_message: "Tool output format not a valid string",
-        };
-        pub const TOOL_OUTPUT_FORMAT_INVALID: ValidationError = ValidationError {
-            error_code: 124,
-            error_message: "Tool output format not acceptable",
-        };
-        pub const START_TIME_MISSING: ValidationError = ValidationError {
-            error_code: 108,
-            error_message: "Start time required",
-        };
-        pub const START_TIME_NOT_A_TIMESTAMP: ValidationError = ValidationError {
-            error_code: 125,
-            error_message: "Start time not a valid timestamp",
-        };
-        pub const END_TIME_MISSING: ValidationError = ValidationError {
-            error_code: 109,
-            error_message: "End time required",
-        };
-        pub const END_TIME_NOT_A_TIMESTAMP: ValidationError = ValidationError {
-            error_code: 126,
-            error_message: "End time not a valid timestamp",
-        };
-        pub const ENVIRONMENT_NOT_A_VALID_OPTION: ValidationError = ValidationError {
-            error_code: 128,
-            error_message: "Environment not a valid option",
-        };
-        pub const ENVIRONMENT_MISSING: ValidationError = ValidationError {
-            error_code: 110,
-            error_message: "Environment required",
-        };
-        pub const ENVIRONMENT_NOT_A_STRING: ValidationError = ValidationError {
-            error_code: 127,
-            error_message: "Environment not a valid string",
-        };
-        pub const TOOL_VERSION_NOT_A_STRING: ValidationError = ValidationError {
-            error_code: 130,
-            error_message: "Tool version not a valid string",
-        };
-        pub const TOOL_VERSION_PRESENT_BUT_EMPTY: ValidationError = ValidationError {
-            error_code: 129,
-            error_message: "Tool version present but empty",
-        };
+        pub fn body_media_type_incorrect() -> ValidationError {
+            ValidationError {
+                error_code: 101,
+                error_message: "Request body not correct media type".into(),
+            }
+        }
+
+        pub fn application_name_empty() -> ValidationError {
+            ValidationError {
+                error_code: 111,
+                error_message: "Application name present but empty".into(),
+            }
+        }
+
+        pub fn application_name_missing() -> ValidationError {
+            ValidationError {
+                error_code: 102,
+                error_message: "Application name required".into(),
+            }
+        }
+
+        pub fn application_name_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 112,
+                error_message: "Application name not a valid string".into(),
+            }
+        }
+
+        pub fn git_branch_name_empty() -> ValidationError {
+            ValidationError {
+                error_code: 113,
+                error_message: "Git branch name present but empty".into(),
+            }
+        }
+
+        pub fn git_branch_name_missing() -> ValidationError{
+            ValidationError {
+                error_code: 103,
+                error_message: "Git branch name required".into(),
+            }
+        }
+
+        pub fn git_branch_name_not_a_string() -> ValidationError{
+            ValidationError {
+                error_code: 114,
+                error_message: "Git branch name not a valid string".into(),
+            }
+        }
+
+        pub fn git_commit_hash_empty() -> ValidationError {
+            ValidationError {
+                error_code: 115,
+                error_message: "Git commit hash present but empty".into(),
+            }
+        }
+
+        pub fn git_commit_hash_missing() -> ValidationError {
+            ValidationError {
+                error_code: 104,
+                error_message: "Git commit hash required".into(),
+            }
+        }
+
+        pub fn git_commit_hash_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 117,
+                error_message: "Git commit hash not a valid string".into(),
+            }
+        }
+
+        pub fn git_commit_hash_not_valid() -> ValidationError {
+            ValidationError {
+                error_code: 116,
+                error_message: "Git commit hash not valid".into(),
+            }
+        }
+
+        pub fn tool_name_empty() -> ValidationError {
+            ValidationError {
+                error_code: 118,
+                error_message: "Tool name present but empty".into(),
+            }
+        }
+
+        pub fn tool_name_missing() -> ValidationError {
+            ValidationError {
+                error_code: 105,
+                error_message: "Tool name required".into(),
+            }
+        }
+
+        pub fn tool_name_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 119,
+                error_message: "Tool name not a valid string".into(),
+            }
+        }
+
+        pub fn tool_output_empty() -> ValidationError {
+            ValidationError {
+                error_code: 120,
+                error_message: "Tool output present but empty".into(),
+            }
+        }
+
+        pub fn tool_output_missing() -> ValidationError {
+            ValidationError {
+                error_code: 106,
+                error_message: "Tool output required".into(),
+            }
+        }
+
+        pub fn tool_output_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 121,
+                error_message: "Tool output not a valid string".into(),
+            }
+        }
+
+        pub fn tool_output_format_empty() -> ValidationError {
+            ValidationError {
+                error_code: 122,
+                error_message: "Tool output format present but empty".into(),
+            }
+        }
+
+        pub fn tool_output_format_missing() -> ValidationError {
+            ValidationError {
+                error_code: 107,
+                error_message: "Tool output format required".into(),
+            }
+        }
+
+        pub fn tool_output_format_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 123,
+                error_message: "Tool output format not a valid string".into(),
+            }
+        }
+
+        pub fn tool_output_format_invalid() -> ValidationError {
+            ValidationError {
+                error_code: 124,
+                error_message: "Tool output format not acceptable".into(),
+            }
+        }
+
+        pub fn start_time_missing() -> ValidationError {
+            ValidationError {
+                error_code: 108,
+                error_message: "Start time required".into(),
+            }
+        }
+
+        pub fn start_time_not_a_timestamp() -> ValidationError {
+            ValidationError {
+                error_code: 125,
+                error_message: "Start time not a valid timestamp".into(),
+            }
+        }
+
+        pub fn end_time_missing() -> ValidationError {
+            ValidationError {
+                error_code: 109,
+                error_message: "End time required".into(),
+            }
+        }
+
+        pub fn end_time_not_a_timestamp() -> ValidationError {
+            ValidationError {
+                error_code: 126,
+                error_message: "End time not a valid timestamp".into(),
+            }
+        }
+
+        pub fn environment_not_a_valid_option() -> ValidationError {
+            ValidationError {
+                error_code: 128,
+                error_message: "Environment not a valid option".into(),
+            }
+        }
+
+        pub fn environment_missing() -> ValidationError {
+            ValidationError {
+                error_code: 110,
+                error_message: "Environment required".into(),
+            }
+        }
+
+        pub fn environment_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 127,
+                error_message: "Environment not a valid string".into(),
+            }
+        }
+
+        pub fn tool_version_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 130,
+                error_message: "Tool version not a valid string".into(),
+            }
+        }
+
+        pub fn tool_version_present_but_empty() -> ValidationError {
+            ValidationError {
+                error_code: 129,
+                error_message: "Tool version present but empty".into(),
+            }
+        }
     }
 
-    impl IntoResponse for ValidationError<'_> {
+    impl IntoResponse for ValidationError {
         fn into_response(self) -> Response<Body> {
             Response::builder()
                 .status(StatusCode::BAD_REQUEST)
@@ -157,7 +247,7 @@ pub mod tool_report {
     // one could implement TryFrom with their own validation?
     //
     // Each field's validation should be tested here
-    use crate::validation::{ValidationError, validation_errors};
+    use crate::validation::ValidationError;
 
     use std::convert::TryFrom;
 
@@ -194,7 +284,7 @@ pub mod tool_report {
     }
 
     impl TryFrom<&Value> for ToolReport {
-        type Error = ValidationError<'static>;
+        type Error = ValidationError;
 
         fn try_from(json_value: &Value) -> Result<Self, Self::Error> {
             let application_name = ToolReport::parse_application_name(json_value)?;
@@ -223,145 +313,145 @@ pub mod tool_report {
     }
 
     impl ToolReport {
-        fn parse_application_name(json_value: &Value) -> Result<String, ValidationError<'static>> {
+        fn parse_application_name(json_value: &Value) -> Result<String, ValidationError> {
             let value = match &json_value["application_name"] {
-                Value::Null => Err(validation_errors::APPLICATION_NAME_MISSING),
+                Value::Null => Err(ValidationError::application_name_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::APPLICATION_NAME_NOT_A_STRING),
+                _ => Err(ValidationError::application_name_not_a_string()),
             }?;
             if value.is_empty() {
-                Err(validation_errors::APPLICATION_NAME_EMPTY)
+                Err(ValidationError::application_name_empty())
             } else {
                 Ok(value.into())
             }
         }
 
-        fn parse_git_branch(json_value: &Value) -> Result<String, ValidationError<'static>> {
+        fn parse_git_branch(json_value: &Value) -> Result<String, ValidationError> {
             let value = match &json_value["git_branch"] {
-                Value::Null => Err(validation_errors::GIT_BRANCH_NAME_MISSING),
+                Value::Null => Err(ValidationError::git_branch_name_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::GIT_BRANCH_NAME_NOT_A_STRING),
+                _ => Err(ValidationError::git_branch_name_not_a_string()),
             }?;
             if value.is_empty() {
-                Err(validation_errors::GIT_BRANCH_NAME_EMPTY)
+                Err(ValidationError::git_branch_name_empty())
             } else {
                 Ok(value.into())
             }
         }
 
-        fn parse_git_commit_hash(json_value: &Value) -> Result<String, ValidationError<'static>> {
+        fn parse_git_commit_hash(json_value: &Value) -> Result<String, ValidationError> {
             let value = match &json_value["git_commit_hash"] {
-                Value::Null => Err(validation_errors::GIT_COMMIT_HASH_MISSING),
+                Value::Null => Err(ValidationError::git_commit_hash_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::GIT_COMMIT_HASH_NOT_A_STRING),
+                _ => Err(ValidationError::git_commit_hash_not_a_string()),
             }?;
             if value.is_empty() {
-                return Err(validation_errors::GIT_COMMIT_HASH_EMPTY);
+                return Err(ValidationError::git_commit_hash_empty());
             };
 
             let re = Regex::new(r"^[0-9a-fA-F]{40}$").unwrap();
             if re.is_match(value) {
                 Ok(value.into())
             } else {
-                Err(validation_errors::GIT_COMMIT_HASH_NOT_VALID)
+                Err(ValidationError::git_commit_hash_not_valid())
             }
         }
 
-        fn parse_tool_name(json_value: &Value) -> Result<String, ValidationError<'static>> {
+        fn parse_tool_name(json_value: &Value) -> Result<String, ValidationError> {
             let value = match &json_value["tool_name"] {
-                Value::Null => Err(validation_errors::TOOL_NAME_MISSING),
+                Value::Null => Err(ValidationError::tool_name_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::TOOL_NAME_NOT_A_STRING),
+                _ => Err(ValidationError::tool_name_not_a_string()),
             }?;
             if value.is_empty() {
-                Err(validation_errors::TOOL_NAME_EMPTY)
+                Err(ValidationError::tool_name_empty())
             } else {
                 Ok(value.into())
             }
         }
 
-        fn parse_tool_output(json_value: &Value) -> Result<String, ValidationError<'static>> {
+        fn parse_tool_output(json_value: &Value) -> Result<String, ValidationError> {
             let value = match &json_value["tool_output"] {
-                Value::Null => Err(validation_errors::TOOL_OUTPUT_MISSING),
+                Value::Null => Err(ValidationError::tool_output_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::TOOL_OUTPUT_NOT_A_STRING),
+                _ => Err(ValidationError::tool_output_not_a_string()),
             }?;
             if value.is_empty() {
-                Err(validation_errors::TOOL_OUTPUT_EMPTY)
+                Err(ValidationError::tool_output_empty())
             } else {
                 Ok(value.into())
             }
         }
 
-        fn parse_output_format(json_value: &Value) -> Result<OutputFormat, ValidationError<'static>> {
+        fn parse_output_format(json_value: &Value) -> Result<OutputFormat, ValidationError> {
             let value = match &json_value["output_format"] {
-                Value::Null => Err(validation_errors::TOOL_OUTPUT_FORMAT_MISSING),
+                Value::Null => Err(ValidationError::tool_output_format_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::TOOL_OUTPUT_FORMAT_NOT_A_STRING),
+                _ => Err(ValidationError::tool_output_format_not_a_string()),
             }?;
             if value.is_empty() {
-                return Err(validation_errors::TOOL_OUTPUT_FORMAT_EMPTY);
+                return Err(ValidationError::tool_output_format_empty());
             };
 
             match value.as_ref() {
                 "Json" => Ok(OutputFormat::JSON),
                 "PlainText" => Ok(OutputFormat::PlainText),
-                _ => Err(validation_errors::TOOL_OUTPUT_FORMAT_INVALID),
+                _ => Err(ValidationError::tool_output_format_invalid()),
             }
         }
 
         fn parse_tool_start_time(
             json_value: &Value,
-        ) -> Result<DateTime<Utc>, ValidationError<'static>> {
+        ) -> Result<DateTime<Utc>, ValidationError> {
             let value = match &json_value["start_time"] {
-                Value::Null => Err(validation_errors::START_TIME_MISSING),
+                Value::Null => Err(ValidationError::start_time_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::START_TIME_NOT_A_TIMESTAMP),
+                _ => Err(ValidationError::start_time_not_a_timestamp()),
             }?;
 
             DateTime::parse_from_rfc3339(value)
                 .map(DateTime::<Utc>::from)
-                .map_err(|_| validation_errors::START_TIME_NOT_A_TIMESTAMP)
+                .map_err(|_| ValidationError::start_time_not_a_timestamp())
         }
 
-        fn parse_tool_end_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError<'static>> {
+        fn parse_tool_end_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError> {
             let value = match &json_value["end_time"] {
-                Value::Null => Err(validation_errors::END_TIME_MISSING),
+                Value::Null => Err(ValidationError::end_time_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::END_TIME_NOT_A_TIMESTAMP),
+                _ => Err(ValidationError::end_time_not_a_timestamp()),
             }?;
 
             DateTime::parse_from_rfc3339(value)
                 .map(DateTime::<Utc>::from)
-                .map_err(|_| validation_errors::END_TIME_NOT_A_TIMESTAMP)
+                .map_err(|_| ValidationError::end_time_not_a_timestamp())
         }
 
-        fn parse_environment(json_value: &Value) -> Result<Environment, ValidationError<'static>> {
+        fn parse_environment(json_value: &Value) -> Result<Environment, ValidationError> {
             let value = match &json_value["environment"] {
-                Value::Null => Err(validation_errors::ENVIRONMENT_MISSING),
+                Value::Null => Err(ValidationError::environment_missing()),
                 Value::String(value) => Ok(value),
-                _ => Err(validation_errors::ENVIRONMENT_NOT_A_STRING),
+                _ => Err(ValidationError::environment_not_a_string()),
             }?;
 
             match value.as_ref() {
                 "Local" => Ok(Environment::Local),
                 "CI" => Ok(Environment::CI),
-                _ => Err(validation_errors::ENVIRONMENT_NOT_A_VALID_OPTION),
+                _ => Err(ValidationError::environment_not_a_valid_option()),
             }
         }
 
-        fn parse_tool_version(json_value: &Value) -> Result<Option<String>, ValidationError<'static>> {
+        fn parse_tool_version(json_value: &Value) -> Result<Option<String>, ValidationError> {
             let value = match &json_value["tool_version"] {
                 Value::Null => Ok(None),
                 Value::String(value) => Ok(Some(value.to_owned())),
-                _ => Err(validation_errors::TOOL_VERSION_NOT_A_STRING),
+                _ => Err(ValidationError::tool_version_not_a_string()),
             }?;
 
             match value {
                 None => Ok(None),
                 Some(value) => {
                     if value.is_empty() {
-                        Err(validation_errors::TOOL_VERSION_PRESENT_BUT_EMPTY)
+                        Err(ValidationError::tool_version_present_but_empty())
                     } else {
                         Ok(Some(value))
                     }
