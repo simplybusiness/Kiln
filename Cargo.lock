@@ -141,6 +141,7 @@ dependencies = [
 name = "data-collector"
 version = "0.1.0"
 dependencies = [
+ "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "kiln_lib 0.1.0 (git+https://github.com/simplybusiness/Kiln?branch=refactor-collector)",
  "lambda_http 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -330,7 +331,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.1.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=refactor-collector#4da65fa6f85a0ba61e9f7cf15d9675a0e0c37336"
+source = "git+https://github.com/simplybusiness/Kiln?branch=refactor-collector#66385994785d34f2c21d0c87763d0349b768391f"
 dependencies = [
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",

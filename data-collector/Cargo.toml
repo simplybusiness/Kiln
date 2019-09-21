@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+chrono = "0.4"
 lambda_runtime = "0.2"
 lambda_http = "0.1"
 http = "0.1"
