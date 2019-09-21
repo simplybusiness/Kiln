@@ -3,7 +3,7 @@ use lambda_http::{lambda, Body, IntoResponse, Request, Response};
 use lambda_runtime::{error::HandlerError, Context};
 use std::convert::TryFrom;
 
-use kiln_lib::validation::validation_errors;
+use kiln_lib::validation::{ValidationError, validation_errors};
 use kiln_lib::tool_report::ToolReport;
 
 fn main() {
@@ -11,17 +11,7 @@ fn main() {
 }
 
 fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
-    let body = req.body();
-    let report = match body {
-        Body::Empty => Err(validation_errors::BODY_EMPTY),
-        Body::Binary(_) => Err(validation_errors::BODY_MEDIA_TYPE_INCORRECT),
-        Body::Text(body_text) => Ok(body_text),
-    }
-    .and_then(|body_text| {
-        serde_json::from_str(&body_text).map_err(|_| validation_errors::BODY_MEDIA_TYPE_INCORRECT)
-    })
-    .and_then(|json| ToolReport::try_from(&json));
-
+    let report = parse_request(&req);
     match report {
         Ok(_) => Ok(Response::builder()
             .status(StatusCode::OK)
@@ -31,6 +21,18 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
     }
 }
 
+pub fn parse_request(req: &Request) -> Result<ToolReport, ValidationError<'static>> {
+    let body = req.body();
+    match body {
+        Body::Empty => Err(validation_errors::BODY_EMPTY),
+        Body::Binary(_) => Err(validation_errors::BODY_MEDIA_TYPE_INCORRECT),
+        Body::Text(body_text) => Ok(body_text),
+    }
+    .and_then(|body_text| {
+        serde_json::from_str(&body_text).map_err(|_| validation_errors::BODY_MEDIA_TYPE_INCORRECT)
+    })
+    .and_then(|json| ToolReport::try_from(&json))
+}
 
 #[cfg(test)]
 mod tests {
