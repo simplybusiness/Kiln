@@ -257,7 +257,7 @@ pub mod tool_report {
     use regex::Regex;
 
     #[allow(dead_code)]
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     pub struct ToolReport {
         pub application_name: String,
         pub git_branch: String,
@@ -271,13 +271,13 @@ pub mod tool_report {
         pub tool_version: Option<String>,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     pub enum OutputFormat {
         JSON,
         PlainText,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     pub enum Environment {
         Local,
         CI,
