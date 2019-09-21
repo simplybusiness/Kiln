@@ -149,6 +149,14 @@ pub mod validation {
 }
 
 pub mod tool_report {
+    // This should have a separation of JSON validation and business logic validation. This is a
+    // present and a string -> JSON validation, this is a non-empty string or a string that parses
+    // to a DateTime -> Business logic validation and should be extracted to be re-used
+    //
+    // Should these types all become newtype's wrapping an owned String to enforce validation. Each
+    // one could implement TryFrom with their own validation?
+    //
+    // Each field's validation should be tested here
     use crate::validation::{ValidationError, validation_errors};
 
     use std::convert::TryFrom;

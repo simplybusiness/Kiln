@@ -36,6 +36,10 @@ pub fn parse_request(req: &Request) -> Result<ToolReport, ValidationError<'stati
 
 #[cfg(test)]
 mod tests {
+    // Handler should be tested for an invalid request generating a 400 response with the right
+    // body and 200 OK with right body with valid request
+    //
+    // parse_request should test empty body, binary body, XML body, and valid body
     use super::*;
 
     use http::status::StatusCode;
