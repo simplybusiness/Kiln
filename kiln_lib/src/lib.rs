@@ -523,233 +523,379 @@ pub mod tool_report {
         // validation
         use super::*;
 
-        #[test]
-        fn try_from_returns_error_when_application_name_missing() {
-            let message = serde_json::from_str(r#"{
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
+        pub mod tool_report {
+            use super::*;
 
-            let expected = ValidationError::application_name_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+            #[test]
+            fn try_from_returns_error_when_application_name_missing() {
+                let message = serde_json::from_str(r#"{
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
 
-            assert_eq!(expected, actual);
-        }
+                let expected = ValidationError::application_name_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
 
-        #[test]
-        fn try_from_returns_error_when_git_branch_missing() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-            let expected = ValidationError::git_branch_name_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+                assert_eq!(expected, actual);
+            }
 
-            assert_eq!(expected, actual);
-        }
+            #[test]
+            fn try_from_returns_error_when_git_branch_missing() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
+                let expected = ValidationError::git_branch_name_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
 
-        #[test]
-        fn try_from_returns_error_when_git_commit_hash_missing() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
+                assert_eq!(expected, actual);
+            }
 
-            let expected = ValidationError::git_commit_hash_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+            #[test]
+            fn try_from_returns_error_when_git_commit_hash_missing() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
 
-            assert_eq!(expected, actual);
-        }
+                let expected = ValidationError::git_commit_hash_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
 
-        #[test]
-        fn try_from_returns_error_when_tool_name_missing() {
-            let message =serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
+                assert_eq!(expected, actual);
+            }
 
-            let expected = ValidationError::tool_name_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+            #[test]
+            fn try_from_returns_error_when_tool_name_missing() {
+                let message =serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
 
-            assert_eq!(expected, actual);
-        }
+                let expected = ValidationError::tool_name_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
 
-        #[test]
-        fn try_from_returns_error_when_tool_output_missing() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
+                assert_eq!(expected, actual);
+            }
 
-            let expected = ValidationError::tool_output_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+            #[test]
+            fn try_from_returns_error_when_tool_output_missing() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
 
-            assert_eq!(expected, actual);
-        }
+                let expected = ValidationError::tool_output_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
 
-        #[test]
-        fn try_from_returns_error_when_tool_output_format_missing() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
+                assert_eq!(expected, actual);
+            }
 
-            let expected = ValidationError::tool_output_format_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+            #[test]
+            fn try_from_returns_error_when_tool_output_format_missing() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
 
-            assert_eq!(expected, actual);
-        }
+                let expected = ValidationError::tool_output_format_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
 
-        #[test]
-        fn try_from_returns_error_when_start_time_missing() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
+                assert_eq!(expected, actual);
+            }
 
-            let expected = ValidationError::start_time_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+            #[test]
+            fn try_from_returns_error_when_start_time_missing() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
 
-            assert_eq!(expected, actual);
-        }
+                let expected = ValidationError::start_time_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
 
-        #[test]
-        fn try_from_returns_error_when_end_time_missing() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
+                assert_eq!(expected, actual);
+            }
 
-            let expected = ValidationError::end_time_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+            #[test]
+            fn try_from_returns_error_when_end_time_missing() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
 
-            assert_eq!(expected, actual);
-        }
+                let expected = ValidationError::end_time_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
 
-        #[test]
-        fn try_from_returns_error_when_environment_missing() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "tool_version": "1.0"
-            }"#).unwrap();
+                assert_eq!(expected, actual);
+            }
 
-            let expected = ValidationError::environment_missing();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
+            #[test]
+            fn try_from_returns_error_when_environment_missing() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "tool_version": "1.0"
+                }"#).unwrap();
 
-            assert_eq!(expected, actual);
+                let expected = ValidationError::environment_missing();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
+
+            #[test]
+            fn try_from_returns_error_when_application_name_not_a_string() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": false,
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
+
+                let expected = ValidationError::application_name_not_a_string();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
+
+            #[test]
+            fn try_from_returns_error_when_git_branch_name_not_a_string() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": false,
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
+
+                let expected = ValidationError::git_branch_name_not_a_string();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
+
+            #[test]
+            fn try_from_returns_error_when_git_commit_hash_not_a_string() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": false,
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
+
+                let expected = ValidationError::git_commit_hash_not_a_string();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
+
+            #[test]
+            fn try_from_returns_error_when_tool_name_not_a_string() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": false,
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
+
+                let expected = ValidationError::tool_name_not_a_string();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
+
+            #[test]
+            fn try_from_returns_error_when_tool_output_format_not_a_string() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": false,
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
+
+                let expected = ValidationError::tool_output_format_not_a_string();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
+
+            #[test]
+            fn try_from_returns_error_when_environment_not_a_string() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": false,
+                    "tool_version": "1.0"
+                }"#).unwrap();
+
+                let expected = ValidationError::environment_not_a_string();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
+
+            #[test]
+            fn try_from_returns_error_when_tool_version_present_but_not_a_string() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": false
+                }"#).unwrap();
+
+                let expected = ValidationError::tool_version_not_a_string();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
+
+            #[test]
+            fn try_from_returns_error_when_tool_output_not_a_string() {
+                let message = serde_json::from_str(r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": false,
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#).unwrap();
+
+                let expected = ValidationError::tool_output_not_a_string();
+                let actual = ToolReport::try_from(&message)
+                    .expect_err("expected Err(_) value");
+
+                assert_eq!(expected, actual);
+            }
         }
 
         #[test]
         fn try_from_returns_error_when_application_name_empty() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
+            let message = "".to_owned();
             let expected = ValidationError::application_name_empty();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
-
-            assert_eq!(expected, actual);
-        }
-
-        #[test]
-        fn try_from_returns_error_when_application_name_not_a_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": false,
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
-            let expected = ValidationError::application_name_not_a_string();
-            let actual = ToolReport::try_from(&message)
+            let actual = ApplicationName::try_from(message)
                 .expect_err("expected Err(_) value");
 
             assert_eq!(expected, actual);
@@ -757,43 +903,9 @@ pub mod tool_report {
 
         #[test]
         fn try_from_returns_error_when_git_branch_name_empty() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
+            let message = "".to_owned();
             let expected = ValidationError::git_branch_name_empty();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
-
-            assert_eq!(expected, actual);
-        }
-
-        #[test]
-        fn try_from_returns_error_when_git_branch_name_not_a_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": false,
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
-            let expected = ValidationError::git_branch_name_not_a_string();
-            let actual = ToolReport::try_from(&message)
+            let actual = GitBranch::try_from(message)
                 .expect_err("expected Err(_) value");
 
             assert_eq!(expected, actual);
@@ -801,21 +913,9 @@ pub mod tool_report {
 
         #[test]
         fn try_from_returns_error_when_git_commit_hash_empty() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
+            let message = "".to_owned();
             let expected = ValidationError::git_commit_hash_empty();
-            let actual = ToolReport::try_from(&message)
+            let actual = GitCommitHash::try_from(message)
                 .expect_err("expected Err(_) value");
 
             assert_eq!(expected, actual);
@@ -823,43 +923,9 @@ pub mod tool_report {
 
         #[test]
         fn try_from_returns_error_when_git_commit_hash_not_valid_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "zzz",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
+            let message = "zzz".to_owned();
             let expected = ValidationError::git_commit_hash_not_valid();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
-
-            assert_eq!(expected, actual);
-        }
-
-        #[test]
-        fn try_from_returns_error_when_git_commit_hash_not_a_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": false,
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
-            let expected = ValidationError::git_commit_hash_not_a_string();
-            let actual = ToolReport::try_from(&message)
+            let actual = GitCommitHash::try_from(message)
                 .expect_err("expected Err(_) value");
 
             assert_eq!(expected, actual);
@@ -867,43 +933,9 @@ pub mod tool_report {
 
         #[test]
         fn try_from_returns_error_when_tool_name_empty() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
+            let message = "".to_owned();
             let expected = ValidationError::tool_name_empty();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
-
-            assert_eq!(expected, actual);
-        }
-
-        #[test]
-        fn try_from_returns_error_when_tool_name_not_a_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": false,
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
-            let expected = ValidationError::tool_name_not_a_string();
-            let actual = ToolReport::try_from(&message)
+            let actual = ToolName::try_from(message)
                 .expect_err("expected Err(_) value");
 
             assert_eq!(expected, actual);
@@ -911,47 +943,14 @@ pub mod tool_report {
 
         #[test]
         fn try_from_returns_error_when_tool_output_empty() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
+            let message = "".to_owned();
             let expected = ValidationError::tool_output_empty();
-            let actual = ToolReport::try_from(&message)
+            let actual = ToolOutput::try_from(message)
                 .expect_err("expected Err(_) value");
 
             assert_eq!(expected, actual);
         }
 
-        #[test]
-        fn try_from_returns_error_when_tool_output_not_a_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": false,
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
-            let expected = ValidationError::tool_output_not_a_string();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
-
-            assert_eq!(expected, actual);
-        }
 
         #[test]
         fn try_from_returns_error_when_tool_output_format_empty() {
@@ -969,28 +968,6 @@ pub mod tool_report {
             }"#).unwrap();
 
             let expected = ValidationError::tool_output_format_empty();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
-
-            assert_eq!(expected, actual);
-        }
-
-        #[test]
-        fn try_from_returns_error_when_tool_output_format_not_a_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": false,
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": "1.0"
-            }"#).unwrap();
-
-            let expected = ValidationError::tool_output_format_not_a_string();
             let actual = ToolReport::try_from(&message)
                 .expect_err("expected Err(_) value");
 
@@ -1062,29 +1039,7 @@ pub mod tool_report {
 
             assert_eq!(expected, actual);
         }
-
-        #[test]
-        fn try_from_returns_error_when_environment_not_a_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": false,
-                "tool_version": "1.0"
-            }"#).unwrap();
-
-            let expected = ValidationError::environment_not_a_string();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
-
-            assert_eq!(expected, actual);
-        }
-
+        
         #[test]
         fn try_from_returns_error_when_environment_not_a_valid_option() {
             let message = serde_json::from_str(r#"{
@@ -1123,28 +1078,6 @@ pub mod tool_report {
             }"#).unwrap();
 
             let expected = ValidationError::tool_version_present_but_empty();
-            let actual = ToolReport::try_from(&message)
-                .expect_err("expected Err(_) value");
-
-            assert_eq!(expected, actual);
-        }
-
-        #[test]
-        fn try_from_returns_error_when_tool_version_present_but_not_a_string() {
-            let message = serde_json::from_str(r#"{
-                "application_name": "Test application",
-                "git_branch": "master",
-                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                "tool_name": "example tool",
-                "tool_output": "{}",
-                "output_format": "Json",
-                "start_time": "2019-09-13T19:35:38+00:00",
-                "end_time": "2019-09-13T19:37:14+00:00",
-                "environment": "Local",
-                "tool_version": false
-            }"#).unwrap();
-
-            let expected = ValidationError::tool_version_not_a_string();
             let actual = ToolReport::try_from(&message)
                 .expect_err("expected Err(_) value");
 
