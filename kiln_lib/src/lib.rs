@@ -262,13 +262,13 @@ pub mod tool_report {
         pub application_name: ApplicationName,
         pub git_branch: GitBranch,
         pub git_commit_hash: GitCommitHash,
-        pub tool_name: String,
-        pub tool_output: String,
+        pub tool_name: ToolName,
+        pub tool_output: ToolOutput,
         pub output_format: OutputFormat,
         pub start_time: DateTime<Utc>,
         pub end_time: DateTime<Utc>,
         pub environment: Environment,
-        pub tool_version: Option<String>,
+        pub tool_version:ToolVersion
     }
 
     #[derive(Debug, PartialEq)]
@@ -279,7 +279,7 @@ pub mod tool_report {
 
         fn try_from(value: String) -> Result<Self, Self::Error> {
             if value.is_empty() {
-                return Err(ValidationError::application_name_empty())
+                Err(ValidationError::application_name_empty())
             } else {
                 Ok(ApplicationName(value))
             }
@@ -294,7 +294,7 @@ pub mod tool_report {
 
         fn try_from(value: String) -> Result<Self, Self::Error> {
             if value.is_empty() {
-                return Err(ValidationError::git_branch_name_empty())
+                Err(ValidationError::git_branch_name_empty())
             } else {
                 Ok(GitBranch(value))
             }
@@ -314,9 +314,59 @@ pub mod tool_report {
 
             let re = Regex::new(r"^[0-9a-fA-F]{40}$").unwrap();
             if re.is_match(&value) {
-                Ok(GitCommitHash(value.to_owned()))
+                Ok(GitCommitHash(value))
             } else {
                 Err(ValidationError::git_commit_hash_not_valid())
+            }
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
+    pub struct ToolName(pub String);
+
+    impl TryFrom<String> for ToolName{
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            if value.is_empty() {
+                Err(ValidationError::tool_name_empty())
+            } else {
+                Ok(ToolName(value))
+            }
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
+    pub struct ToolOutput(pub String);
+
+    impl TryFrom<String> for ToolOutput {
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            if value.is_empty() {
+                Err(ValidationError::tool_output_empty())
+            } else {
+                Ok(ToolOutput(value))
+            }
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
+    pub struct ToolVersion(pub Option<String>);
+
+    impl TryFrom<Option<String>> for ToolVersion {
+        type Error = ValidationError;
+
+        fn try_from(value: Option<String>) -> Result<Self, Self::Error> {
+            match value {
+                None => Ok(ToolVersion(None)),
+                Some(value) => {
+                    if value.is_empty() {
+                        Err(ValidationError::tool_version_present_but_empty())
+                    } else {
+                        Ok(ToolVersion(Some(value)))
+                    }
+                }
             }
         }
     }
@@ -390,30 +440,22 @@ pub mod tool_report {
             GitCommitHash::try_from(value.to_owned())
         }
 
-        fn parse_tool_name(json_value: &Value) -> Result<String, ValidationError> {
+        fn parse_tool_name(json_value: &Value) -> Result<ToolName, ValidationError> {
             let value = match &json_value["tool_name"] {
                 Value::Null => Err(ValidationError::tool_name_missing()),
                 Value::String(value) => Ok(value),
                 _ => Err(ValidationError::tool_name_not_a_string()),
             }?;
-            if value.is_empty() {
-                Err(ValidationError::tool_name_empty())
-            } else {
-                Ok(value.into())
-            }
+            ToolName::try_from(value.to_owned())
         }
 
-        fn parse_tool_output(json_value: &Value) -> Result<String, ValidationError> {
+        fn parse_tool_output(json_value: &Value) -> Result<ToolOutput, ValidationError> {
             let value = match &json_value["tool_output"] {
                 Value::Null => Err(ValidationError::tool_output_missing()),
                 Value::String(value) => Ok(value),
                 _ => Err(ValidationError::tool_output_not_a_string()),
             }?;
-            if value.is_empty() {
-                Err(ValidationError::tool_output_empty())
-            } else {
-                Ok(value.into())
-            }
+            ToolOutput::try_from(value.to_owned())
         }
 
         fn parse_output_format(json_value: &Value) -> Result<OutputFormat, ValidationError> {
@@ -473,23 +515,13 @@ pub mod tool_report {
             }
         }
 
-        fn parse_tool_version(json_value: &Value) -> Result<Option<String>, ValidationError> {
+        fn parse_tool_version(json_value: &Value) -> Result<ToolVersion, ValidationError> {
             let value = match &json_value["tool_version"] {
                 Value::Null => Ok(None),
                 Value::String(value) => Ok(Some(value.to_owned())),
                 _ => Err(ValidationError::tool_version_not_a_string()),
             }?;
-
-            match value {
-                None => Ok(None),
-                Some(value) => {
-                    if value.is_empty() {
-                        Err(ValidationError::tool_version_present_but_empty())
-                    } else {
-                        Ok(Some(value))
-                    }
-                }
-            }
+            ToolVersion::try_from(value)
         }
     }
 
