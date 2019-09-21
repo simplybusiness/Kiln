@@ -260,7 +260,7 @@ pub mod tool_report {
     #[derive(Debug, PartialEq)]
     pub struct ToolReport {
         pub application_name: ApplicationName,
-        pub git_branch: String,
+        pub git_branch: GitBranch,
         pub git_commit_hash: String,
         pub tool_name: String,
         pub tool_output: String,
@@ -282,6 +282,21 @@ pub mod tool_report {
                 return Err(ValidationError::application_name_empty())
             } else {
                 Ok(ApplicationName(value))
+            }
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
+    pub struct GitBranch(pub String);
+    
+    impl TryFrom<String> for GitBranch{
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            if value.is_empty() {
+                return Err(ValidationError::git_branch_name_empty())
+            } else {
+                Ok(GitBranch(value))
             }
         }
     }
@@ -337,17 +352,13 @@ pub mod tool_report {
             ApplicationName::try_from(value.to_owned())
         }
 
-        fn parse_git_branch(json_value: &Value) -> Result<String, ValidationError> {
+        fn parse_git_branch(json_value: &Value) -> Result<GitBranch, ValidationError> {
             let value = match &json_value["git_branch"] {
                 Value::Null => Err(ValidationError::git_branch_name_missing()),
                 Value::String(value) => Ok(value),
                 _ => Err(ValidationError::git_branch_name_not_a_string()),
             }?;
-            if value.is_empty() {
-                Err(ValidationError::git_branch_name_empty())
-            } else {
-                Ok(value.into())
-            }
+            GitBranch::try_from(value.to_owned())
         }
 
         fn parse_git_commit_hash(json_value: &Value) -> Result<String, ValidationError> {
