@@ -259,7 +259,7 @@ pub mod tool_report {
     #[allow(dead_code)]
     #[derive(Debug, PartialEq)]
     pub struct ToolReport {
-        pub application_name: String,
+        pub application_name: ApplicationName,
         pub git_branch: String,
         pub git_commit_hash: String,
         pub tool_name: String,
@@ -269,6 +269,21 @@ pub mod tool_report {
         pub end_time: DateTime<Utc>,
         pub environment: Environment,
         pub tool_version: Option<String>,
+    }
+
+    #[derive(Debug, PartialEq)]
+    pub struct ApplicationName(pub String);
+
+    impl TryFrom<String> for ApplicationName {
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            if value.is_empty() {
+                return Err(ValidationError::application_name_empty())
+            } else {
+                Ok(ApplicationName(value))
+            }
+        }
     }
 
     #[derive(Debug, PartialEq)]
@@ -313,17 +328,13 @@ pub mod tool_report {
     }
 
     impl ToolReport {
-        fn parse_application_name(json_value: &Value) -> Result<String, ValidationError> {
+        fn parse_application_name(json_value: &Value) -> Result<ApplicationName, ValidationError> {
             let value = match &json_value["application_name"] {
                 Value::Null => Err(ValidationError::application_name_missing()),
                 Value::String(value) => Ok(value),
                 _ => Err(ValidationError::application_name_not_a_string()),
             }?;
-            if value.is_empty() {
-                Err(ValidationError::application_name_empty())
-            } else {
-                Ok(value.into())
-            }
+            ApplicationName::try_from(value.to_owned())
         }
 
         fn parse_git_branch(json_value: &Value) -> Result<String, ValidationError> {
