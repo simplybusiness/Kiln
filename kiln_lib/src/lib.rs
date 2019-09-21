@@ -3,7 +3,7 @@ pub mod validation {
     use http::status::StatusCode;
     use serde::Serialize;
 
-    #[derive(Debug, Serialize)]
+    #[derive(Debug, PartialEq, Serialize)]
     pub struct ValidationError<'a> {
         pub error_code: u8,
         pub error_message: &'a str,
@@ -167,6 +167,7 @@ pub mod tool_report {
     use regex::Regex;
 
     #[allow(dead_code)]
+    #[derive(Debug)]
     pub struct ToolReport {
         application_name: String,
         git_branch: String,
@@ -180,11 +181,13 @@ pub mod tool_report {
         tool_version: Option<String>,
     }
 
+    #[derive(Debug)]
     pub enum OutputFormat {
         JSON,
         PlainText,
     }
 
+    #[derive(Debug)]
     pub enum Environment {
         Local,
         CI,
