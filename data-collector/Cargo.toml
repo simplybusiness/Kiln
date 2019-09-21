@@ -7,6 +7,6 @@ edition = "2018"
 lambda_runtime = "0.2"
 lambda_http = "0.1"
 http = "0.1"
-kiln_lib = { path = "../kiln_lib" }
-serde_json = "1.0"
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln" }
+serde_json = "2.0"
 serde = { version = "1.0", features = ["derive"] }

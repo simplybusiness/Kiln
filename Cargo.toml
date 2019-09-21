@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "data-collector",
+    "kiln_lib"
+]
