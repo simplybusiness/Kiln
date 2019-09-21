@@ -272,7 +272,7 @@ pub mod tool_report {
     }
 
     #[derive(Debug, PartialEq)]
-    pub struct ApplicationName(pub String);
+    pub struct ApplicationName(String);
 
     impl TryFrom<String> for ApplicationName {
         type Error = ValidationError;
@@ -287,7 +287,7 @@ pub mod tool_report {
     }
 
     #[derive(Debug, PartialEq)]
-    pub struct GitBranch(pub String);
+    pub struct GitBranch(String);
     
     impl TryFrom<String> for GitBranch{
         type Error = ValidationError;
@@ -302,7 +302,7 @@ pub mod tool_report {
     }
 
     #[derive(Debug, PartialEq)]
-    pub struct GitCommitHash(pub String);
+    pub struct GitCommitHash(String);
 
     impl TryFrom<String> for GitCommitHash {
         type Error = ValidationError;
@@ -322,7 +322,7 @@ pub mod tool_report {
     }
 
     #[derive(Debug, PartialEq)]
-    pub struct ToolName(pub String);
+    pub struct ToolName(String);
 
     impl TryFrom<String> for ToolName{
         type Error = ValidationError;
@@ -337,7 +337,7 @@ pub mod tool_report {
     }
 
     #[derive(Debug, PartialEq)]
-    pub struct ToolOutput(pub String);
+    pub struct ToolOutput(String);
 
     impl TryFrom<String> for ToolOutput {
         type Error = ValidationError;
@@ -352,7 +352,7 @@ pub mod tool_report {
     }
 
     #[derive(Debug, PartialEq)]
-    pub struct ToolVersion(pub Option<String>);
+    pub struct ToolVersion(Option<String>);
 
     impl TryFrom<Option<String>> for ToolVersion {
         type Error = ValidationError;
