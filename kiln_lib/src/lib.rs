@@ -261,7 +261,7 @@ pub mod tool_report {
     pub struct ToolReport {
         pub application_name: ApplicationName,
         pub git_branch: GitBranch,
-        pub git_commit_hash: String,
+        pub git_commit_hash: GitCommitHash,
         pub tool_name: String,
         pub tool_output: String,
         pub output_format: OutputFormat,
@@ -297,6 +297,26 @@ pub mod tool_report {
                 return Err(ValidationError::git_branch_name_empty())
             } else {
                 Ok(GitBranch(value))
+            }
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
+    pub struct GitCommitHash(pub String);
+
+    impl TryFrom<String> for GitCommitHash {
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            if value.is_empty() {
+                return Err(ValidationError::git_commit_hash_empty());
+            };
+
+            let re = Regex::new(r"^[0-9a-fA-F]{40}$").unwrap();
+            if re.is_match(&value) {
+                Ok(GitCommitHash(value.to_owned()))
+            } else {
+                Err(ValidationError::git_commit_hash_not_valid())
             }
         }
     }
@@ -361,22 +381,13 @@ pub mod tool_report {
             GitBranch::try_from(value.to_owned())
         }
 
-        fn parse_git_commit_hash(json_value: &Value) -> Result<String, ValidationError> {
+        fn parse_git_commit_hash(json_value: &Value) -> Result<GitCommitHash, ValidationError> {
             let value = match &json_value["git_commit_hash"] {
                 Value::Null => Err(ValidationError::git_commit_hash_missing()),
                 Value::String(value) => Ok(value),
                 _ => Err(ValidationError::git_commit_hash_not_a_string()),
             }?;
-            if value.is_empty() {
-                return Err(ValidationError::git_commit_hash_empty());
-            };
-
-            let re = Regex::new(r"^[0-9a-fA-F]{40}$").unwrap();
-            if re.is_match(value) {
-                Ok(value.into())
-            } else {
-                Err(ValidationError::git_commit_hash_not_valid())
-            }
+            GitCommitHash::try_from(value.to_owned())
         }
 
         fn parse_tool_name(json_value: &Value) -> Result<String, ValidationError> {
