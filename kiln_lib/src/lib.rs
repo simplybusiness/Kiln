@@ -529,8 +529,6 @@ pub mod tool_report {
     pub mod tests {
         use super::*;
 
-        use serde_json::json;
-
         #[test]
         fn try_from_returns_error_when_application_name_missing() {
             let message = serde_json::from_str(r#"{
