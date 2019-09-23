@@ -2,6 +2,7 @@ use http::status::StatusCode;
 use lambda_http::{lambda, Body, IntoResponse, Request, Response};
 use lambda_runtime::{error::HandlerError, Context};
 use std::convert::TryFrom;
+use std::env;
 
 use kiln_lib::validation::ValidationError;
 use kiln_lib::tool_report::ToolReport;
@@ -11,6 +12,12 @@ fn main() {
 }
 
 fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
+    let config = get_configuration(&mut env::vars());
+
+    if let Err(err) = config {
+        return Err(err.as_str().into());
+    }
+
     let report = parse_request(&req);
     match report {
         Ok(_) => Ok(Response::builder()
@@ -34,6 +41,25 @@ pub fn parse_request(req: &Request) -> Result<ToolReport, ValidationError> {
     .and_then(|json| ToolReport::try_from(&json))
 }
 
+pub fn get_configuration<I>(vars: &mut I) -> Result<Config, String> where I: Iterator<Item=(String, String)> {
+    let kafka_bootstrap_tls = vars.find(|var| var.0 == "KAFKA_BOOTSTRAP_TLS");
+    match kafka_bootstrap_tls {
+        None => Err("Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS".to_owned() ),
+        Some(var) => {
+            if var.1.is_empty() {
+                return Err("Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS".to_owned())
+            } else {
+                return Ok(Config { kafka_bootstrap_tls: var.1} );
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Config {
+    kafka_bootstrap_tls: String
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -44,10 +70,20 @@ mod tests {
     use lambda_http::Body;
     use serde_json::json;
 
+    use serial_test_derive::serial;
+    use lambda_runtime_errors::LambdaErrorExt;
+
     use kiln_lib::tool_report::{ApplicationName, GitCommitHash, GitBranch, ToolName, ToolOutput, ToolVersion, Environment, OutputFormat};
 
+    fn set_env_vars() {
+        std::env::remove_var("KAFKA_BOOTSTRAP_TLS");
+        std::env::set_var("KAFKA_BOOTSTRAP_TLS", "my.kafka.host.example.com:1234");
+    }
+
     #[test]
+    #[serial]
     fn handler_returns_ok_when_request_valid() {
+        set_env_vars();
         let mut builder = Request::builder();
         let request = builder
             .body(Body::from(
@@ -74,7 +110,9 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn handler_returns_error_when_request_invalid() {
+        set_env_vars();
         let mut builder = Request::builder();
         let request = builder
             .body(Body::from(
@@ -179,5 +217,71 @@ mod tests {
             .expect("expected Ok(_) value");
         
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    #[serial]
+    fn handler_returns_error_when_environment_vars_missing() {
+        set_env_vars();
+        std::env::remove_var("KAFKA_BOOTSTRAP_TLS");
+
+        let mut builder = Request::builder();
+        let request = builder
+            .body(Body::from(
+                r#"{
+                    "application_name": "Test application",
+                    "git_branch": "master",
+                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                    "tool_name": "example tool",
+                    "tool_output": "{}",
+                    "output_format": "Json",
+                    "start_time": "2019-09-13T19:35:38+00:00",
+                    "end_time": "2019-09-13T19:37:14+00:00",
+                    "environment": "Local",
+                    "tool_version": "1.0"
+                }"#,
+            ))
+            .unwrap();
+
+        let actual = handler(request, Context::default());
+
+        match actual {
+            Ok(_) => panic!("expected Err(_) value"),
+            Err(err) => assert_eq!("UnknownError", err.error_type())
+        }
+    }
+
+    #[test]
+    fn get_configuration_returns_config_when_environment_vars_present() {
+        let hostname = "my.kafka.host.example.com:1234".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())]
+            .into_iter();
+
+        let actual = get_configuration(&mut fake_vars)
+            .expect("expected Ok(_) value");
+
+        assert_eq!(actual.kafka_bootstrap_tls, hostname);
+    }
+
+    #[test]
+    fn get_configuration_returns_error_when_environment_vars_missing() {
+        let mut fake_vars = std::iter::empty::<(String, String)>();
+
+        let actual = get_configuration(&mut fake_vars)
+            .expect_err("expected Err(_) value");
+
+        assert_eq!(actual.to_string(), "Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS")
+    }
+
+    #[test]
+    fn get_configuration_returns_error_when_environment_vars_present_but_empty() {
+        let hostname = "".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())]
+            .into_iter();
+
+        let actual = get_configuration(&mut fake_vars)
+            .expect_err("expected Err(_) value");
+
+        assert_eq!(actual.to_string(), "Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS")
     }
 }
