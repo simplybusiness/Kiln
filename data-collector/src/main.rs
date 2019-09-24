@@ -42,22 +42,26 @@ pub fn parse_request(req: &Request) -> Result<ToolReport, ValidationError> {
 }
 
 pub fn get_configuration<I>(vars: &mut I) -> Result<Config, String> where I: Iterator<Item=(String, String)> {
-    let kafka_bootstrap_tls = vars.find(|var| var.0 == "KAFKA_BOOTSTRAP_TLS");
-    match kafka_bootstrap_tls {
+    let kafka_bootstrap_tls = match vars.find(|var| var.0 == "KAFKA_BOOTSTRAP_TLS") {
         None => Err("Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS".to_owned() ),
         Some(var) => {
             if var.1.is_empty() {
                 return Err("Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS".to_owned())
             } else {
-                return Ok(Config { kafka_bootstrap_tls: var.1} );
+                let raw_hosts = var.1;
+
+
+                Ok(vec![raw_hosts])
             }
         }
-    }
+    }?;
+
+    Ok(Config { kafka_bootstrap_tls })
 }
 
 #[derive(Debug)]
 pub struct Config {
-    kafka_bootstrap_tls: String
+    kafka_bootstrap_tls: Vec<String>
 }
 
 #[cfg(test)]
@@ -252,15 +256,17 @@ mod tests {
     }
 
     #[test]
-    fn get_configuration_returns_config_when_environment_vars_present() {
-        let hostname = "my.kafka.host.example.com:1234".to_owned();
-        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())]
+    fn get_configuration_returns_config_when_environment_vars_present_and_valid() {
+        let hostname = "my.kafka.host.example.com:1234,my.second.kafka.host.example.com:1234".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname)]
             .into_iter();
+
+        let expected = vec!["my.kafka.host.example.com:1234".to_owned(), "my.second.kafka.host.example.com:1234".to_owned()];
 
         let actual = get_configuration(&mut fake_vars)
             .expect("expected Ok(_) value");
 
-        assert_eq!(actual.kafka_bootstrap_tls, hostname);
+        assert_eq!(actual.kafka_bootstrap_tls, expected);
     }
 
     #[test]
