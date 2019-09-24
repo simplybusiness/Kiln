@@ -293,4 +293,29 @@ mod tests {
 
         assert_eq!(actual.to_string(), "Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS")
     }
+
+    #[test]
+    fn get_configuration_returns_error_when_hostname_invalid() {
+        let hostname = "!!!:1234".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())]
+            .into_iter();
+
+        let actual = get_configuration(&mut fake_vars)
+            .expect_err("expected Err(_) value");
+
+        assert_eq!(actual.to_string(), "KAFKA_BOOTSTRAP_TLS environment variable did not pass validation")
+    }
+
+    #[test]
+    fn get_configuration_returns_error_when_post_number_invalid() {
+        let hostname = "my.kafka.host.example.com:1234567".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())]
+            .into_iter();
+
+        let actual = get_configuration(&mut fake_vars)
+            .expect_err("expected Err(_) value");
+
+        assert_eq!(actual.to_string(), "KAFKA_BOOTSTRAP_TLS environment variable did not pass validation")
+
+    }
 }
