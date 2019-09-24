@@ -2,6 +2,11 @@ use addr::DomainName;
 use http::status::StatusCode;
 use lambda_http::{lambda, Body, IntoResponse, Request, Response};
 use lambda_runtime::{error::HandlerError, Context};
+use kafka::producer::Producer;
+use kafka::client::{Compression, SecurityConfig};
+use kafka::error::Error as KafkaError;
+use openssl::error::ErrorStack;
+use openssl::ssl::{SslConnector, SslVerifyMode, SslMethod, SslVersion};
 use std::convert::TryFrom;
 use std::env;
 
@@ -13,11 +18,20 @@ fn main() {
 }
 
 fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
-    let config = get_configuration(&mut env::vars());
+    let config = get_configuration(&mut env::vars())
+        .map_err(|err| {
+            failure::err_msg(format!("Configuration Error: {}", err))
+        })?;
 
-    if let Err(err) = config {
-        return Err(err.as_str().into());
-    }
+    let ssl_connector = build_ssl_connector()
+        .map_err(|err| {
+            failure::err_msg(format!("OpenSSL Error {}: {}", err.errors()[0].code(), err.errors()[0].reason().unwrap()))
+        })?;
+
+    let producer = build_kafka_producer(config, ssl_connector)
+        .map_err(|err| {
+            failure::err_msg(format!("Kafka Error: {}", err.description()))
+        })?;
 
     let report = parse_request(&req);
     match report {
@@ -60,6 +74,26 @@ pub fn get_configuration<I>(vars: &mut I) -> Result<Config, String> where I: Ite
     }?;
 
     Ok(Config { kafka_bootstrap_tls })
+}
+
+pub fn build_ssl_connector() -> Result<SslConnector, ErrorStack> {
+    let mut ssl_connector_builder = SslConnector::builder(SslMethod::tls())?;
+    ssl_connector_builder.set_verify(SslVerifyMode::PEER);
+    ssl_connector_builder.set_default_verify_paths()?;
+    ssl_connector_builder.set_min_proto_version(Some(SslVersion::TLS1_2))?;
+    ssl_connector_builder.set_cipher_list("ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384")?; //This cipher suite list is taken from the Mozilla Server Side TLS Version 5 recommendations, with the exception of support for TLS 1.3 as this is not supported by Apache Kafka yet
+    Ok(ssl_connector_builder.build())
+}
+
+pub fn build_kafka_producer(config: Config, ssl_connector: SslConnector) -> Result<Producer, KafkaError> {
+
+    let security_config = SecurityConfig::new(ssl_connector)
+        .with_hostname_verification(true);
+
+    Producer::from_hosts(config.kafka_bootstrap_tls)
+        .with_compression(Compression::GZIP)
+        .with_security(security_config)
+        .create()
 }
 
 #[derive(Debug)]
@@ -254,7 +288,7 @@ mod tests {
 
         match actual {
             Ok(_) => panic!("expected Err(_) value"),
-            Err(err) => assert_eq!("UnknownError", err.error_type())
+            Err(err) => assert_eq!("failure::ErrorMessage", err.error_type())
         }
     }
 
