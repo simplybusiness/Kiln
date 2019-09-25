@@ -1,5 +1,22 @@
 pub mod avro_schema {
-    pub const TOOL_REPORT_SCHEMA: &'static str = "";
+    pub const TOOL_REPORT_SCHEMA: &'static str = r#"
+        {
+            "type": "record",
+            "name": "ToolReport",
+            "fields": [
+                {"name": "application_name", "type": "string"},
+                {"name": "git_branch", "type": "string"},
+                {"name": "git_commit_hash", "type": "string"},
+                {"name": "tool_name", "type": "string"},
+                {"name": "tool_output", "type": "string"},
+                {"name": "output_format", "type": "string"},
+                {"name": "start_time", "type": "string"},
+                {"name": "end_time", "type": "string"},
+                {"name": "environment", "type": "string"},
+                {"name": "tool_version", "type": "string"}
+            ]
+        }
+    "#;
 
     #[cfg(test)]
     mod tests {
