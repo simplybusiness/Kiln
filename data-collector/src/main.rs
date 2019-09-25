@@ -122,69 +122,6 @@ mod tests {
     }
 
     #[test]
-    #[serial]
-    fn handler_returns_ok_when_request_valid() {
-        set_env_vars();
-        let mut builder = Request::builder();
-        let request = builder
-            .body(Body::from(
-                r#"{
-                    "application_name": "Test application",
-                    "git_branch": "master",
-                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                    "tool_name": "example tool",
-                    "tool_output": "{}",
-                    "output_format": "Json",
-                    "start_time": "2019-09-13T19:35:38+00:00",
-                    "end_time": "2019-09-13T19:37:14+00:00",
-                    "environment": "Local",
-                    "tool_version": "1.0"
-                }"#,
-            ))
-            .unwrap();
-        let expected = Request::default();
-        let response = handler(request, Context::default())
-            .expect("expected Ok(_) value")
-            .into_response();
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.body(), expected.body());
-    }
-
-    #[test]
-    #[serial]
-    fn handler_returns_error_when_request_invalid() {
-        set_env_vars();
-        let mut builder = Request::builder();
-        let request = builder
-            .body(Body::from(
-                r#"{
-                    "application_name": "",
-                    "git_branch": "master",
-                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                    "tool_name": "example tool",
-                    "tool_output": "{}",
-                    "output_format": "Json",
-                    "start_time": "2019-09-13T19:35:38+00:00",
-                    "end_time": "2019-09-13T19:37:14+00:00",
-                    "environment": "Local",
-                    "tool_version": "1.0"
-                }"#,
-            ))
-            .unwrap();
-        let expected = json!({
-            "error_code": 111,
-            "error_message": "Application name present but empty"
-        })
-        .into_response();
-        let response = handler(request, Context::default())
-            .expect("expected Ok(_) value")
-            .into_response();
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-        assert_eq!(response.body(), expected.body());
-
-    }
-
-    #[test]
     fn parse_request_returns_error_when_body_empty() {
         let request = Request::default();
         let expected = ValidationError::body_empty();
