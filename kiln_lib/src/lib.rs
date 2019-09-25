@@ -445,7 +445,10 @@ pub mod tool_report {
 
     impl std::fmt::Display for OutputFormat {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}", self)
+            match self {
+                OutputFormat::JSON => write!(f, "JSON"),
+                OutputFormat::PlainText => write!(f, "PlainText")
+            }
         }
     }
 
@@ -457,7 +460,10 @@ pub mod tool_report {
 
     impl std::fmt::Display for Environment {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}", self)
+            match self {
+                Environment::Local => write!(f, "Local"),
+                Environment::CI => write!(f, "CI")
+            }
         }
     }
 
