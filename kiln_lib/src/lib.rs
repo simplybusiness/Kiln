@@ -1,3 +1,19 @@
+pub mod avro_schema {
+    pub const TOOL_REPORT_SCHEMA: &'static str = "";
+
+    #[cfg(test)]
+    mod tests {
+        use avro_rs::Schema;
+        use super::*;
+
+        #[test]
+        fn schema_is_valid() {
+            Schema::parse_str(TOOL_REPORT_SCHEMA)
+                .expect("expected Ok(_) value");
+        }
+    }
+}
+
 pub mod validation {
     use lambda_http::{Body, IntoResponse, Response};
     use http::status::StatusCode;
