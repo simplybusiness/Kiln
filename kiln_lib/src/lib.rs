@@ -311,6 +311,12 @@ pub mod tool_report {
         }
     }
 
+    impl std::fmt::Display for ApplicationName {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
     #[derive(Debug, PartialEq)]
     pub struct GitBranch(String);
     
@@ -323,6 +329,12 @@ pub mod tool_report {
             } else {
                 Ok(GitBranch(value))
             }
+        }
+    }
+
+    impl std::fmt::Display for GitBranch {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0)
         }
     }
 
@@ -346,6 +358,12 @@ pub mod tool_report {
         }
     }
 
+    impl std::fmt::Display for GitCommitHash {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
     #[derive(Debug, PartialEq)]
     pub struct ToolName(String);
 
@@ -361,6 +379,12 @@ pub mod tool_report {
         }
     }
 
+    impl std::fmt::Display for ToolName {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
     #[derive(Debug, PartialEq)]
     pub struct ToolOutput(String);
 
@@ -373,6 +397,12 @@ pub mod tool_report {
             } else {
                 Ok(ToolOutput(value))
             }
+        }
+    }
+
+    impl std::fmt::Display for ToolOutput {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0)
         }
     }
 
@@ -396,16 +426,37 @@ pub mod tool_report {
         }
     }
 
+    impl std::fmt::Display for ToolVersion {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            match &self.0 {
+                Some(x) => write!(f, "{}", x),
+                None => write!(f, "")
+            }
+        }
+    }
+
     #[derive(Debug, PartialEq)]
     pub enum OutputFormat {
         JSON,
         PlainText,
     }
 
+    impl std::fmt::Display for OutputFormat {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self)
+        }
+    }
+
     #[derive(Debug, PartialEq)]
     pub enum Environment {
         Local,
         CI,
+    }
+
+    impl std::fmt::Display for Environment {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self)
+        }
     }
 
     impl TryFrom<&Value> for ToolReport {
