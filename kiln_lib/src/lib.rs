@@ -1,3 +1,36 @@
+pub mod avro_schema {
+    pub const TOOL_REPORT_SCHEMA: &'static str = r#"
+        {
+            "type": "record",
+            "name": "ToolReport",
+            "fields": [
+                {"name": "application_name", "type": "string"},
+                {"name": "git_branch", "type": "string"},
+                {"name": "git_commit_hash", "type": "string"},
+                {"name": "tool_name", "type": "string"},
+                {"name": "tool_output", "type": "string"},
+                {"name": "output_format", "type": "string"},
+                {"name": "start_time", "type": "string"},
+                {"name": "end_time", "type": "string"},
+                {"name": "environment", "type": "string"},
+                {"name": "tool_version", "type": "string"}
+            ]
+        }
+    "#;
+
+    #[cfg(test)]
+    mod tests {
+        use avro_rs::Schema;
+        use super::*;
+
+        #[test]
+        fn schema_is_valid() {
+            Schema::parse_str(TOOL_REPORT_SCHEMA)
+                .expect("expected Ok(_) value");
+        }
+    }
+}
+
 pub mod validation {
     use lambda_http::{Body, IntoResponse, Response};
     use http::status::StatusCode;
