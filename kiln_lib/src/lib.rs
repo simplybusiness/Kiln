@@ -496,6 +496,14 @@ pub mod tool_report {
         }
     }
 
+    impl TryFrom<avro_rs::types::Value> for ToolReport {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<ToolReport, ValidationError> {
+            Err(ValidationError::body_empty())
+        }
+    }
+
     impl ToAvro for ToolReport {
         fn avro(self) -> avro_rs::types::Value {
             let schema = Schema::parse_str(TOOL_REPORT_SCHEMA).unwrap();
@@ -1195,6 +1203,35 @@ pub mod tool_report {
             let expected = ValidationError::tool_version_present_but_empty();
             let actual = ToolReport::try_from(&message)
                 .expect_err("expected Err(_) value");
+
+            assert_eq!(expected, actual);
+        }
+
+        #[test]
+        fn tool_report_can_round_trip_to_avro_and_back() {
+            let message = serde_json::from_str(r#"{
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "Json",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "Local",
+                "tool_version": "1.0"
+            }"#).unwrap();
+
+            let report = ToolReport::try_from(&message)
+                .expect("expected Ok(_) value");
+
+            let expected = ToolReport::try_from(&message)
+                .expect("expected Ok(_) value");
+
+            let avro = report.avro();
+
+            let actual = ToolReport::try_from(avro)
+                .expect("expected Ok(_) value");
 
             assert_eq!(expected, actual);
         }
