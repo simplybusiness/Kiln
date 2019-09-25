@@ -284,7 +284,7 @@ pub mod tool_report {
     use regex::Regex;
 
     #[allow(dead_code)]
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct ToolReport {
         pub application_name: ApplicationName,
         pub git_branch: GitBranch,
@@ -298,7 +298,7 @@ pub mod tool_report {
         pub tool_version:ToolVersion
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct ApplicationName(String);
 
     impl TryFrom<String> for ApplicationName {
@@ -319,7 +319,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct GitBranch(String);
     
     impl TryFrom<String> for GitBranch{
@@ -340,7 +340,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct GitCommitHash(String);
 
     impl TryFrom<String> for GitCommitHash {
@@ -366,7 +366,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct ToolName(String);
 
     impl TryFrom<String> for ToolName{
@@ -387,7 +387,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct ToolOutput(String);
 
     impl TryFrom<String> for ToolOutput {
@@ -408,7 +408,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub struct ToolVersion(Option<String>);
 
     impl TryFrom<Option<String>> for ToolVersion {
@@ -437,7 +437,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub enum OutputFormat {
         JSON,
         PlainText,
@@ -452,7 +452,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq)]
     pub enum Environment {
         Local,
         CI,
