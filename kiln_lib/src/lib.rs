@@ -272,11 +272,13 @@ pub mod validation {
 }
 
 pub mod tool_report {
+    use crate::avro_schema::TOOL_REPORT_SCHEMA;
     use crate::validation::ValidationError;
 
     use std::convert::TryFrom;
 
-    
+    use avro_rs::types::{Record, ToAvro};
+    use avro_rs::schema::Schema;
     use chrono::{DateTime, Utc};
     use serde_json::value::Value;
     use regex::Regex;
@@ -485,6 +487,29 @@ pub mod tool_report {
                 environment,
                 tool_version,
             })
+        }
+    }
+
+    impl ToAvro for ToolReport {
+        fn avro(self) -> avro_rs::types::Value {
+            let schema = Schema::parse_str(TOOL_REPORT_SCHEMA).unwrap();
+            let mut record = Record::new(&schema).unwrap();
+            record.put("application_name", self.application_name.to_string());
+            record.put("git_branch", self.git_branch.to_string());
+            record.put("git_commit_hash", self.git_commit_hash.to_string());
+            record.put("tool_name", self.tool_name.to_string());
+            record.put("tool_output", self.tool_output.to_string());
+            record.put("output_format", self.output_format.to_string());
+            record.put("start_time", self.start_time.to_string());
+            record.put("end_time", self.end_time.to_string());
+            record.put("environment", self.environment.to_string());
+            let tool_version = self.tool_version.to_string();
+            if tool_version.is_empty() {
+                record.put("tool_version", avro_rs::types::Value::Null);
+            } else {
+                record.put("tool_version", tool_version);
+            }
+            avro_rs::types::Value::Record(record.fields)
         }
     }
 

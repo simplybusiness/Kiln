@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+avro-rs = "0.6"
 chrono = "0.4"
 lambda_http = "0.1"
 http = "0.1"
@@ -12,4 +13,3 @@ serde = { version = "1.0", features = ["derive"] }
 regex = "1.0"
 
 [dev-dependencies]
-avro-rs = "0.6"
