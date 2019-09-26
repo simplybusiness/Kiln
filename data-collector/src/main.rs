@@ -114,7 +114,7 @@ mod tests {
     use serial_test_derive::serial;
     use lambda_runtime_errors::LambdaErrorExt;
 
-    use kiln_lib::tool_report::{ApplicationName, GitCommitHash, GitBranch, ToolName, ToolOutput, ToolVersion, Environment, OutputFormat};
+    use kiln_lib::tool_report::{ApplicationName, EndTime, GitCommitHash, GitBranch, StartTime, ToolName, ToolOutput, ToolVersion, Environment, OutputFormat};
 
     fn set_env_vars() {
         std::env::remove_var("KAFKA_BOOTSTRAP_TLS");
@@ -185,8 +185,8 @@ mod tests {
             tool_name: ToolName::try_from("example tool".to_owned()).unwrap(),
             tool_output: ToolOutput::try_from("{}".to_owned()).unwrap(),
             output_format: OutputFormat::JSON,
-            start_time: DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap()),
-            end_time: DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap()),
+            start_time: StartTime::from(DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap())),
+            end_time: EndTime::from(DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap())),
             environment: Environment::Local,
             tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap()
         };
