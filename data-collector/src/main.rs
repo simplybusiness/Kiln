@@ -1,4 +1,7 @@
 use addr::DomainName;
+use avro_rs::{Schema, Writer};
+use avro_rs::types::ToAvro;
+use failure::err_msg;
 use http::status::StatusCode;
 use lambda_http::{lambda, Body, IntoResponse, Request, Response};
 use lambda_runtime::{error::HandlerError, Context};
@@ -10,6 +13,7 @@ use openssl::ssl::{SslConnector, SslVerifyMode, SslMethod, SslVersion};
 use std::convert::TryFrom;
 use std::env;
 
+use kiln_lib::avro_schema::TOOL_REPORT_SCHEMA;
 use kiln_lib::validation::ValidationError;
 use kiln_lib::tool_report::ToolReport;
 
@@ -28,19 +32,28 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
             failure::err_msg(format!("OpenSSL Error {}: {}", err.errors()[0].code(), err.errors()[0].reason().unwrap()))
         })?;
 
-    let producer = build_kafka_producer(config, ssl_connector)
+    let mut producer = build_kafka_producer(config, ssl_connector)
         .map_err(|err| {
-            failure::err_msg(format!("Kafka Error: {}", err.description()))
+            err_msg(format!("Kafka Error: {}", err.description()))
         })?;
 
-    let report = parse_request(&req);
-    match report {
-        Ok(_) => Ok(Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::Empty)
-            .unwrap()),
-        Err(validation_error) => Ok(validation_error.into_response()),
+    let report_result = parse_request(&req);
+
+    if let Err(err) = report_result {
+        return Ok(err.into_response())
     }
+
+    let report = report_result.unwrap();
+
+    let serialised_record = serialise_to_avro(report)?;
+
+    producer.send(&kafka::producer::Record::from_value("ToolReports", serialised_record))
+        .map_err(|err| err_msg(err.to_string()))?;
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::Empty)
+        .unwrap())
 }
 
 pub fn parse_request(req: &Request) -> Result<ToolReport, ValidationError> {
@@ -94,6 +107,15 @@ pub fn build_kafka_producer(config: Config, ssl_connector: SslConnector) -> Resu
         .with_compression(Compression::GZIP)
         .with_security(security_config)
         .create()
+}
+
+pub fn serialise_to_avro(report: ToolReport) -> Result<Vec<u8>, failure::Error> {
+    let schema = Schema::parse_str(TOOL_REPORT_SCHEMA)?;
+    let mut writer = Writer::new(&schema, Vec::new());
+    let record = report.avro();
+    writer.append(record)?;
+    writer.flush()?;
+    Ok(writer.into_inner())
 }
 
 #[derive(Debug)]
