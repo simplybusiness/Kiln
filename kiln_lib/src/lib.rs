@@ -468,12 +468,24 @@ pub mod tool_report {
         }
     }
 
+    impl From<DateTime<Utc>> for StartTime {
+        fn from(dt: DateTime<Utc>) -> Self {
+            Self(dt)
+        }
+    }
+
     #[derive(Clone, Debug, PartialEq)]
     pub struct EndTime(DateTime<Utc>);
 
     impl std::fmt::Display for EndTime {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             write!(f, "{}", self.0.to_rfc3339())
+        }
+    }
+
+    impl From<DateTime<Utc>> for EndTime {
+        fn from(dt: DateTime<Utc>) -> Self {
+            Self(dt)
         }
     }
 
