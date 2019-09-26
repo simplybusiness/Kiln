@@ -16,6 +16,7 @@ kafka = "0.8"
 addr = "0.2"
 openssl = { version = "0.10", features = ["vendored"] }
 failure = "0.1"
+avro-rs = { version = "0.6", features = ["snappy"] }
 
 [dev-dependencies]
 serial_test = "0.1"
