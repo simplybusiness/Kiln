@@ -27,6 +27,8 @@ plugins:
 functions:
   data-collector:
     handler: data-collector 
+    environment:
+      KAFKA_BOOTSTRAP_TLS: ${self:custom.kafka_bootstrap_tls}
     events:
       - http:
           path: '/'

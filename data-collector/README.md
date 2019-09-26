@@ -7,6 +7,8 @@ This is the HTTP service for tools to send data to for sending to the Kafka clus
 - Run `yarn` to install dependencies
 - Run `npx serverless deploy --stage dev` replacing `dev` with the stage you want to deploy
 
+Tool reports are published to a Kafka topic called "ToolReports". If you do not have auto topic creation enabled for your cluster, you will need to crate this topic.
+
 ## Configuration
 YAML is used for configuring the data-collector deployment. An example configuration file is included below.
 ```YAML
@@ -21,6 +23,8 @@ subnetIds:
     - subnet-987654321fedcba
 
 region: eu-west-1
+
+kafka_bootstrap_tls: "b-1.kafka.a12bcd.c2.kafka.eu-west-1.amazonaws.com:9094,b-3.kafka.a12bcd.c2.kafka.eu-west-1.amazonaws.com:9094,b-2.kafka.a12bcd.c2.kafka.eu-west-1.amazonaws.com:9094"
 ```
 
 ## Request & Response Documentation
