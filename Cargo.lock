@@ -502,7 +502,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.1.0"
-source = "git+https://github.com/simplybusiness/Kiln#3ab4e2cde012836f0acb7acc081760278bdc4c2d"
+source = "git+https://github.com/simplybusiness/Kiln#3313a2caf53119aedc5b66b10775d24d29ff1249"
 dependencies = [
  "avro-rs 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
