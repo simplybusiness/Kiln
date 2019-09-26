@@ -287,6 +287,7 @@ pub mod tool_report {
     use avro_rs::types::{Record, ToAvro};
     use avro_rs::schema::Schema;
     use chrono::{DateTime, Utc};
+    use failure::err_msg;
     use serde_json::value::Value;
     use regex::Regex;
 
@@ -299,8 +300,8 @@ pub mod tool_report {
         pub tool_name: ToolName,
         pub tool_output: ToolOutput,
         pub output_format: OutputFormat,
-        pub start_time: DateTime<Utc>,
-        pub end_time: DateTime<Utc>,
+        pub start_time: StartTime,
+        pub end_time: EndTime,
         pub environment: Environment,
         pub tool_version:ToolVersion
     }
@@ -453,9 +454,27 @@ pub mod tool_report {
     impl std::fmt::Display for OutputFormat {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
-                OutputFormat::JSON => write!(f, "JSON"),
+                OutputFormat::JSON => write!(f, "Json"),
                 OutputFormat::PlainText => write!(f, "PlainText")
             }
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct StartTime(DateTime<Utc>);
+    
+    impl std::fmt::Display for StartTime{
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0.to_rfc3339())
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct EndTime(DateTime<Utc>);
+    
+    impl std::fmt::Display for EndTime{
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0.to_rfc3339())
         }
     }
 
@@ -599,7 +618,7 @@ pub mod tool_report {
 
         fn parse_tool_start_time(
             json_value: &Value,
-        ) -> Result<DateTime<Utc>, ValidationError> {
+        ) -> Result<StartTime, ValidationError> {
             let value = match &json_value["start_time"] {
                 Value::Null => Err(ValidationError::start_time_missing()),
                 Value::String(value) => Ok(value),
@@ -607,11 +626,11 @@ pub mod tool_report {
             }?;
 
             DateTime::parse_from_rfc3339(value)
-                .map(DateTime::<Utc>::from)
+                .map(|dt| StartTime(DateTime::<Utc>::from(dt)))
                 .map_err(|_| ValidationError::start_time_not_a_timestamp())
         }
 
-        fn parse_tool_end_time(json_value: &Value) -> Result<DateTime<Utc>, ValidationError> {
+        fn parse_tool_end_time(json_value: &Value) -> Result<EndTime, ValidationError> {
             let value = match &json_value["end_time"] {
                 Value::Null => Err(ValidationError::end_time_missing()),
                 Value::String(value) => Ok(value),
@@ -619,7 +638,7 @@ pub mod tool_report {
             }?;
 
             DateTime::parse_from_rfc3339(value)
-                .map(DateTime::<Utc>::from)
+                .map(|dt| EndTime(DateTime::<Utc>::from(dt)))
                 .map_err(|_| ValidationError::end_time_not_a_timestamp())
         }
 
