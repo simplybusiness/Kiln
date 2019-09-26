@@ -522,11 +522,187 @@ pub mod tool_report {
         }
     }
 
-    impl TryFrom<avro_rs::types::Value> for ToolReport {
+    impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
+        type Error = failure::Error;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            let schema = Schema::parse_str(TOOL_REPORT_SCHEMA).unwrap();
+            let resolved_value = value.resolve(&schema)
+                .map_err(|err| err_msg(format!("Error resolving Avro schema: {}", err.name().unwrap())))?;
+
+            if let avro_rs::types::Value::Record(record) = resolved_value {
+                let mut fields = record.iter();
+                let application_name = ApplicationName::try_from(fields.find(|&x| x.0 == "application_name").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let git_branch = GitBranch::try_from(fields.find(|&x| x.0 == "git_branch").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let git_commit_hash = GitCommitHash::try_from(fields.find(|&x| x.0 == "git_commit_hash").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let tool_name = ToolName::try_from(fields.find(|&x| x.0 == "tool_name").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let tool_output = ToolOutput::try_from(fields.find(|&x| x.0 == "tool_output").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let output_format = OutputFormat::try_from(fields.find(|&x| x.0 == "output_format").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let start_time = StartTime::try_from(fields.find(|&x| x.0 == "start_time").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let end_time = EndTime::try_from(fields.find(|&x| x.0 == "end_time").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let environment = Environment::try_from(fields.find(|&x| x.0 == "environment").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+                let tool_version = ToolVersion::try_from(fields.find(|&x| x.0 == "tool_version").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+
+                Ok(
+                    ToolReport {
+                        application_name,
+                        git_branch,
+                        git_commit_hash,
+                        tool_name,
+                        tool_output,
+                        output_format,
+                        start_time,
+                        end_time,
+                        environment,
+                        tool_version
+                    }
+                )
+            } else {
+                Err(err_msg("Something went wrong decoding Avro record"))
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for ApplicationName {
         type Error = ValidationError;
 
-        fn try_from(value: avro_rs::types::Value) -> Result<ToolReport, ValidationError> {
-            Err(ValidationError::body_empty())
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) => ApplicationName::try_from(s),
+                _ => Err(ValidationError::application_name_not_a_string())
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for GitBranch {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) => GitBranch::try_from(s),
+                _ => Err(ValidationError::git_branch_name_not_a_string())
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for GitCommitHash {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) => GitCommitHash::try_from(s),
+                _ => Err(ValidationError::git_commit_hash_not_a_string())
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for ToolName {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) => ToolName::try_from(s),
+                _ => Err(ValidationError::tool_name_not_a_string())
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for ToolOutput {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) => ToolOutput::try_from(s),
+                _ => Err(ValidationError::tool_output_not_a_string())
+            }
+        }
+    }
+    
+    impl TryFrom<avro_rs::types::Value> for OutputFormat {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            let s = match value {
+                avro_rs::types::Value::String(s) => Ok(s),
+                _ => Err(ValidationError::tool_output_format_not_a_string())
+            }?;
+
+            if s.is_empty() {
+                return Err(ValidationError::tool_output_format_empty())
+            }
+
+            match s.as_ref() {
+                "Json" => Ok(OutputFormat::JSON),
+                "PlainText" => Ok(OutputFormat::PlainText),
+                _ => Err(ValidationError::tool_output_format_invalid()),
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for StartTime {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) =>
+                    DateTime::parse_from_rfc3339(&s)
+                        .map(|dt| StartTime(DateTime::<Utc>::from(dt)))
+                        .map_err(|_| ValidationError::start_time_not_a_timestamp()),
+                _ => Err(ValidationError::start_time_not_a_timestamp())
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for EndTime {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) =>
+                    DateTime::parse_from_rfc3339(&s)
+                        .map(|dt| EndTime(DateTime::<Utc>::from(dt)))
+                        .map_err(|_| ValidationError::end_time_not_a_timestamp()),
+                _ => Err(ValidationError::end_time_not_a_timestamp())
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for Environment {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            let s = match value {
+                avro_rs::types::Value::String(s) => Ok(s),
+                _ => Err(ValidationError::environment_not_a_string())
+            }?;
+
+            match s.as_ref() {
+                "Local" => Ok(Environment::Local),
+                "CI" => Ok(Environment::CI),
+                _ => Err(ValidationError::environment_not_a_valid_option()),
+            }
+        }
+    }
+
+    impl TryFrom<avro_rs::types::Value> for ToolVersion {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::Null => Ok(ToolVersion(None)),
+                avro_rs::types::Value::String(s) => Ok(ToolVersion(Some(s))),
+                _ => Err(ValidationError::tool_version_not_a_string()),
+            }
         }
     }
 
