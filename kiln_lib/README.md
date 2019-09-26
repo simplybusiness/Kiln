@@ -16,6 +16,6 @@ In Kiln, messages are serialised to the [Apache Avro format](https://avro.apache
         {"name": "start_time", "type": "string"},
         {"name": "end_time", "type": "string"},
         {"name": "environment", "type": "string"},
-        {"name": "tool_version", "type": "string"}
+        {"name": "tool_version", "type": ["null", "string"]}
     ]
 }
