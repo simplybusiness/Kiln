@@ -76,9 +76,9 @@ pub fn get_configuration<I>(vars: &mut I) -> Result<Config, String> where I: Ite
             if var.1.is_empty() {
                 return Err("Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS".to_owned())
             } else {
-                let raw_hosts: Vec<String> = var.1.split(",").map(|s| s.to_owned()).collect();
+                let raw_hosts: Vec<String> = var.1.split(',').map(|s| s.to_owned()).collect();
                 let valid = raw_hosts.iter().all(|x| {
-                    let parts: Vec<&str> = x.split(":").collect();
+                    let parts: Vec<&str> = x.split(':').collect();
                     parts[0].parse::<DomainName>().is_ok() && u16::from_str_radix(parts[1], 10).is_ok()
                 });
                 if valid { Ok(raw_hosts) } else { Err("KAFKA_BOOTSTRAP_TLS environment variable did not pass validation".to_owned()) }
@@ -99,7 +99,6 @@ pub fn build_ssl_connector() -> Result<SslConnector, ErrorStack> {
 }
 
 pub fn build_kafka_producer(config: Config, ssl_connector: SslConnector) -> Result<Producer, KafkaError> {
-
     let security_config = SecurityConfig::new(ssl_connector)
         .with_hostname_verification(true);
 
@@ -128,10 +127,8 @@ mod tests {
     use super::*;
 
     use chrono::{DateTime, Utc};
-    use http::status::StatusCode;
     use lambda_http::http::Request;
     use lambda_http::Body;
-    use serde_json::json;
 
     use serial_test_derive::serial;
     use lambda_runtime_errors::LambdaErrorExt;
