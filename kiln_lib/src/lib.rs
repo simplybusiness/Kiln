@@ -259,6 +259,13 @@ pub mod validation {
                 error_message: "Tool version present but empty".into(),
             }
         }
+
+        pub fn avro_schema_validation_failed() -> ValidationError {
+            ValidationError {
+                error_code: 130,
+                error_message: "Tried to deserialise a ToolReport from Avro but value didn't pass schema validation".into()
+            }
+        }
     }
 
     impl IntoResponse for ValidationError {
