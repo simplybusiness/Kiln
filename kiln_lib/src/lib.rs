@@ -1,5 +1,5 @@
 pub mod avro_schema {
-    pub const TOOL_REPORT_SCHEMA: &'static str = r#"
+    pub const TOOL_REPORT_SCHEMA: &str = r#"
         {
             "type": "record",
             "name": "ToolReport",
