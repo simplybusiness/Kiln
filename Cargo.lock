@@ -502,9 +502,11 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.1.0"
-source = "git+https://github.com/simplybusiness/Kiln#89e56cb1631c93779a5906253cdd07b81b29f008"
+source = "git+https://github.com/simplybusiness/Kiln#3ab4e2cde012836f0acb7acc081760278bdc4c2d"
 dependencies = [
+ "avro-rs 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "lambda_http 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
