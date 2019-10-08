@@ -33,6 +33,7 @@ pub mod avro_schema {
 pub mod validation {
     use http::status::StatusCode;
     use lambda_http::{Body, IntoResponse, Response};
+    use actix_web::HttpResponse;
     use serde::Serialize;
 
     #[derive(Debug, PartialEq, Serialize)]
@@ -273,6 +274,13 @@ pub mod validation {
                 .status(StatusCode::BAD_REQUEST)
                 .body(Body::from(serde_json::to_string(&self).unwrap()))
                 .unwrap()
+        }
+    }
+
+    impl Into<HttpResponse> for ValidationError {
+        fn into(self) -> HttpResponse {
+            HttpResponse::BadRequest()
+                .json(self)
         }
     }
 }
