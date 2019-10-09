@@ -505,6 +505,7 @@ dependencies = [
 name = "data-collector"
 version = "0.1.0"
 dependencies = [
+ "actix-web 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "addr 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "avro-rs 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -512,9 +513,6 @@ dependencies = [
  "http 0.1.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "kafka 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kiln_lib 0.1.0 (git+https://github.com/simplybusiness/Kiln)",
- "lambda_http 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "lambda_runtime 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "lambda_runtime_errors 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "openssl 0.10.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.101 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.40 (registry+https://github.com/rust-lang/crates.io-index)",
