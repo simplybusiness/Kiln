@@ -863,8 +863,9 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.1.0"
-source = "git+https://github.com/simplybusiness/Kiln#3313a2caf53119aedc5b66b10775d24d29ff1249"
+source = "git+https://github.com/simplybusiness/Kiln#78e1a4a6664bd8c0a9c1f2fe38fe44d670dcbb76"
 dependencies = [
+ "actix-web 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "avro-rs 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
