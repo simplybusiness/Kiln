@@ -1,27 +1,23 @@
+use actix_web::{web, App, Error, HttpResponse, HttpServer};
 use addr::DomainName;
 use avro_rs::types::ToAvro;
 use avro_rs::{Schema, Writer};
 use failure::err_msg;
-use http::status::StatusCode;
+use futures::{Future, Stream};
 use kafka::client::{Compression, SecurityConfig};
 use kafka::error::Error as KafkaError;
 use kafka::producer::Producer;
-use lambda_http::{lambda, Body, IntoResponse, Request, Response};
-use lambda_runtime::{error::HandlerError, Context};
 use openssl::error::ErrorStack;
 use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode, SslVersion};
 use std::convert::TryFrom;
 use std::env;
+use std::sync::Mutex;
 
 use kiln_lib::avro_schema::TOOL_REPORT_SCHEMA;
 use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
 
-fn main() {
-    lambda!(handler)
-}
-
-fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> {
+fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     let config = get_configuration(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
@@ -33,43 +29,57 @@ fn handler(req: Request, _: Context) -> Result<impl IntoResponse, HandlerError> 
         ))
     })?;
 
-    let mut producer = build_kafka_producer(config, ssl_connector)
+    let producer = build_kafka_producer(config, ssl_connector)
         .map_err(|err| err_msg(format!("Kafka Error: {}", err.description())))?;
 
-    let report_result = parse_request(&req);
+    let shared_producer = web::Data::new(Mutex::new(producer));
 
-    if let Err(err) = report_result {
-        return Ok(err.into_response());
-    }
-
-    let report = report_result.unwrap();
-
-    let serialised_record = serialise_to_avro(report)?;
-
-    producer
-        .send(&kafka::producer::Record::from_value(
-            "ToolReports",
-            serialised_record,
-        ))
-        .map_err(|err| err_msg(err.to_string()))?;
-
-    Ok(Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::Empty)
-        .unwrap())
+    HttpServer::new(move || {
+        App::new()
+            .register_data(shared_producer.clone())
+            .service(web::resource("/").route(web::post().to_async(handler)))
+    })
+    .bind("0.0.0.0:8080")?
+    .run()
+    .map_err(|err| err.into())
 }
 
-pub fn parse_request(req: &Request) -> Result<ToolReport, ValidationError> {
-    let body = req.body();
-    match body {
-        Body::Empty => Err(ValidationError::body_empty()),
-        Body::Binary(_) => Err(ValidationError::body_media_type_incorrect()),
-        Body::Text(body_text) => Ok(body_text),
-    }
-    .and_then(|body_text| {
-        serde_json::from_str(&body_text).map_err(|_| ValidationError::body_media_type_incorrect())
+fn handler(
+    payload: web::Payload,
+    producer: web::Data<Mutex<Producer>>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    payload.from_err().concat2().and_then(move |body| {
+        let report_result = parse_payload(&body);
+
+        if let Err(err) = report_result {
+            return Ok(err.into());
+        }
+
+        let report = report_result.unwrap();
+
+        let serialised_record = serialise_to_avro(report)?;
+
+        producer
+            .lock()
+            .unwrap()
+            .send(&kafka::producer::Record::from_value(
+                "ToolReports",
+                serialised_record,
+            ))
+            .map_err(|err| err_msg(err.description().to_owned()))?;
+
+        Ok(HttpResponse::Ok().finish())
     })
-    .and_then(|json| ToolReport::try_from(&json))
+}
+
+pub fn parse_payload(body: &web::Bytes) -> Result<ToolReport, ValidationError> {
+    if body.is_empty() {
+        return Err(ValidationError::body_empty());
+    }
+
+    serde_json::from_slice(&body)
+        .map_err(|_| ValidationError::body_media_type_incorrect())
+        .and_then(|json| ToolReport::try_from(&json))
 }
 
 pub fn get_configuration<I>(vars: &mut I) -> Result<Config, String>
@@ -149,11 +159,10 @@ pub struct Config {
 mod tests {
     use super::*;
 
-    use chrono::{DateTime, Utc};
-    use lambda_http::http::Request;
-    use lambda_http::Body;
+    use actix_web::web::Bytes;
 
-    use lambda_runtime_errors::LambdaErrorExt;
+    use chrono::{DateTime, Utc};
+
     use serial_test_derive::serial;
 
     use kiln_lib::tool_report::{
@@ -167,45 +176,45 @@ mod tests {
     }
 
     #[test]
-    fn parse_request_returns_error_when_body_empty() {
-        let request = Request::default();
+    fn parse_payload_returns_error_when_body_empty() {
+        let p = "".to_owned();
+        let payload = p.as_bytes();
+        let mut body = Bytes::new();
+        body.extend_from_slice(payload);
         let expected = ValidationError::body_empty();
-        let actual = parse_request(&request).expect_err("expected Err(_) value");
+        let actual = parse_payload(&body).expect_err("expected Err(_) value");
 
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn parse_request_returns_error_when_body_contains_bytes() {
-        let mut builder = Request::builder();
-        let request = builder.body(Body::from(r#"{}"#.as_bytes())).unwrap();
+    fn parse_payload_returns_error_when_body_contains_bytes() {
+        let p = "\u{0000}".to_string();
+        let payload = p.as_bytes();
+        let mut body = Bytes::new();
+        body.extend_from_slice(payload);
         let expected = ValidationError::body_media_type_incorrect();
 
-        let actual = parse_request(&request).expect_err("expected Ok(_) value");
+        let actual = parse_payload(&body).expect_err("expected Ok(_) value");
 
         assert_eq!(expected, actual);
     }
 
     #[test]
-    fn parse_request_returns_error_when_body_is_not_json() {
-        let mut builder = Request::builder();
-        let request = builder
-            .body(Body::from(
-                "<report><title>Not a valid report</title></report>",
-            ))
-            .unwrap();
+    fn parse_payload_returns_error_when_body_is_not_json() {
+        let p = "<report><title>Not a valid report</title></report>".to_owned();
+        let payload = p.as_bytes();
+        let mut body = Bytes::new();
+        body.extend_from_slice(payload);
         let expected = ValidationError::body_media_type_incorrect();
-        let response = parse_request(&request).expect_err("expected Err(_) value");
+        let response = parse_payload(&body).expect_err("expected Err(_) value");
 
         assert_eq!(expected, response);
     }
 
     #[test]
-    fn parse_request_returns_tool_report_when_request_valid() {
-        let mut builder = Request::builder();
-        let request = builder
-            .body(Body::from(
-                r#"{
+    fn parse_payload_returns_tool_report_when_request_valid() {
+        let p = r#"{
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -216,9 +225,11 @@ mod tests {
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
                     "tool_version": "1.0"
-                }"#,
-            ))
-            .unwrap();
+                }"#
+        .to_owned();
+        let payload = p.as_bytes();
+        let mut body = Bytes::new();
+        body.extend_from_slice(payload);
 
         let expected = ToolReport {
             application_name: ApplicationName::try_from("Test application".to_owned()).unwrap(),
@@ -240,40 +251,22 @@ mod tests {
             tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
         };
 
-        let actual = parse_request(&request).expect("expected Ok(_) value");
+        let actual = parse_payload(&body).expect("expected Ok(_) value");
 
         assert_eq!(expected, actual);
     }
 
     #[test]
     #[serial]
-    fn handler_returns_error_when_environment_vars_missing() {
+    fn main_returns_error_when_environment_vars_missing() {
         set_env_vars();
         std::env::remove_var("KAFKA_BOOTSTRAP_TLS");
 
-        let mut builder = Request::builder();
-        let request = builder
-            .body(Body::from(
-                r#"{
-                    "application_name": "Test application",
-                    "git_branch": "master",
-                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                    "tool_name": "example tool",
-                    "tool_output": "{}",
-                    "output_format": "Json",
-                    "start_time": "2019-09-13T19:35:38+00:00",
-                    "end_time": "2019-09-13T19:37:14+00:00",
-                    "environment": "Local",
-                    "tool_version": "1.0"
-                }"#,
-            ))
-            .unwrap();
-
-        let actual = handler(request, Context::default());
+        let actual = main();
 
         match actual {
             Ok(_) => panic!("expected Err(_) value"),
-            Err(err) => assert_eq!("failure::ErrorMessage", err.error_type()),
+            Err(err) => assert_eq!("Configuration Error: Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS", err.to_string()),
         }
     }
 
