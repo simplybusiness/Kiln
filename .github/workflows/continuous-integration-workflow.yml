@@ -2,69 +2,27 @@ name: CI
 on: [push]
 
 jobs:
-    build-data-collector:
-        name: Data-collector build
+    build-cargo-workspace:
+        name: Cargo workspace build
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
               uses: actions/checkout@v1
             - name: Build
               run: cargo build
-              working-directory: data-collector/
-    test-data-collector:
-        name: Data-collector tests
+    test-cargo-workspace:
+        name: Cargo workspace tests
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
               uses: actions/checkout@v1
             - name: Test
               run: cargo test
-              working-directory: data-collector/
-    lint-data-collector:
-        name: Data-collector lint
+    lint-cargo-workspace:
+        name: Cargo workspace lint
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
               uses: actions/checkout@v1
             - name: Lint
               run: cargo clippy
-              working-directory: data-collector/
-    test-serverless-package-data-collector:
-        name: Data-collector serverless package
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Install dependencies
-              run: yarn
-              working-directory: data-collector/
-            - name: Serverless package
-              run: npx serverless package
-              working-directory: data-collector/
-    build-kiln_lib:
-        name: Kiln_lib build
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Build
-              run: cargo build
-              working-directory: kiln_lib/
-    test-kiln-lib:
-        name: Kiln_lib tests
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Test
-              run: cargo test
-              working-directory: kiln_lib/
-    lint-kiln-lib:
-        name: Kiln_lib lint
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Lint
-              run: cargo clippy
-              working-directory: kiln_lib/
