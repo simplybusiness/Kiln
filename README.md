@@ -23,7 +23,9 @@ Please note that this project is released with a Contributor Code of Conduct. By
 To contribute to Kiln, you'll need the following tools installed:
 - Rust (stable channel, assuming 1.37 as minimum)
 - Clippy (For linting)
+- Cargo Make (For building docker images)
 - Docker
+- OpenSSL 1.1.0 or higher
 
 Kiln is still in it's early stages and isn't ready for production use. However, contributions are welcome! If you want to make a change to the project:
 - Open an issue to discuss the change (if the change is significant)
