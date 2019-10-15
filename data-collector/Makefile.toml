@@ -1,5 +1,4 @@
 [tasks.build-data-collector-docker]
-ENTRYPOINT ["/app/data-collector"]
 dependencies = [
     "clippy",
 	"test",
