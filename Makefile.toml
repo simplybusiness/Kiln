@@ -1,0 +1,8 @@
+[tasks.build-docker-images]
+dependencies = [
+    "build-data-collector-docker",
+]
+
+[tasks.build-data-collector-docker]
+command = "cargo"
+args = ["make", "--cwd", "data-collector", "build-data-collector-docker"]
