@@ -31,8 +31,6 @@ pub mod avro_schema {
 }
 
 pub mod validation {
-    use http::status::StatusCode;
-    use lambda_http::{Body, IntoResponse, Response};
     use actix_web::HttpResponse;
     use serde::Serialize;
 
@@ -265,15 +263,6 @@ pub mod validation {
                 error_code: 130,
                 error_message: "Tried to deserialise a ToolReport from Avro but value didn't pass schema validation".into()
             }
-        }
-    }
-
-    impl IntoResponse for ValidationError {
-        fn into_response(self) -> Response<Body> {
-            Response::builder()
-                .status(StatusCode::BAD_REQUEST)
-                .body(Body::from(serde_json::to_string(&self).unwrap()))
-                .unwrap()
         }
     }
 
