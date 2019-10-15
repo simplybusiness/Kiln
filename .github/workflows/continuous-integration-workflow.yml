@@ -56,3 +56,20 @@ jobs:
             - name: Lint
               run: cargo clippy
               working-directory: kiln_lib/
+    check-cargo-makefile-syntax:
+        name: Check cargo Makefile syntax is valid
+        runs-on: ubuntu-18.04
+        steps:
+            - uses: actions-rs/toolchain@v1
+              with:
+                toolchain: stable
+                override: true
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - uses: actions/checkout@v1
+            - name: Check top-level Makefile
+              run: cargo make --print-steps 2&>1 > /dev/null
+            - name: Check data-collector Makefile
+              run: cargo make --print-steps 2&>1 > /dev/null
+              working-directory: data-collector/
