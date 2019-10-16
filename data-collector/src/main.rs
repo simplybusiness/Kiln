@@ -18,6 +18,7 @@ use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
+    env_logger::init();
     let config = get_configuration(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
