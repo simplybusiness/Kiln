@@ -86,6 +86,24 @@ pub fn get_configuration<I>(vars: &mut I) -> Result<Config, String>
 where
     I: Iterator<Item = (String, String)>,
 {
+    let disable_kafka_domain_validation = match vars.find(|var| var.0 == "DISABLE_KAFKA_DOMAIN_VALIDATION") {
+        None => Ok(false),
+        Some(var) => {
+            if var.1.is_empty() {
+                return Err(
+                    "Optional environment variable present but empty: DISABLE_KAFKA_DOMAIN_VALIDATION"
+                        .to_owned(),
+                );
+            } else {
+                match var.1.as_ref() {
+                    "true" => Ok(true),
+                    "false" => Ok(false),
+                    _ => Err("Invalid value for environment variable: DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned())
+                }
+            }
+        }
+    }?;
+
     let kafka_bootstrap_tls = match vars.find(|var| var.0 == "KAFKA_BOOTSTRAP_TLS") {
         None => {
             Err("Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS".to_owned())
@@ -100,8 +118,13 @@ where
                 let raw_hosts: Vec<String> = var.1.split(',').map(|s| s.to_owned()).collect();
                 let valid = raw_hosts.iter().all(|x| {
                     let parts: Vec<&str> = x.split(':').collect();
-                    parts[0].parse::<DomainName>().is_ok()
-                        && u16::from_str_radix(parts[1], 10).is_ok()
+                    let domain_valid = if disable_kafka_domain_validation {
+                        true
+                    } else {
+                        parts[0].parse::<DomainName>().is_ok()
+                    };
+                    let port_valid = u16::from_str_radix(parts[1], 10).is_ok();
+                    domain_valid && port_valid
                 });
                 if valid {
                     Ok(raw_hosts)
