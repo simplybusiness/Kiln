@@ -9,10 +9,10 @@ pub mod avro_schema {
                 {"name": "git_commit_hash", "type": "string"},
                 {"name": "tool_name", "type": "string"},
                 {"name": "tool_output", "type": "string"},
-                {"name": "output_format", "type": "string"},
+                {"name": "output_format", "type": {"type": "enum", "name": "OutputFormat", "symbols": ["JSON", "Plaintext"]}},
                 {"name": "start_time", "type": "string"},
                 {"name": "end_time", "type": "string"},
-                {"name": "environment", "type": "string"},
+                {"name": "environment", "type": {"type": "enum", "name": "Environment", "symbols": ["Local", "CI"]}},
                 {"name": "tool_version", "type": ["null", "string"]}
             ]
         }
@@ -264,6 +264,20 @@ pub mod validation {
                 error_message: "Tried to deserialise a ToolReport from Avro but value didn't pass schema validation".into()
             }
         }
+
+        pub fn tool_output_format_not_an_enum() -> ValidationError {
+            ValidationError {
+                error_code: 131,
+                error_message: "Tool output format not an avro enum".into()
+            }
+        }
+
+        pub fn environment_not_an_enum() -> ValidationError {
+            ValidationError {
+                error_code: 132,
+                error_message: "Environment not an avro enum".into()
+            }
+        }
     }
 
     impl Into<HttpResponse> for ValidationError {
@@ -286,9 +300,10 @@ pub mod tool_report {
     use failure::err_msg;
     use regex::Regex;
     use serde_json::value::Value;
+    use serde::Serialize;
 
     #[allow(dead_code)]
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct ToolReport {
         pub application_name: ApplicationName,
         pub git_branch: GitBranch,
@@ -302,7 +317,7 @@ pub mod tool_report {
         pub tool_version: ToolVersion,
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct ApplicationName(String);
 
     impl TryFrom<String> for ApplicationName {
@@ -323,7 +338,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct GitBranch(String);
 
     impl TryFrom<String> for GitBranch {
@@ -344,7 +359,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct GitCommitHash(String);
 
     impl TryFrom<String> for GitCommitHash {
@@ -370,7 +385,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct ToolName(String);
 
     impl TryFrom<String> for ToolName {
@@ -391,7 +406,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct ToolOutput(String);
 
     impl TryFrom<String> for ToolOutput {
@@ -412,7 +427,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct ToolVersion(Option<String>);
 
     impl TryFrom<Option<String>> for ToolVersion {
@@ -441,7 +456,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub enum OutputFormat {
         JSON,
         PlainText,
@@ -450,13 +465,13 @@ pub mod tool_report {
     impl std::fmt::Display for OutputFormat {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
-                OutputFormat::JSON => write!(f, "Json"),
+                OutputFormat::JSON => write!(f, "JSON"),
                 OutputFormat::PlainText => write!(f, "PlainText"),
             }
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct StartTime(DateTime<Utc>);
 
     impl std::fmt::Display for StartTime {
@@ -471,7 +486,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct EndTime(DateTime<Utc>);
 
     impl std::fmt::Display for EndTime {
@@ -486,7 +501,7 @@ pub mod tool_report {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Serialize)]
     pub enum Environment {
         Local,
         CI,
@@ -665,17 +680,17 @@ pub mod tool_report {
         type Error = ValidationError;
 
         fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
-            let s = match value {
-                avro_rs::types::Value::String(s) => Ok(s),
-                _ => Err(ValidationError::tool_output_format_not_a_string()),
+            let x = match value {
+                avro_rs::types::Value::Enum(pos, val) => Ok((pos, val)),
+                _ => Err(ValidationError::tool_output_format_not_an_enum()),
             }?;
 
-            if s.is_empty() {
+            if x.1.is_empty() {
                 return Err(ValidationError::tool_output_format_empty());
             }
 
-            match s.as_ref() {
-                "Json" => Ok(OutputFormat::JSON),
+            match x.1.as_ref() {
+                "JSON" => Ok(OutputFormat::JSON),
                 "PlainText" => Ok(OutputFormat::PlainText),
                 _ => Err(ValidationError::tool_output_format_invalid()),
             }
@@ -712,12 +727,12 @@ pub mod tool_report {
         type Error = ValidationError;
 
         fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
-            let s = match value {
-                avro_rs::types::Value::String(s) => Ok(s),
-                _ => Err(ValidationError::environment_not_a_string()),
+            let x = match value {
+                avro_rs::types::Value::Enum(pos, val) => Ok((pos, val)),
+                _ => Err(ValidationError::environment_not_an_enum()),
             }?;
 
-            match s.as_ref() {
+            match x.1.as_ref() {
                 "Local" => Ok(Environment::Local),
                 "CI" => Ok(Environment::CI),
                 _ => Err(ValidationError::environment_not_a_valid_option()),
@@ -734,29 +749,6 @@ pub mod tool_report {
                 avro_rs::types::Value::String(s) => Ok(ToolVersion(Some(s))),
                 _ => Err(ValidationError::tool_version_not_a_string()),
             }
-        }
-    }
-
-    impl ToAvro for ToolReport {
-        fn avro(self) -> avro_rs::types::Value {
-            let schema = Schema::parse_str(TOOL_REPORT_SCHEMA).unwrap();
-            let mut record = Record::new(&schema).unwrap();
-            record.put("application_name", self.application_name.to_string());
-            record.put("git_branch", self.git_branch.to_string());
-            record.put("git_commit_hash", self.git_commit_hash.to_string());
-            record.put("tool_name", self.tool_name.to_string());
-            record.put("tool_output", self.tool_output.to_string());
-            record.put("output_format", self.output_format.to_string());
-            record.put("start_time", self.start_time.to_string());
-            record.put("end_time", self.end_time.to_string());
-            record.put("environment", self.environment.to_string());
-            let tool_version = self.tool_version.to_string();
-            if tool_version.is_empty() {
-                record.put("tool_version", avro_rs::types::Value::Null);
-            } else {
-                record.put("tool_version", tool_version);
-            }
-            avro_rs::types::Value::Record(record.fields)
         }
     }
 
@@ -817,7 +809,7 @@ pub mod tool_report {
             };
 
             match value.as_ref() {
-                "Json" => Ok(OutputFormat::JSON),
+                "JSON" => Ok(OutputFormat::JSON),
                 "PlainText" => Ok(OutputFormat::PlainText),
                 _ => Err(ValidationError::tool_output_format_invalid()),
             }
@@ -876,6 +868,7 @@ pub mod tool_report {
         // TODO: Separate tests based on whether they test the JSON validation or the business logic
         // validation
         use super::*;
+        use avro_rs::{Reader, Schema, Writer};
 
         pub mod tool_report {
             use super::*;
@@ -888,7 +881,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -911,7 +904,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -933,7 +926,7 @@ pub mod tool_report {
                     "git_branch": "master",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -956,7 +949,7 @@ pub mod tool_report {
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -979,7 +972,7 @@ pub mod tool_report {
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -1026,7 +1019,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
                     "tool_version": "1.0"
@@ -1049,7 +1042,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "environment": "Local",
                     "tool_version": "1.0"
@@ -1072,7 +1065,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "tool_version": "1.0"
@@ -1095,7 +1088,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -1119,7 +1112,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -1143,7 +1136,7 @@ pub mod tool_report {
                     "git_commit_hash": false,
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -1167,7 +1160,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": false,
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -1215,7 +1208,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": false,
@@ -1239,7 +1232,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -1263,7 +1256,7 @@ pub mod tool_report {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": false,
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -1390,7 +1383,7 @@ pub mod tool_report {
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                 "tool_name": "example tool",
                 "tool_output": "{}",
-                "output_format": "Json",
+                "output_format": "JSON",
                 "start_time": "not a timestamp",
                 "end_time": "2019-09-13T19:37:14+00:00",
                 "environment": "Local",
@@ -1414,7 +1407,7 @@ pub mod tool_report {
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                 "tool_name": "example tool",
                 "tool_output": "{}",
-                "output_format": "Json",
+                "output_format": "JSON",
                 "start_time": "2019-09-13T19:35:38+00:00",
                 "end_time": "not a timestamp",
                 "environment": "Local",
@@ -1438,7 +1431,7 @@ pub mod tool_report {
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                 "tool_name": "example tool",
                 "tool_output": "{}",
-                "output_format": "Json",
+                "output_format": "JSON",
                 "start_time": "2019-09-13T19:35:38+00:00",
                 "end_time": "2019-09-13T19:37:14+00:00",
                 "environment": "the moon",
@@ -1462,7 +1455,7 @@ pub mod tool_report {
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                 "tool_name": "example tool",
                 "tool_output": "{}",
-                "output_format": "Json",
+                "output_format": "JSON",
                 "start_time": "2019-09-13T19:35:38+00:00",
                 "end_time": "2019-09-13T19:37:14+00:00",
                 "environment": "Local",
@@ -1486,7 +1479,7 @@ pub mod tool_report {
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                 "tool_name": "example tool",
                 "tool_output": "{}",
-                "output_format": "Json",
+                "output_format": "JSON",
                 "start_time": "2019-09-13T19:35:38+00:00",
                 "end_time": "2019-09-13T19:37:14+00:00",
                 "environment": "Local",
@@ -1499,9 +1492,19 @@ pub mod tool_report {
 
             let expected = ToolReport::try_from(&message).expect("expected Ok(_) value");
 
-            let avro = report.avro();
+            let avro = avro_rs::to_value(report.clone()).unwrap();
 
-            let actual = ToolReport::try_from(avro).expect("expected Ok(_) value");
+            let schema = Schema::parse_str(TOOL_REPORT_SCHEMA).unwrap();
+            let mut writer = Writer::new(&schema, Vec::new());
+            writer.append_ser(report).unwrap();
+            writer.flush().unwrap();
+
+            let input = writer.into_inner();
+            let reader = Reader::with_schema(&schema, &input[..]).unwrap();
+            let mut input_records = reader.into_iter().collect::<Vec<_>>();
+            let parsed_record = input_records.remove(0).unwrap();
+
+            let actual = ToolReport::try_from(parsed_record).expect("expected Ok(_) value");
 
             assert_eq!(expected, actual);
         }
