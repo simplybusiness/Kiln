@@ -1,6 +1,5 @@
 use actix_web::{web, App, Error, HttpResponse, HttpServer};
 use addr::DomainName;
-use avro_rs::types::ToAvro;
 use avro_rs::{Schema, Writer};
 use failure::err_msg;
 use futures::{Future, Stream};
@@ -168,8 +167,7 @@ pub fn build_kafka_producer(
 pub fn serialise_to_avro(report: ToolReport) -> Result<Vec<u8>, failure::Error> {
     let schema = Schema::parse_str(TOOL_REPORT_SCHEMA)?;
     let mut writer = Writer::new(&schema, Vec::new());
-    let record = report.avro();
-    writer.append(record)?;
+    writer.append_ser(report)?;
     writer.flush()?;
     Ok(writer.into_inner())
 }
