@@ -1,4 +1,5 @@
 use actix_web::{web, App, Error, HttpResponse, HttpServer};
+use actix_web::middleware::Logger;
 use addr::DomainName;
 use avro_rs::{Schema, Writer};
 use failure::err_msg;
@@ -17,6 +18,7 @@ use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
+    std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
     let config = get_configuration(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
@@ -38,6 +40,8 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
         App::new()
             .register_data(shared_producer.clone())
             .service(web::resource("/").route(web::post().to_async(handler)))
+            .wrap(Logger::default())
+            .wrap(Logger::new("%a %{User-Agent}i"))
     })
     .bind("0.0.0.0:8080")?
     .run()
