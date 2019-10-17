@@ -24,6 +24,7 @@ services:
       KAFKA_SSL_KEY_PASSWORD: password
       KAFKA_SSL_TRUSTSTORE_LOCATION: /tls/kafka.server.truststore.jks
       KAFKA_SSL_TRUSTSTORE_PASSWORD: password
+      KAFKA_CREATE_TOPICS: "ToolReports:1:1"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./tls:/tls
