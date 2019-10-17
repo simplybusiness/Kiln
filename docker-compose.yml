@@ -4,10 +4,12 @@ services:
     image: wurstmeister/zookeeper
     ports:
       - "2181:2181"
+    hostname: zookeeper
   kafka:
     image: wurstmeister/kafka
     ports:
       - "9092:9092"
+    hostname: kafka
     environment:
       KAFKA_ADVERTISED_HOSTNAME: kafka
       KAFKA_LISTENERS: SSL://:9092 
