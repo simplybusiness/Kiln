@@ -66,7 +66,7 @@ fn handler(
                 "ToolReports",
                 serialised_record,
             ))
-            .map_err(|err| err_msg(err.description().to_owned()))?;
+            .map_err(|err| err_msg(format!("Error publishing to Kafka: {}", err.to_string())))?;
 
         Ok(HttpResponse::Ok().finish())
     })
