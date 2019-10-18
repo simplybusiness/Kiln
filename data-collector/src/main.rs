@@ -90,7 +90,8 @@ pub fn get_configuration<I>(vars: &mut I) -> Result<Config, String>
 where
     I: Iterator<Item = (String, String)>,
 {
-    let disable_kafka_domain_validation = match vars.find(|var| var.0 == "DISABLE_KAFKA_DOMAIN_VALIDATION") {
+    let local_vars: Vec<(String, String)> = vars.collect();
+    let disable_kafka_domain_validation = match local_vars.iter().find(|var| var.0 == "DISABLE_KAFKA_DOMAIN_VALIDATION") {
         None => Ok(false),
         Some(var) => {
             if var.1.is_empty() {
@@ -108,14 +109,14 @@ where
         }
     }?;
 
-    let kafka_bootstrap_tls = match vars.find(|var| var.0 == "KAFKA_BOOTSTRAP_TLS") {
+    let kafka_bootstrap_tls = match local_vars.iter().find(|var| var.0 == "KAFKA_BOOTSTRAP_TLS") {
         None => {
-            Err("Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS".to_owned())
+            Err("Required environment variable missing: KAFKA_BOOTSTRAP_TLS".to_owned())
         }
         Some(var) => {
             if var.1.is_empty() {
                 return Err(
-                    "Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS"
+                    "Required environment variable present but empty: KAFKA_BOOTSTRAP_TLS"
                         .to_owned(),
                 );
             } else {
@@ -246,7 +247,7 @@ mod tests {
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
                     "tool_output": "{}",
-                    "output_format": "Json",
+                    "output_format": "JSON",
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
@@ -292,7 +293,7 @@ mod tests {
 
         match actual {
             Ok(_) => panic!("expected Err(_) value"),
-            Err(err) => assert_eq!("Configuration Error: Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS", err.to_string()),
+            Err(err) => assert_eq!("Configuration Error: Required environment variable missing: KAFKA_BOOTSTRAP_TLS", err.to_string()),
         }
     }
 
@@ -320,7 +321,7 @@ mod tests {
 
         assert_eq!(
             actual.to_string(),
-            "Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS"
+            "Required environment variable missing: KAFKA_BOOTSTRAP_TLS"
         )
     }
 
@@ -333,7 +334,7 @@ mod tests {
 
         assert_eq!(
             actual.to_string(),
-            "Required environment variable missing or empty: KAFKA_BOOTSTRAP_TLS"
+            "Required environment variable present but empty: KAFKA_BOOTSTRAP_TLS"
         )
     }
 
@@ -341,6 +342,7 @@ mod tests {
     fn get_configuration_returns_error_when_hostname_invalid() {
         let hostname = "!!!:1234".to_owned();
         let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())].into_iter();
+        println!("{:?}", fake_vars);
 
         let actual = get_configuration(&mut fake_vars).expect_err("expected Err(_) value");
 
@@ -351,7 +353,7 @@ mod tests {
     }
 
     #[test]
-    fn get_configuration_returns_error_when_post_number_invalid() {
+    fn get_configuration_returns_error_when_port_number_invalid() {
         let hostname = "my.kafka.host.example.com:1234567".to_owned();
         let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())].into_iter();
 
