@@ -339,8 +339,8 @@ mod tests {
     }
 
     #[test]
-    fn get_configuration_returns_error_when_hostname_invalid() {
-        let hostname = "!!!:1234".to_owned();
+    fn get_configuration_returns_error_when_hostname_invalid_and_domain_validation_enabled() {
+        let hostname = "kafka:1234".to_owned();
         let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())].into_iter();
         println!("{:?}", fake_vars);
 
@@ -349,6 +349,20 @@ mod tests {
         assert_eq!(
             actual.to_string(),
             "KAFKA_BOOTSTRAP_TLS environment variable did not pass validation"
+        )
+    }
+
+    #[test]
+    fn get_configuration_returns_configration_when_hostname_not_a_valid_domain_and_domain_validation_disabled() {
+        let hostname = "kafka:1234".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()), ("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "true".to_owned())].into_iter();
+        let expected = vec![hostname.clone()];
+
+        let actual = get_configuration(&mut fake_vars).expect("expected Ok(_) value");
+
+        assert_eq!(
+            actual.kafka_bootstrap_tls,
+            expected
         )
     }
 
