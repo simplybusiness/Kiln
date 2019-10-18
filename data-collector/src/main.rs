@@ -103,7 +103,7 @@ where
                 match var.1.as_ref() {
                     "true" => Ok(true),
                     "false" => Ok(false),
-                    _ => Err("Invalid value for environment variable: DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned())
+                    _ => Err("Optional environment variable did not pass validation: DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned())
                 }
             }
         }
@@ -342,7 +342,6 @@ mod tests {
     fn get_configuration_returns_error_when_hostname_invalid_and_domain_validation_enabled() {
         let hostname = "kafka:1234".to_owned();
         let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())].into_iter();
-        println!("{:?}", fake_vars);
 
         let actual = get_configuration(&mut fake_vars).expect_err("expected Err(_) value");
 
@@ -376,6 +375,28 @@ mod tests {
         assert_eq!(
             actual.to_string(),
             "KAFKA_BOOTSTRAP_TLS environment variable did not pass validation"
+        )
+    }
+
+    #[test]
+    fn get_configuration_returns_error_when_disable_kafka_domain_validation_present_but_empty() {
+        let mut fake_vars = vec![("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "".to_owned())].into_iter();
+        let actual = get_configuration(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Optional environment variable present but empty: DISABLE_KAFKA_DOMAIN_VALIDATION"
+        )
+    }
+
+    #[test]
+    fn get_configuration_returns_error_when_disable_kafka_domain_validation_present_but_invalid() {
+        let mut fake_vars = vec![("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "blah".to_owned())].into_iter();
+        let actual = get_configuration(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Optional environment variable did not pass validation: DISABLE_KAFKA_DOMAIN_VALIDATION"
         )
     }
 }
