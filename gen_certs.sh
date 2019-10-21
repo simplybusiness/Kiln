@@ -4,6 +4,7 @@
 rm -rf tls
 mkdir tls
 cp ssl.cnf tls/
+cp client-ssl.properties
 pushd tls
 #Step 1
 #Generate server keystore
