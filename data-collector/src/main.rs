@@ -153,7 +153,7 @@ pub fn build_ssl_connector() -> Result<SslConnector, ErrorStack> {
     ssl_connector_builder.set_verify(SslVerifyMode::PEER);
     ssl_connector_builder.set_default_verify_paths()?;
     ssl_connector_builder.set_min_proto_version(Some(SslVersion::TLS1_2))?;
-    ssl_connector_builder.set_cipher_list("ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384")?; //This cipher suite list is taken from the Mozilla Server Side TLS Version 5 recommendations, with the exception of support for TLS 1.3 as this is not supported by Apache Kafka yet
+    ssl_connector_builder.set_cipher_list("ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256")?;
     Ok(ssl_connector_builder.build())
 }
 
