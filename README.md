@@ -25,6 +25,7 @@ To contribute to Kiln, you'll need the following tools installed:
 - Clippy (For linting)
 - Cargo Make (For building docker images)
 - Docker
+- Docker-compose (For integration testing)
 - OpenSSL 1.1.0 or higher
 
 Kiln is still in it's early stages and isn't ready for production use. However, contributions are welcome! If you want to make a change to the project:
