@@ -32,7 +32,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./tls:/tls
-  kiln:
+  data-collector:
     depends_on: 
       - kafka
     image: kiln/data-collector:latest
