@@ -11,7 +11,11 @@ See the [suggested Kafka deployment](../docs/suggested_kafka_deployment.md) docu
 Tool reports are published to a Kafka topic called "ToolReports". If you do not have auto topic creation enabled for your cluster, you will need to crate this topic.
 
 ## Configuration
-This component is configured using environment variables. Ensure that the environment variable `KAFKA_BOOTSTRAP_TLS` is set to a comma separated list of host:port pairs to bootstrap connectivity to your Kafka cluster over TLS. There currently isn't support for providing a custom CA certificate to trust when validating the certificates presented by the Kafka cluster, see #55 for more details.
+This component is configured using environment variables. Ensure that the environment variable `KAFKA_BOOTSTRAP_TLS` is set to a comma separated list of host:port pairs to bootstrap connectivity to your Kafka cluster over TLS.
+
+By default, this component will validate that hosts in the `KAFKA_BOOTSTRAP_TLS` environment variable are valid domain names. If you need to connect to a cluster using bare hostnames, you can disable this validation by setting: `DISABLE_KAFKA_DOMAIN_VALIDATION=true`.
+
+If your Kafka cluster uses TLS certificates issued by a private Certificate Authority, you will need to provide the CA Certificate in PEM format so that certificate validation can be performed when connecting to the Kafka cluster. The easiest way to achieve this is to add an additional volume when starting the data-collector Docker container containing the CA Certificate and set the `SSL_CERT_FILE` environment variable with the path to the CA Certificate inside the docker container.
 
 ## Request & Response Documentation
 
