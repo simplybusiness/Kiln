@@ -7,6 +7,8 @@ services:
     hostname: zookeeper
   kafka:
     image: wurstmeister/kafka
+    depends_on:
+      - zookeeper
     ports:
       - "9092:9092"
     hostname: kafka
@@ -33,7 +35,6 @@ services:
   kiln:
     depends_on: 
       - kafka
-      - zookeeper
     image: kiln/data-collector:latest
     ports:
       - "8081:8080"
