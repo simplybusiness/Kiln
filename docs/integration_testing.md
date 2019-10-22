@@ -20,3 +20,46 @@ To check the full flow of messages being consumed from the Kafka ToolReports top
 Run `docker exec -it kiln_kafka_1 bash` to get a shell within the running Kafka container.
 
 Then to start the console consumer, run `$KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic ToolReports --consumer.config /tls/client-ssl.properties --from-beginning`. Now if you send a valid HTTP request to the data-collector, you should see a serialised Avro message printed in this terminal.
+
+## Sending an example request
+Below are a valid JSON payload for a request to the data-collector and an example cURL command to send this payload:
+
+```
+{
+    "application_name": "Test application",
+    "git_branch": "master",
+    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+    "tool_name": "example tool",
+    "tool_output": "{}",
+    "output_format": "JSON",
+    "start_time": "2019-09-13T19:35:38+00:00",
+    "end_time": "2019-09-13T19:37:14+00:00",
+    "environment": "Local",
+	"tool_version": "1.0"
+}
+```
+
+```
+curl -X POST \
+  http://127.0.0.1:8081 \
+  -H 'Accept: */*' \
+  -H 'Accept-Encoding: gzip, deflate' \
+  -H 'Cache-Control: no-cache' \
+  -H 'Connection: keep-alive' \
+  -H 'Content-Length: 372' \
+  -H 'Content-Type: application/json' \
+  -H 'Host: 127.0.0.1:8081' \
+  -H 'cache-control: no-cache' \
+  -d '{
+    "application_name": "Test application",
+    "git_branch": "master",
+    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+    "tool_name": "example tool",
+    "tool_output": "{}",
+    "output_format": "JSON",
+    "start_time": "2019-09-13T19:35:38+00:00",
+    "end_time": "2019-09-13T19:37:14+00:00",
+    "environment": "Local",
+    "tool_version": "1.0"
+}'
+```
