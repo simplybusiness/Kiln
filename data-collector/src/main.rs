@@ -11,14 +11,17 @@ use openssl::error::ErrorStack;
 use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode, SslVersion};
 use std::convert::TryFrom;
 use std::env;
+use std::str;
 use std::sync::Mutex;
+
+use log::warn;
 
 use kiln_lib::avro_schema::TOOL_REPORT_SCHEMA;
 use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
     let config = get_configuration(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
@@ -56,6 +59,7 @@ fn handler(
         let report_result = parse_payload(&body);
 
         if let Err(err) = report_result {
+            warn!("Request did not pass validation because: {}. Request body: {}\n", err.error_message, str::from_utf8(&body).unwrap());
             return Ok(err.into());
         }
 
