@@ -77,8 +77,8 @@ jobs:
         name: Check for vulnerable dependencies using cargo audit
         runs-on: ubuntu-18.04
         steps:
-	    - name: Checkout
+            - name: Checkout
               uses: actions/checkout@v1
-	    - name: Audit
-	      uses: actions-rs/audit-check@v1
+            - name: Audit
+              uses: actions-rs/audit-check@v1
               working-directory: data-collector/
