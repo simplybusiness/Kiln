@@ -80,6 +80,5 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v1
             - name: Audit
-              uses: actions-rs/audit-check@v1
-              with:
-                  token: ${{ secrets.GITHUB_TOKEN }}
+              run: cargo audit
+              working-directory: data-collector/
