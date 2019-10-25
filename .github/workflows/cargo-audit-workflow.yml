@@ -11,14 +11,14 @@ jobs:
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
-                uses: actions/checkout@v1
+              uses: actions/checkout@v1
             - name: Install stable toolchain
-                uses: actions-rs/toolchain@v1
+              uses: actions-rs/toolchain@v1
                 with:
-                    toolchain: stable
+                  toolchain: stable
                     override: true
             - name: Install cargo audit
-                runs: cargo install cargo-audit
+              runs: cargo install cargo-audit
             - name: Run cargo audit
-                runs: cargo audit --deny-warnings 
-                working-directory: /data-collector
+              runs: cargo audit --deny-warnings 
+              working-directory: /data-collector
