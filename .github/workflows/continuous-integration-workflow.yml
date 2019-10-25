@@ -73,12 +73,3 @@ jobs:
             - name: Check data-collector Makefile
               run: cargo make --print-steps 2>1& > /dev/null
               working-directory: data-collector/
-    run-vuln-dependency-check:
-        name: Check for vulnerable dependencies using cargo audit
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Audit
-              run: cargo audit
-              working-directory: data-collector/
