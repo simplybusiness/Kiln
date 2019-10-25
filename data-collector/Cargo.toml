@@ -18,7 +18,7 @@ openssl = "0.10"
 failure = "0.1"
 avro-rs = "0.6"
 env_logger = "0.7"
-libflate = "0.1.19"
+libflate = "0.1.20"
 
 [dev-dependencies]
 serial_test = "0.1"
