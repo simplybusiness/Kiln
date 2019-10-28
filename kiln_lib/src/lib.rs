@@ -38,6 +38,7 @@ pub mod validation {
     pub struct ValidationError {
         pub error_code: u8,
         pub error_message: String,
+        pub json_field_name: Option<String>,
     }
 
     impl ValidationError {
@@ -45,6 +46,7 @@ pub mod validation {
             ValidationError {
                 error_code: 100,
                 error_message: "Request body empty".into(),
+                json_field_name: None,
             }
         }
 
@@ -52,6 +54,7 @@ pub mod validation {
             ValidationError {
                 error_code: 101,
                 error_message: "Request body not correct media type".into(),
+                json_field_name: None,
             }
         }
 
@@ -59,6 +62,7 @@ pub mod validation {
             ValidationError {
                 error_code: 111,
                 error_message: "Application name present but empty".into(),
+                json_field_name: Some("application_name".into()),
             }
         }
 
@@ -66,6 +70,7 @@ pub mod validation {
             ValidationError {
                 error_code: 102,
                 error_message: "Application name required".into(),
+                json_field_name: Some("application_name".into()),
             }
         }
 
@@ -73,6 +78,7 @@ pub mod validation {
             ValidationError {
                 error_code: 112,
                 error_message: "Application name not a valid string".into(),
+                json_field_name: Some("application_name".into()),
             }
         }
 
@@ -80,6 +86,7 @@ pub mod validation {
             ValidationError {
                 error_code: 113,
                 error_message: "Git branch name present but empty".into(),
+                json_field_name: Some("git_branch".into()),
             }
         }
 
@@ -87,6 +94,7 @@ pub mod validation {
             ValidationError {
                 error_code: 103,
                 error_message: "Git branch name required".into(),
+                json_field_name: Some("git_branch".into()),
             }
         }
 
@@ -94,6 +102,7 @@ pub mod validation {
             ValidationError {
                 error_code: 114,
                 error_message: "Git branch name not a valid string".into(),
+                json_field_name: Some("git_branch".into()),
             }
         }
 
@@ -101,6 +110,7 @@ pub mod validation {
             ValidationError {
                 error_code: 115,
                 error_message: "Git commit hash present but empty".into(),
+                json_field_name: Some("git_commit_hash".into()),
             }
         }
 
@@ -108,6 +118,7 @@ pub mod validation {
             ValidationError {
                 error_code: 104,
                 error_message: "Git commit hash required".into(),
+                json_field_name: Some("git_commit_hash".into()),
             }
         }
 
@@ -115,6 +126,7 @@ pub mod validation {
             ValidationError {
                 error_code: 117,
                 error_message: "Git commit hash not a valid string".into(),
+                json_field_name: Some("git_commit_hash".into()),
             }
         }
 
@@ -122,6 +134,7 @@ pub mod validation {
             ValidationError {
                 error_code: 116,
                 error_message: "Git commit hash not valid".into(),
+                json_field_name: Some("git_commit_hash".into()),
             }
         }
 
@@ -129,6 +142,7 @@ pub mod validation {
             ValidationError {
                 error_code: 118,
                 error_message: "Tool name present but empty".into(),
+                json_field_name: Some("tool_name".into()),
             }
         }
 
@@ -136,6 +150,7 @@ pub mod validation {
             ValidationError {
                 error_code: 105,
                 error_message: "Tool name required".into(),
+                json_field_name: Some("tool_name".into()),
             }
         }
 
@@ -143,6 +158,7 @@ pub mod validation {
             ValidationError {
                 error_code: 119,
                 error_message: "Tool name not a valid string".into(),
+                json_field_name: Some("tool_name".into()),
             }
         }
 
@@ -150,6 +166,7 @@ pub mod validation {
             ValidationError {
                 error_code: 120,
                 error_message: "Tool output present but empty".into(),
+                json_field_name: Some("tool_output".into()),
             }
         }
 
@@ -157,6 +174,7 @@ pub mod validation {
             ValidationError {
                 error_code: 106,
                 error_message: "Tool output required".into(),
+                json_field_name: Some("tool_output".into()),
             }
         }
 
@@ -164,6 +182,7 @@ pub mod validation {
             ValidationError {
                 error_code: 121,
                 error_message: "Tool output not a valid string".into(),
+                json_field_name: Some("tool_output".into()),
             }
         }
 
@@ -171,6 +190,7 @@ pub mod validation {
             ValidationError {
                 error_code: 122,
                 error_message: "Tool output format present but empty".into(),
+                json_field_name: Some("tool_output_format".into()),
             }
         }
 
@@ -178,6 +198,7 @@ pub mod validation {
             ValidationError {
                 error_code: 107,
                 error_message: "Tool output format required".into(),
+                json_field_name: Some("tool_output_format".into()),
             }
         }
 
@@ -185,6 +206,7 @@ pub mod validation {
             ValidationError {
                 error_code: 123,
                 error_message: "Tool output format not a valid string".into(),
+                json_field_name: Some("tool_output_format".into()),
             }
         }
 
@@ -192,6 +214,7 @@ pub mod validation {
             ValidationError {
                 error_code: 124,
                 error_message: "Tool output format not acceptable".into(),
+                json_field_name: Some("tool_output_format".into()),
             }
         }
 
@@ -199,6 +222,7 @@ pub mod validation {
             ValidationError {
                 error_code: 108,
                 error_message: "Start time required".into(),
+                json_field_name: Some("start_time".into()),
             }
         }
 
@@ -206,6 +230,7 @@ pub mod validation {
             ValidationError {
                 error_code: 125,
                 error_message: "Start time not a valid timestamp".into(),
+                json_field_name: Some("start_time".into()),
             }
         }
 
@@ -213,6 +238,7 @@ pub mod validation {
             ValidationError {
                 error_code: 109,
                 error_message: "End time required".into(),
+                json_field_name: Some("end_time".into()),
             }
         }
 
@@ -220,6 +246,7 @@ pub mod validation {
             ValidationError {
                 error_code: 126,
                 error_message: "End time not a valid timestamp".into(),
+                json_field_name: Some("end_time".into()),
             }
         }
 
@@ -227,6 +254,7 @@ pub mod validation {
             ValidationError {
                 error_code: 128,
                 error_message: "Environment not a valid option".into(),
+                json_field_name: Some("environment".into()),
             }
         }
 
@@ -234,6 +262,7 @@ pub mod validation {
             ValidationError {
                 error_code: 110,
                 error_message: "Environment required".into(),
+                json_field_name: Some("environment".into()),
             }
         }
 
@@ -241,6 +270,7 @@ pub mod validation {
             ValidationError {
                 error_code: 127,
                 error_message: "Environment not a valid string".into(),
+                json_field_name: Some("environment".into()),
             }
         }
 
@@ -248,6 +278,7 @@ pub mod validation {
             ValidationError {
                 error_code: 130,
                 error_message: "Tool version not a valid string".into(),
+                json_field_name: Some("tool_version".into()),
             }
         }
 
@@ -255,27 +286,31 @@ pub mod validation {
             ValidationError {
                 error_code: 129,
                 error_message: "Tool version present but empty".into(),
+                json_field_name: Some("tool_version".into()),
             }
         }
 
         pub fn avro_schema_validation_failed() -> ValidationError {
             ValidationError {
                 error_code: 130,
-                error_message: "Tried to deserialise a ToolReport from Avro but value didn't pass schema validation".into()
+                error_message: "Tried to deserialise a ToolReport from Avro but value didn't pass schema validation".into(),
+                json_field_name: None, 
             }
         }
 
         pub fn tool_output_format_not_an_enum() -> ValidationError {
             ValidationError {
                 error_code: 131,
-                error_message: "Tool output format not an avro enum".into()
+                error_message: "Tool output format not an avro enum".into(),
+                json_field_name: None, 
             }
         }
 
         pub fn environment_not_an_enum() -> ValidationError {
             ValidationError {
                 error_code: 132,
-                error_message: "Environment not an avro enum".into()
+                error_message: "Environment not an avro enum".into(),
+                json_field_name: None, 
             }
         }
     }
