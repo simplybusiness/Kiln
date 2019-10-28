@@ -19,6 +19,7 @@ failure = "0.1"
 avro-rs = "0.6"
 env_logger = "0.7"
 libflate = "0.1.19"
+libusb = "0.2.2"
 
 [dev-dependencies]
 serial_test = "0.1"
