@@ -59,7 +59,11 @@ fn handler(
         let report_result = parse_payload(&body);
 
         if let Err(err) = report_result {
-            warn!("Request did not pass validation because: {}. Request body: {}\n", err.error_message, str::from_utf8(&body).unwrap());
+            if let Some(field_name) = &err.json_field_name {
+                warn!("Request did not pass validation. Error message: {}. JSON field name: {}. Request body: {}\n", err.error_message, field_name, str::from_utf8(&body).unwrap());
+            } else {
+                warn!("Request did not pass validation. Error message: {}. Request body: {}\n", err.error_message, str::from_utf8(&body).unwrap());
+            }
             return Ok(err.into());
         }
 
