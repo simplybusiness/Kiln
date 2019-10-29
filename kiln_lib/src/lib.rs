@@ -497,6 +497,19 @@ pub mod tool_report {
         PlainText,
     }
 
+    impl TryFrom<String> for OutputFormat {
+        type Error = ValidationError;
+	
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            match value.as_ref(){
+		"JSON" => Ok(OutputFormat::JSON), 
+		"PlainText" => Ok(OutputFormat::PlainText), 
+		"" => Err(ValidationError::tool_output_format_empty()),
+		_ => Err(ValidationError::tool_output_format_invalid()),				
+	    }
+        }
+    }
+
     impl std::fmt::Display for OutputFormat {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
             match self {
