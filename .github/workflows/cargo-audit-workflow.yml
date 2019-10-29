@@ -19,12 +19,12 @@ jobs:
             run: cargo audit --deny-warnings
             working-directory: data-collector/
           - name: Dump GitHub context
-	    if: failure()
+            if: failure()
             env:
                 GITHUB_CONTEXT: ${{ toJson(github) }}
             run: echo "$GITHUB_CONTEXT"
           - name: Dump job context
-	    if: failure()
+            if: failure()
             env:
                 JOB_CONTEXT: ${{ toJson(job) }}
             run: echo "$JOB_CONTEXT"
