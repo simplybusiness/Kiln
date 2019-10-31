@@ -19,5 +19,10 @@ jobs:
             run: cargo audit --deny-warnings 
           - name: Copy failure message to issue template
             if: failure()
-            run: pwd && cargo audit --deny-warnings | tee /dev/stderr | grep "Title" | sed 's/[^ ]* *//' >> ../ISSUE_TEMPLATE.md
+            run: pwd && cargo audit --deny-warnings | tee /dev/stderr | grep "Title" | sed 's/[^ ]* *//' >> ../.github/ISSUE_TEMPLATE.md
             working-directory: data-collector/
+          - name: Create an issue if the vulnerable dependency check fails
+            if: failure()
+            uses: JasonEtco/create-an-issue@master
+            env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
