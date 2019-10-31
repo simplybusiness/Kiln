@@ -1,0 +1,15 @@
+@startuml
+skinparam nodeBackgroundColor White
+skinparam arrowColor Black
+
+node "Kiln Scanning\nContainer" as tool
+node "Kiln Data\nCollector" as collector
+node "Kafka\nCluster" as kafka_cluster
+node "Kiln Slack\nConnector" as slack_connector
+node "Slack" as slack
+
+tool -r-> collector : HTTP POST\nwith tool output\nand metadata
+collector -r-> kafka_cluster : Create event\nand send to\ntopic
+kafka_cluster -r-> slack_connector : Consumes events\nfrom Kafka\ntopic
+slack_connector -r-> slack : Notify\nappropriate\nSlack channel
+@enduml
