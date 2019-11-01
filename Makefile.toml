@@ -6,3 +6,7 @@ dependencies = [
 [tasks.build-data-collector-docker]
 command = "cargo"
 args = ["make", "--cwd", "data-collector", "build-data-collector-docker"]
+
+[tasks.regenerate-diagrams]
+command = "docker"
+args = ["run", "-v", "${PWD}:/work", "-w", "/work", "--rm", "-it", "miy4/plantuml", "-o", "/work/docs/images/", "-tsvg", "/work/docs/images/*.puml"]
