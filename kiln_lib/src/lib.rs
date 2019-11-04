@@ -788,6 +788,19 @@ pub mod tool_report {
         }
     }
 
+
+    impl TryFrom<String> for Environment {
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            match value.as_ref(){
+                "Local" => Ok(Environment::Local),
+                "CI" => Ok(Environment::CI),
+                _ => Err(ValidationError::environment_not_a_valid_option()),
+            }
+        }
+    }
+
     impl TryFrom<avro_rs::types::Value> for ToolVersion {
         type Error = ValidationError;
 
