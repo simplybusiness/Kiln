@@ -244,6 +244,13 @@ pub mod validation {
             }
         }
 
+        pub fn environment_empty() -> ValidationError {
+            ValidationError {
+                error_code: 133,
+                error_message: "Environment present but empty".into(),
+            }
+        }
+
         pub fn tool_version_not_a_string() -> ValidationError {
             ValidationError {
                 error_code: 130,
@@ -700,13 +707,9 @@ pub mod tool_report {
 
             if x.1.is_empty() {
                 return Err(ValidationError::tool_output_format_empty());
-            }
+            } 
 
-            match x.1.as_ref() {
-                "JSON" => Ok(OutputFormat::JSON),
-                "PlainText" => Ok(OutputFormat::PlainText),
-                _ => Err(ValidationError::tool_output_format_invalid()),
-            }
+	    return Self::try_from(x.1); 
         }
     }
 
@@ -736,6 +739,19 @@ pub mod tool_report {
         }
     }
 
+    impl TryFrom<String> for Environment {
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            match value.as_ref(){
+                "Local" => Ok(Environment::Local),
+                "CI" => Ok(Environment::CI),
+		"" => Err(ValidationError::environment_empty()),
+                _ => Err(ValidationError::environment_not_a_valid_option()),
+            }
+        }
+    }
+
     impl TryFrom<avro_rs::types::Value> for Environment {
         type Error = ValidationError;
 
@@ -745,24 +761,7 @@ pub mod tool_report {
                 _ => Err(ValidationError::environment_not_an_enum()),
             }?;
 
-            match x.1.as_ref() {
-                "Local" => Ok(Environment::Local),
-                "CI" => Ok(Environment::CI),
-                _ => Err(ValidationError::environment_not_a_valid_option()),
-            }
-        }
-    }
-
-
-    impl TryFrom<String> for Environment {
-        type Error = ValidationError;
-
-        fn try_from(value: String) -> Result<Self, Self::Error> {
-            match value.as_ref(){
-                "Local" => Ok(Environment::Local),
-                "CI" => Ok(Environment::CI),
-                _ => Err(ValidationError::environment_not_a_valid_option()),
-            }
+            Self::try_from(x.1) 
         }
     }
 
@@ -868,15 +867,11 @@ pub mod tool_report {
         fn parse_environment(json_value: &Value) -> Result<Environment, ValidationError> {
             let value = match &json_value["environment"] {
                 Value::Null => Err(ValidationError::environment_missing()),
-                Value::String(value) => Ok(value),
+                Value::String(value) => Ok(value.to_owned()),
                 _ => Err(ValidationError::environment_not_a_string()),
             }?;
 
-            match value.as_ref() {
-                "Local" => Ok(Environment::Local),
-                "CI" => Ok(Environment::CI),
-                _ => Err(ValidationError::environment_not_a_valid_option()),
-            }
+            Environment::try_from(value)  
         }
 
         fn parse_tool_version(json_value: &Value) -> Result<ToolVersion, ValidationError> {
@@ -1467,6 +1462,30 @@ pub mod tool_report {
             .unwrap();
 
             let expected = ValidationError::environment_not_a_valid_option();
+            let actual = ToolReport::try_from(&message).expect_err("expected Err(_) value");
+
+            assert_eq!(expected, actual);
+        }
+
+        #[test]
+        fn try_from_returns_error_when_environment_empty() {
+            let message = serde_json::from_str(
+                r#"{
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "JSON",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "",
+                "tool_version": "1.0"
+            }"#,
+            )
+            .unwrap();
+
+            let expected = ValidationError::environment_empty();
             let actual = ToolReport::try_from(&message).expect_err("expected Err(_) value");
 
             assert_eq!(expected, actual);
