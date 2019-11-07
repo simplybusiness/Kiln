@@ -278,6 +278,7 @@ pub mod validation {
             ValidationError {
                 error_code: 133,
                 error_message: "Environment present but empty".into(),
+                json_field_name: Some("environment".into()),
             }
         }
 
