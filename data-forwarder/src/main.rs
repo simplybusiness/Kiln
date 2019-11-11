@@ -3,8 +3,9 @@ use kiln_lib::validation::ValidationError;
 use clap::{Arg, App}; 
 use std::convert::TryFrom; 
 use chrono::{DateTime, Utc};
+use reqwest::Client; 
 
-fn main() -> Result<(), kiln_lib::validation::ValidationError> {
+fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     let matches = App::new("Kiln data forwarder")
 			.arg(Arg::with_name("tool_name")
 				.help("Name of the security tool run")
@@ -92,7 +93,7 @@ fn main() -> Result<(), kiln_lib::validation::ValidationError> {
 	let app_name = matches.value_of("app_name").unwrap();
         let git_commit_hash = "70453c83913a703010dce88fdc6cb4ab1d591a81"; 
 	let git_branch_name = "master"; 
-	let tool_output = ""; 
+	let tool_output = "{}"; 
 
 	let tool_report = ToolReport { 
 		application_name: ApplicationName::try_from(app_name.to_string())?, 
@@ -108,5 +109,9 @@ fn main() -> Result<(), kiln_lib::validation::ValidationError> {
 	}; 	
 
 	println!("Tool Report Struct: {:?}", tool_report);  
-	Ok(())
+	let client = Client::new();
+	client.post(endpoint_url)
+        .json(&tool_report)
+        .send()?; 
+        Ok(())
 }
