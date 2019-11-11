@@ -33,12 +33,22 @@ pub mod avro_schema {
 pub mod validation {
     use actix_web::HttpResponse;
     use serde::Serialize;
+    use std::error::Error; 
+    use std::fmt; 
 
     #[derive(Debug, PartialEq, Serialize)]
     pub struct ValidationError {
         pub error_code: u8,
         pub error_message: String,
         pub json_field_name: Option<String>,
+    }
+ 
+    impl Error for ValidationError { } 
+
+    impl fmt::Display for ValidationError {
+    	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        	write!(f, "Error Validating data: (Err {}) {}", self.error_code, self.error_message)
+    	}
     }
 
     impl ValidationError {
