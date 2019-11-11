@@ -4,6 +4,9 @@ use clap::{Arg, App};
 use std::convert::TryFrom; 
 use chrono::{DateTime, Utc};
 use reqwest::Client; 
+use std::fs::File;
+use std::path::Path;
+use std::io::prelude::*;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     let matches = App::new("Kiln data forwarder")
@@ -93,7 +96,10 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 	let app_name = matches.value_of("app_name").unwrap();
         let git_commit_hash = "70453c83913a703010dce88fdc6cb4ab1d591a81"; 
 	let git_branch_name = "master"; 
-	let tool_output = "{}"; 
+	let path = Path::new(tool_output_path);
+	let mut file = File::open(&path)?;
+	let mut tool_output = String::new();
+        file.read_to_string(&mut tool_output)?;
 
 	let tool_report = ToolReport { 
 		application_name: ApplicationName::try_from(app_name.to_string())?, 
