@@ -2,7 +2,7 @@
 
 This document will explain how Kiln should be deployed in an AWS environment, using Amazon's Managed Streaming for Kafka (MSK) service to simplify the deployment of a Kafka cluster. It's possible to use Kiln with a self-administered Kafka + Zookeeper cluster, but that's beyond the scope of this documentation.
 
-![Kiln network diagram](images/AWS%20Diagram%20for%20Kiln%20MSK.png)
+![Kiln network diagram](images/AWS%20Diagram%20for%20Kiln%20MSK.svg)
 
 In order to provide clear segmentation between your Kiln deploiyment and other services that might be running in your AWS account, it is suggested that Kiln is deployed in a separate VPC. Because Kafka should be deployed with a minimum of 3 brokers, this VPC should ideally contain 3 private subnets across 3 Availability Zones, to minimise the chance of two brokers being unavailable at any time. These Kafka brokers should have a security group applied to them that allows all incoming and outgoing traffic on all ports to other members of the security group to allow broker -> broker communications. They should also have a rule in this security group allowing incoming traffic on TCP port 9092 from members of a second security group that will be applied to clients.
 
