@@ -5,7 +5,7 @@ pub mod avro_schema {
             "name": "ToolReport",
             "fields": [
                 {"name": "application_name", "type": "string"},
-                {"name": "git_branch", "type": "string"},
+                {"name": "git_branch", "type": ["null", "string"]},
                 {"name": "git_commit_hash", "type": "string"},
                 {"name": "tool_name", "type": "string"},
                 {"name": "tool_output", "type": "string"},
@@ -96,14 +96,6 @@ pub mod validation {
             ValidationError {
                 error_code: 113,
                 error_message: "Git branch name present but empty".into(),
-                json_field_name: Some("git_branch".into()),
-            }
-        }
-
-        pub fn git_branch_name_missing() -> ValidationError {
-            ValidationError {
-                error_code: 103,
-                error_message: "Git branch name required".into(),
                 json_field_name: Some("git_branch".into()),
             }
         }
@@ -392,23 +384,31 @@ pub mod tool_report {
     }
 
     #[derive(Clone, Debug, PartialEq, Serialize)]
-    pub struct GitBranch(String);
+    pub struct GitBranch(Option<String>);
 
-    impl TryFrom<String> for GitBranch {
+    impl TryFrom<Option<String>> for GitBranch {
         type Error = ValidationError;
 
-        fn try_from(value: String) -> Result<Self, Self::Error> {
-            if value.is_empty() {
-                Err(ValidationError::git_branch_name_empty())
-            } else {
-                Ok(GitBranch(value))
+        fn try_from(value: Option<String>) -> Result<Self, Self::Error> {
+            match value {
+                None => Ok(GitBranch(None)), 
+                Some(value) => {
+                    if value.is_empty() {
+                        Err(ValidationError::git_branch_name_empty())
+                    } else {
+                        Ok(GitBranch(Some(value)))
+                    }
+                }
             }
         }
     }
 
     impl std::fmt::Display for GitBranch {
         fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-            write!(f, "{}", self.0)
+            match &self.0 { 
+                None => write!(f, "Not Provided"), 
+                Some(t) => write!(f, "{}", t)
+            } 
         }
     }
 
@@ -703,7 +703,8 @@ pub mod tool_report {
 
         fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
             match value {
-                avro_rs::types::Value::String(s) => GitBranch::try_from(s),
+                avro_rs::types::Value::String(s) => GitBranch::try_from(Some(s)),
+                avro_rs::types::Value::Null => GitBranch::try_from(None), 
                 _ => Err(ValidationError::git_branch_name_not_a_string()),
             }
         }
@@ -835,11 +836,11 @@ pub mod tool_report {
 
         fn parse_git_branch(json_value: &Value) -> Result<GitBranch, ValidationError> {
             let value = match &json_value["git_branch"] {
-                Value::Null => Err(ValidationError::git_branch_name_missing()),
-                Value::String(value) => Ok(value),
+                Value::Null => Ok(None),
+                Value::String(value) => Ok(Some(value.to_owned())),
                 _ => Err(ValidationError::git_branch_name_not_a_string()),
             }?;
-            GitBranch::try_from(value.to_owned())
+            GitBranch::try_from(value)
         }
 
         fn parse_git_commit_hash(json_value: &Value) -> Result<GitCommitHash, ValidationError> {
@@ -958,28 +959,6 @@ pub mod tool_report {
                 .unwrap();
 
                 let expected = ValidationError::application_name_missing();
-                let actual = ToolReport::try_from(&message).expect_err("expected Err(_) value");
-
-                assert_eq!(expected, actual);
-            }
-
-            #[test]
-            fn try_from_returns_error_when_git_branch_missing() {
-                let message = serde_json::from_str(
-                    r#"{
-                    "application_name": "Test application",
-                    "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
-                    "tool_name": "example tool",
-                    "tool_output": "{}",
-                    "output_format": "JSON",
-                    "start_time": "2019-09-13T19:35:38+00:00",
-                    "end_time": "2019-09-13T19:37:14+00:00",
-                    "environment": "Local",
-                    "tool_version": "1.0"
-                }"#,
-                )
-                .unwrap();
-                let expected = ValidationError::git_branch_name_missing();
                 let actual = ToolReport::try_from(&message).expect_err("expected Err(_) value");
 
                 assert_eq!(expected, actual);
@@ -1352,7 +1331,7 @@ pub mod tool_report {
         fn try_from_returns_error_when_git_branch_name_empty() {
             let message = "".to_owned();
             let expected = ValidationError::git_branch_name_empty();
-            let actual = GitBranch::try_from(message).expect_err("expected Err(_) value");
+            let actual = GitBranch::try_from(Some(message)).expect_err("expected Err(_) value");
 
             assert_eq!(expected, actual);
         }
