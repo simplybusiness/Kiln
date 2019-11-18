@@ -6,6 +6,21 @@ jobs:
         name: Data-collector build
         runs-on: ubuntu-18.04
         steps:
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-data-collector-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-data-collector-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: target
+                key: ${{ runner.os }}-data-collector-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
             - name: Checkout
               uses: actions/checkout@v1
             - name: Build
@@ -15,6 +30,21 @@ jobs:
         name: Data-collector tests
         runs-on: ubuntu-18.04
         steps:
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-data-collector-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-data-collector-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: target
+                key: ${{ runner.os }}-data-collector-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
             - name: Checkout
               uses: actions/checkout@v1
             - name: Test
@@ -24,6 +54,21 @@ jobs:
         name: Data-collector lint
         runs-on: ubuntu-18.04
         steps:
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-data-collector-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-data-collector-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: target
+                key: ${{ runner.os }}-data-collector-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
             - name: Checkout
               uses: actions/checkout@v1
             - name: Lint
@@ -33,6 +78,21 @@ jobs:
         name: Kiln_lib build
         runs-on: ubuntu-18.04
         steps:
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-kiln-lib-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-kiln-lib-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: target
+                key: ${{ runner.os }}-kiln-lib-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
             - name: Checkout
               uses: actions/checkout@v1
             - name: Build
@@ -42,6 +102,21 @@ jobs:
         name: Kiln_lib tests
         runs-on: ubuntu-18.04
         steps:
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-kiln-lib-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-kiln-lib-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: target
+                key: ${{ runner.os }}-kiln-lib-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
             - name: Checkout
               uses: actions/checkout@v1
             - name: Test
@@ -51,6 +126,21 @@ jobs:
         name: Kiln_lib lint
         runs-on: ubuntu-18.04
         steps:
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-kiln-lib-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-kiln-lib-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: target
+                key: ${{ runner.os }}-kiln-lib-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
             - name: Checkout
               uses: actions/checkout@v1
             - name: Lint
