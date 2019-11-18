@@ -2,8 +2,8 @@ name: CI
 on: [push]
 
 jobs:
-    build-data-collector:
-        name: Data-collector build
+    data-collector:
+        name: Data-collector CI
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
@@ -12,79 +12,28 @@ jobs:
               uses: actions/cache@v1
               with:
                 path: ~/.cargo/registry
-                key: ${{ runner.os }}-data-collector-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: data-collector/
+                key: ${{ runner.os }}-data-collector-cargo-registry-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Cache cargo index
               uses: actions/cache@v1
               with:
                 path: ~/.cargo/git
-                key: ${{ runner.os }}-data-collector-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: data-collector/
+                key: ${{ runner.os }}-data-collector-cargo-index-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Cache cargo build
               uses: actions/cache@v1
               with:
                 path: target
-                key: ${{ runner.os }}-data-collector-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: data-collector/
+                key: ${{ runner.os }}-data-collector-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Build
               run: cargo build
               working-directory: data-collector/
-    test-data-collector:
-        name: Data-collector tests
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Cache cargo registry
-              uses: actions/cache@v1
-              with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-data-collector-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: data-collector/
-            - name: Cache cargo index
-              uses: actions/cache@v1
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-data-collector-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: data-collector/
-            - name: Cache cargo build
-              uses: actions/cache@v1
-              with:
-                path: target
-                key: ${{ runner.os }}-data-collector-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: data-collector/
             - name: Test
               run: cargo test
-              working-directory: data-collector/
-    lint-data-collector:
-        name: Data-collector lint
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Cache cargo registry
-              uses: actions/cache@v1
-              with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-data-collector-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: data-collector/
-            - name: Cache cargo index
-              uses: actions/cache@v1
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-data-collector-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: data-collector/
-            - name: Cache cargo build
-              uses: actions/cache@v1
-              with:
-                path: target
-                key: ${{ runner.os }}-data-collector-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
               working-directory: data-collector/
             - name: Lint
               run: cargo clippy
               working-directory: data-collector/
-    build-kiln_lib:
-        name: Kiln_lib build
+    kiln_lib:
+        name: Kiln_lib CI 
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
@@ -93,73 +42,25 @@ jobs:
               uses: actions/cache@v1
               with:
                 path: ~/.cargo/registry
-                key: ${{ runner.os }}-kiln-lib-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+                key: ${{ runner.os }}-kiln-lib-cargo-registry-${{ hashFiles('kiln_lib/Cargo.lock') }}
               working-directory: kiln_lib/
             - name: Cache cargo index
               uses: actions/cache@v1
               with:
                 path: ~/.cargo/git
-                key: ${{ runner.os }}-kiln-lib-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+                key: ${{ runner.os }}-kiln-lib-cargo-index-${{ hashFiles('kiln_lib/Cargo.lock') }}
               working-directory: kiln_lib/
             - name: Cache cargo build
               uses: actions/cache@v1
               with:
                 path: target
-                key: ${{ runner.os }}-kiln-lib-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+                key: ${{ runner.os }}-kiln-lib-cargo-build-target-${{ hashFiles('kiln_lib/Cargo.lock') }}
               working-directory: kiln_lib/
             - name: Build
               run: cargo build
               working-directory: kiln_lib/
-    test-kiln-lib:
-        name: Kiln_lib tests
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Cache cargo registry
-              uses: actions/cache@v1
-              with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-kiln-lib-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: kiln_lib/
-            - name: Cache cargo index
-              uses: actions/cache@v1
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-kiln-lib-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: kiln_lib/
-            - name: Cache cargo build
-              uses: actions/cache@v1
-              with:
-                path: target
-                key: ${{ runner.os }}-kiln-lib-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: kiln_lib/
             - name: Test
               run: cargo test
-              working-directory: kiln_lib/
-    lint-kiln-lib:
-        name: Kiln_lib lint
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Cache cargo registry
-              uses: actions/cache@v1
-              with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-kiln-lib-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: kiln_lib/
-            - name: Cache cargo index
-              uses: actions/cache@v1
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-kiln-lib-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-              working-directory: kiln_lib/
-            - name: Cache cargo build
-              uses: actions/cache@v1
-              with:
-                path: target
-                key: ${{ runner.os }}-kiln-lib-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
               working-directory: kiln_lib/
             - name: Lint
               run: cargo clippy
