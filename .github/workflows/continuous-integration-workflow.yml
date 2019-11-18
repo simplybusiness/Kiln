@@ -43,19 +43,16 @@ jobs:
               with:
                 path: ~/.cargo/registry
                 key: ${{ runner.os }}-kiln-lib-cargo-registry-${{ hashFiles('kiln_lib/Cargo.lock') }}
-              working-directory: kiln_lib/
             - name: Cache cargo index
               uses: actions/cache@v1
               with:
                 path: ~/.cargo/git
                 key: ${{ runner.os }}-kiln-lib-cargo-index-${{ hashFiles('kiln_lib/Cargo.lock') }}
-              working-directory: kiln_lib/
             - name: Cache cargo build
               uses: actions/cache@v1
               with:
                 path: target
                 key: ${{ runner.os }}-kiln-lib-cargo-build-target-${{ hashFiles('kiln_lib/Cargo.lock') }}
-              working-directory: kiln_lib/
             - name: Build
               run: cargo build
               working-directory: kiln_lib/
