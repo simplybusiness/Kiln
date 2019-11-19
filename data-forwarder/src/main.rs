@@ -96,7 +96,6 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 	let output_format = matches.value_of("output_format").unwrap();
 	let scan_env = matches.value_of("scan_env").unwrap();
 	let app_name = matches.value_of("app_name").unwrap();
-        let git_commit_hash = "70453c83913a703010dce88fdc6cb4ab1d591a81"; 
 	let path = Path::new(tool_output_path);
 	let mut file = File::open(&path)?;
 	let mut tool_output = String::new();
@@ -106,11 +105,12 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 	let repo = Repository::discover(curr_dir)?;
 	let head = repo.head()?;
         let git_branch_name = head.shorthand().map(|t| t.to_string());
+        let git_commit = head.peel_to_commit()?.id().to_string(); 
 
 	let tool_report = ToolReport { 
 		application_name: ApplicationName::try_from(app_name.to_string())?, 
 		git_branch: GitBranch::try_from(git_branch_name)?, 
-		git_commit_hash: GitCommitHash::try_from(git_commit_hash.to_string())?, 
+		git_commit_hash: GitCommitHash::try_from(git_commit)?, 
 		tool_name: ToolName::try_from(tool_name.to_string())?, 
 		tool_output: ToolOutput::try_from(tool_output.to_string())?, 
 		output_format: OutputFormat::try_from(output_format.to_string())?, 
