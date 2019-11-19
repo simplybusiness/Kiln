@@ -103,7 +103,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 
 	let tool_report = ToolReport { 
 		application_name: ApplicationName::try_from(app_name.to_string())?, 
-		git_branch: GitBranch::try_from(git_branch_name.to_string())?, 
+		git_branch: GitBranch::try_from(Some(git_branch_name.to_string()))?, 
 		git_commit_hash: GitCommitHash::try_from(git_commit_hash.to_string())?, 
 		tool_name: ToolName::try_from(tool_name.to_string())?, 
 		tool_output: ToolOutput::try_from(tool_output.to_string())?, 
