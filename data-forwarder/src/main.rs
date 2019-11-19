@@ -104,7 +104,11 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 	let curr_dir = env::current_dir()?;
 	let repo = Repository::discover(curr_dir)?;
 	let head = repo.head()?;
-        let git_branch_name = head.shorthand().map(|t| t.to_string());
+        let git_branch_name = if head.is_branch() {
+            head.shorthand().map(|t| t.to_string())
+        } else {
+            None
+        };
         let git_commit = head.peel_to_commit()?.id().to_string(); 
 
 	let tool_report = ToolReport { 
