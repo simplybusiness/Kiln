@@ -29,6 +29,33 @@ jobs:
             - name: Lint
               run: cargo clippy
               working-directory: data-collector/
+    build-data-forwarder:
+        name: Data-forwarder build
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Build
+              run: cargo build
+              working-directory: data-forwarder/
+    test-data-forwarder:
+        name: Data-forwarder tests
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Test
+              run: cargo test
+              working-directory: data-forwarder/
+    lint-data-forwarder:
+        name: Data-forwarder lint
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Lint
+              run: cargo clippy
+              working-directory: data-forwarder/
     build-kiln_lib:
         name: Kiln_lib build
         runs-on: ubuntu-18.04
