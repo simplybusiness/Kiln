@@ -7,6 +7,8 @@ use reqwest::Client;
 use std::fs::File;
 use std::path::Path;
 use std::io::prelude::*;
+use std::env;
+use git2::Repository;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     let matches = App::new("Kiln data forwarder")
@@ -95,15 +97,19 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 	let scan_env = matches.value_of("scan_env").unwrap();
 	let app_name = matches.value_of("app_name").unwrap();
         let git_commit_hash = "70453c83913a703010dce88fdc6cb4ab1d591a81"; 
-	let git_branch_name = "master"; 
 	let path = Path::new(tool_output_path);
 	let mut file = File::open(&path)?;
 	let mut tool_output = String::new();
         file.read_to_string(&mut tool_output)?;
 
+	let curr_dir = env::current_dir()?;
+	let repo = Repository::discover(curr_dir)?;
+	let head = repo.head()?;
+        let git_branch_name = head.shorthand().map(|t| t.to_string());
+
 	let tool_report = ToolReport { 
 		application_name: ApplicationName::try_from(app_name.to_string())?, 
-		git_branch: GitBranch::try_from(Some(git_branch_name.to_string()))?, 
+		git_branch: GitBranch::try_from(git_branch_name)?, 
 		git_commit_hash: GitCommitHash::try_from(git_commit_hash.to_string())?, 
 		tool_name: ToolName::try_from(tool_name.to_string())?, 
 		tool_output: ToolOutput::try_from(tool_output.to_string())?, 
