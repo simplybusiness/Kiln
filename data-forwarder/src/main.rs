@@ -124,7 +124,6 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 		tool_version: ToolVersion::try_from(tool_version.map(|s| s.to_string()))?, 
 	}; 	
 
-	println!("Tool Report Struct: {:?}", tool_report);  
 	let client = Client::new();
 	client.post(endpoint_url)
         .json(&tool_report)
