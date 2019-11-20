@@ -9,7 +9,7 @@ pub mod avro_schema {
                 {"name": "git_commit_hash", "type": "string"},
                 {"name": "tool_name", "type": "string"},
                 {"name": "tool_output", "type": "string"},
-                {"name": "output_format", "type": {"type": "enum", "name": "OutputFormat", "symbols": ["JSON", "Plaintext"]}},
+                {"name": "output_format", "type": {"type": "enum", "name": "OutputFormat", "symbols": ["JSON", "PlainText"]}},
                 {"name": "start_time", "type": "string"},
                 {"name": "end_time", "type": "string"},
                 {"name": "environment", "type": {"type": "enum", "name": "Environment", "symbols": ["Local", "CI"]}},
