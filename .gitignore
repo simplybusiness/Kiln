@@ -2,5 +2,6 @@
 */.serverless
 */target
 */rustfmt.toml
+bin
 target
 tls
