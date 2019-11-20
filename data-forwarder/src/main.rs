@@ -59,7 +59,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 				.required(true)
 				.takes_value(true)
 				.value_name("OUTPUT-FORMAT")
-				.possible_values(&["JSON","Plaintext"])			
+				.possible_values(&["JSON","PlainText"])			
 			)
 			.arg(Arg::with_name("scan_env")
 				.help("Environment for the tool run")
