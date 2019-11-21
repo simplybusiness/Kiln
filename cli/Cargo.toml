@@ -1,0 +1,9 @@
+[package]
+name = "kiln-cli"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+clap = "2"
+hyper = "0.12"
+hyperlocal = "0.6"
