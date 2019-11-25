@@ -25,7 +25,13 @@ fn main() {
         ("ruby", Some(sub_m)) => {
             match sub_m.subcommand_name() {
                 Some("dependencies") => {
-                    run_ruby_dependencies_tool(use_local_image)
+                    let prep_fut = prepare_tool_image("kiln/bundler-audit:latest", use_local_image);
+                    prep_fut
+                        .and_then(|_| {
+                            println!("Start container here");
+                            futures::future::ok(())
+                        })
+
                 },
                 _ => unreachable!()
             }
@@ -36,13 +42,13 @@ fn main() {
     tokio::run(tool_fut);
 }
 
-fn run_ruby_dependencies_tool(use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static>{
-    let tool_image_name = "kiln/bundler-audit:latest";
+fn prepare_tool_image<T>(tool_image_name: T, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> 
+    where T: AsRef<str> + std::fmt::Display + Send + 'static {
     let docker = Docker::new();
     if use_local_image {
         return Box::new(
             docker.images()
-                .get(tool_image_name)
+                .get(tool_image_name.as_ref())
                 .inspect()
                 .then(move |res| {
                     match res {
@@ -59,7 +65,7 @@ fn run_ruby_dependencies_tool(use_local_image: bool) -> Box<dyn Future<Item=(), 
             );
     } else {
         let pull_options = PullOptions::builder()
-            .image(tool_image_name)
+            .image(tool_image_name.as_ref())
             .build();
 
         return Box::new(
