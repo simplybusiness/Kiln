@@ -13,3 +13,6 @@ kiln_lib:
 
 tool:
 - tool-images/**
+
+data-forwarder:
+- data-forwarder/**
