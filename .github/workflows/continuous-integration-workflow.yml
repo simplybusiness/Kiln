@@ -83,6 +83,23 @@ jobs:
             - name: Lint
               run: cargo clippy
               working-directory: kiln_lib/
+    build-bundler-audit-docker:
+        name: Build Bundler-Audit tool docker image
+        runs-on: ubuntu-18.04
+        steps:
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Build data-forwarder
+              run: cargo make build-data-forwarder
+            - name: Pre-build bundler-audit
+              run: cargo make pre-build-bundler-audit-docker
+              working-directory: tool-images/ruby/bundler-audit
+            - name: Build bundler-audit
+              run: cargo make build-bundler-audit-docker
+              working-directory: tool-images/ruby/bundler-audit
     check-cargo-makefile-syntax:
         name: Check cargo Makefile syntax is valid
         runs-on: ubuntu-18.04

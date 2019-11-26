@@ -11,5 +11,8 @@ documentation:
 kiln_lib:
 - kiln_lib/**
 
+tool:
+- tool-images/**
+
 data-forwarder:
 - data-forwarder/**

@@ -5,3 +5,4 @@
 bin
 target
 tls
+tool-images/ruby/bundler-audit/data-forwarder

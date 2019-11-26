@@ -2,6 +2,7 @@
 dependencies = [
     "build-data-collector-docker",
 	"build-data-forwarder",
+	"build-bundler-audit-docker"
 ]
 
 [tasks.build-data-collector-docker]
@@ -11,3 +12,7 @@ args = ["make", "--cwd", "data-collector", "build-data-collector-docker"]
 [tasks.build-data-forwarder]
 command = "cargo"
 args = ["make", "--cwd", "data-forwarder", "build-data-forwarder"]
+
+[tasks.build-bundler-audit-docker]
+command = "cargo"
+args = ["make", "--cwd", "tool-images/ruby/bundler-audit", "build-bundler-audit-docker"]

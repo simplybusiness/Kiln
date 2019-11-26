@@ -1,8 +1,27 @@
 # Starting a Kiln stack locally
-Currently, there is no automated integration testing of Kiln, but it is possible to quickly bring up a local Kiln stack to manually test changes with a Kafka cluster.
+Currently, there is no automated integration testing of Kiln, but it is possible to quickly bring up a local Kiln stack to manually test changes with a Kafka cluster. Assuming you want to test a new tool image against the rest of Kiln, you will need the following components:
+
+* Data forwarder compiled for musl-libc (to include in tool image)
+* Tool image of choice (using bundler-audit as an example)
+* Data collector docker image built
+* Java JRE (required for building Java Key Store for Kafka)
+
+Parts of this process have been automated using Cargo-make, which is the task runner for the Kiln build process.
+
+## Building the Data-forwarder binary for musl-libc
+There is a Cargo-make target for building this component for musl-libc which will also run linting and unit tests. `cd` to the project root directory and run `cargo make build-data-forwarder`.
+
+## Building the tool docker image
+This step assumes you have already built the Data-forwarder using the previously mentioned Cargo-make target. The Bundler-audit `Makefile.toml` includes a set of tasks that can be used as a starting point for building new tool images. `cd` to the directory containing your tool image, then run:
+```
+cargo make pre-build-bundler-audit-docker
+cargo make build-bundler-audit-docker
+```
+
+The first task will ensure that the Data-forwarder binary is available for the Docker image build to copy it into the image, while the second one will actually build the image.
 
 ## Building the Data-collector docker image
-Cargo-make is used as a task runner for automating the Kiln build process. To build the data-collector Docker image, run `cargo make build-docker-images` from the project root. This target will be kept updated with all of the docker image targets. It also includes linting and unit testing of the code being built. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make musl-build && cargo make build-image`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: kiln/data-collector:latest.
+To build the data-collector Docker image, run `cargo make build-docker-images` from the project root. This target will be kept updated with all of the docker image targets. It also includes linting and unit testing of the code being built. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make musl-build && cargo make build-image`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: kiln/data-collector:latest.
 
 ## Generating TLS certificates
 Kiln expects to connect to a Kafka cluster over TLS only, so in order to run a stack locally, we need to setup a basic PKI to ensure certificates can be validated and the connection will be successful. This process has been scripted, but still requires a small amount of user interaction.
@@ -21,7 +40,14 @@ Run `docker exec -it kiln_kafka_1 bash` to get a shell within the running Kafka 
 
 Then to start the console consumer, run `$KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic ToolReports --consumer.config /tls/client-ssl.properties --from-beginning`. Now if you send a valid HTTP request to the data-collector, you should see a serialised Avro message printed in this terminal.
 
+## Running a tool image against a local Kiln stack
+Using the Bundler-audit tool image as an example, this command will start the tool, mounting the current working directory for analysis and report it to a locally running Kiln stack: `docker run -it -v "${PWD}:/code" --net host -e SCAN_ENV="Local" -e APP_NAME="Railsgoat" -e DATA_COLLECTOR_URL="http://localhost:8081" kiln/bundler-audit:0.6.1`
+
+A good codebase to test this particular example on is [OWASP RailsGoat](https://github.com/OWASP/railsgoat).
+
 ## Sending an example request
+You should rarely need to use these instructions. They are preserved in case changes are made to the Data-collector or downstream components and you need to test a specific failure case that isn't easy to replicate some other way.
+
 Below are a valid JSON payload for a request to the data-collector and an example cURL command to send this payload:
 
 ```
