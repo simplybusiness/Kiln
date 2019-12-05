@@ -83,6 +83,18 @@ jobs:
             - name: Lint
               run: cargo clippy
               working-directory: kiln_lib/
+    build-data-collector-docker:
+        name: Build data-collector tool docker image
+        runs-on: ubuntu-18.04
+        steps:
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Build data-collector
+              run: cargo make build-data-collector-master-docker
+              working-directory: data-collector
     build-bundler-audit-docker:
         name: Build Bundler-Audit tool docker image
         runs-on: ubuntu-18.04
