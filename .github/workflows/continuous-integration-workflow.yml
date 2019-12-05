@@ -93,7 +93,7 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v1
             - name: Build data-collector
-              run: cargo make build-data-collector-master-docker
+              run: cargo make build-data-collector-docker
               working-directory: data-collector
     build-bundler-audit-docker:
         name: Build Bundler-Audit tool docker image
