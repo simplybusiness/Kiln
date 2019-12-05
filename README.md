@@ -38,3 +38,15 @@ Kiln is still in it's early stages and isn't ready for production use. However, 
 - Open a PR and explain what changes you have made
 - Wait for CI to pass and PR to be reviewed
 - Merge!
+
+## Versioning
+Kiln follows [SemVer 2.0](https://semver.org/) for versioning and all components are versioned in lockstep.
+
+Our Docker images follow this naming convention:
+
+| /        | Master                                     | Release                             |
+| ---      | -------                                    | ---------                           |
+| Tool     | kiln/tool-name:master-GIT_SHA-TOOL_VERSION | kiln/tool-name:GIT_TAG-TOOL_VERSION |
+| Not Tool | kiln/component-name:master-GIT_SHA         | kiln/component-name:GIT_TAG         |
+
+The kiln/tool-name:master-latest, kiln/component-name:master-latest, kiln/tool-name:latest and kiln/component-name:latest are updated to point at the most recently published image for that channel.
