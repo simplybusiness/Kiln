@@ -98,7 +98,7 @@ jobs:
               run: cargo make pre-build-bundler-audit-docker
               working-directory: tool-images/ruby/bundler-audit
             - name: Build bundler-audit
-              run: cargo make build-bundler-audit-docker
+              run: cargo make build-bundler-audit-master-docker
               working-directory: tool-images/ruby/bundler-audit
     check-cargo-makefile-syntax:
         name: Check cargo Makefile syntax is valid
@@ -117,3 +117,6 @@ jobs:
             - name: Check data-collector Makefile
               run: cargo make --print-steps 2>1& > /dev/null
               working-directory: data-collector/
+            - name: Check bundler-audit Makefile
+              run: cargo make --print-steps 2>&1 > /dev/null
+              working-directory: tool-images/ruby/bundler-audit
