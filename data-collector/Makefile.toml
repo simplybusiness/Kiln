@@ -1,3 +1,7 @@
+[env]
+GIT_SHA = { script = ["git rev-parse --short HEAD"] }
+GIT_TAG = { script = ["git describe --tags --abbrev=0"] }
+
 [tasks.build-data-collector-docker]
 dependencies = [
     "clippy",
@@ -11,11 +15,24 @@ script = [
 	"docker run --rm -v $PWD:/workdir -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry registry.gitlab.com/rust_musl_docker/image:stable-latest cargo build --release --target=x86_64-unknown-linux-musl"
 ]
 
-[tasks.build-image]
+[tasks.build-data-collector-master-docker]
+dependencies = ["build-data-collector-docker-tag-master-version", "build-data-collector-docker-tag-master-latest"]
+
+[tasks.build-data-collector-docker-tag-master-version]
 command = "docker"
-args = [
-	"build",
-	"-t",
-	"kiln/data-collector:latest",
-	".",
-]
+args = ["build", "-t", "kiln/data-collector:master-${GIT_SHA}", "."]
+
+[tasks.build-data-collector-docker-tag-master-latest]
+command = "docker"
+args = ["tag", "kiln/data-collector:master-${GIT_SHA}", "kiln/data-collector:master-latest"]
+
+[tasks.build-data-collector-release-docker]
+dependencies = ["build-data-collector-docker-tag-release-version", "build-data-collector-docker-tag-release-latest"]
+
+[tasks.build-data-collector-docker-tag-release-version]
+command = "docker"
+args = ["build", "-t", "kiln/data-collector:${GIT_TAG}", "."]
+
+[tasks.build-data-collector-docker-tag-release-latest]
+command = "docker"
+args = ["tag", "kiln/data-collector:${GIT_TAG}", "kiln/data-collector:latest"]
