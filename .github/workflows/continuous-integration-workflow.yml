@@ -92,8 +92,11 @@ jobs:
                 version: 0.22.2
             - name: Checkout
               uses: actions/checkout@v1
-            - name: Build data-collector
-              run: cargo make build-data-collector-docker
+            - name: Build data-collector for musl-libc
+              run: cargo make musl-build
+              working-directory: data-collector
+            - name: Build data-collector docker image
+              run: cargo make build-data-collector-docker-image
               working-directory: data-collector
     build-bundler-audit-docker:
         name: Build Bundler-Audit tool docker image
