@@ -82,10 +82,6 @@ pW+dkjGd7r5rGCFvytGBgFSH/aQ1P54Hy+HoBQ==
 -----END PGP PUBLIC KEY BLOCK-----
 ```
 
-If you own a Yubikey, you can move your private keys into your Yubikey and keep a backup offline to keep your signing keys as secure as possible. Yubico have great instructions on how to backup and move your keys to your Yubikey [https://developers.yubico.com/PGP/Importing_keys.html](https://developers.yubico.com/PGP/Importing_keys.html).
-
-Once you have your signing public key exported in ascii-armoured format, raise a PR with the key stored in `meta/release-keys/<yourname>.pub`.
-
 # Releasing Kiln
 
 * Open a release branch from master
