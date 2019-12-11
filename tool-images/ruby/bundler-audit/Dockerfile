@@ -1,5 +1,6 @@
 FROM ruby:2-alpine
 RUN apk --no-cache add git
+RUN gem install bundler
 WORKDIR /code
 
 COPY entrypoint.sh /entrypoint.sh
