@@ -123,6 +123,6 @@ jobs:
             - name: Check bundler-audit Makefile
               run: cargo make --print-steps 2>&1 > /dev/null
               working-directory: tool-images/ruby/bundler-audit
-            - name: Check datra-forwarder Makefile
+            - name: Check data-forwarder Makefile
               run: cargo make --print-steps 2>&1 > /dev/null
               working-directory: data-forwarder
