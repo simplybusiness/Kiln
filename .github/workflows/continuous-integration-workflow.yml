@@ -36,13 +36,13 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v1
             - name: Build
-              run: cargo build
+              run: cargo build --all-features
               working-directory: kiln_lib/
             - name: Test
-              run: cargo test
+              run: cargo test --all-features
               working-directory: kiln_lib/
             - name: Lint
-              run: cargo clippy
+              run: cargo clippy --all-features
               working-directory: kiln_lib/
     build-bundler-audit-docker:
         name: Build Bundler-Audit tool docker image
