@@ -13,7 +13,7 @@ args = ["data-forwarder"]
 
 [tasks.build-bundler-audit-docker]
 command = "docker"
-args = ["build", "-t", "kiln/bundler-audit:${GIT_BRANCH}-${GIT_SHA}", "."]
+args = ["build", "-t", "kiln/bundler-audit:${GIT_BRANCH}-${GIT_SHA}", "--build-arg", "BUNDLER_AUDIT_VERSION=${TOOL_VERSION_BUNDLER_AUDIT}", "."]
 
 [tasks.build-bundler-audit-master-docker]
 dependencies = ["build-bundler-audit-docker-tag-master-version", "build-bundler-audit-docker-tag-master-latest"]
