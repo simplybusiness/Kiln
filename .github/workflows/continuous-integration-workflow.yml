@@ -11,6 +11,21 @@ jobs:
             - uses: davidB/rust-cargo-make@v1
               with:
                 version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: data-collector/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Build data-collector docker image
               run: cargo make build-data-collector-docker
     data-forwarder:
@@ -22,6 +37,21 @@ jobs:
             - uses: davidB/rust-cargo-make@v1
               with:
                 version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: data-forwarder/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Build data-forwarder
               run: cargo make build-data-forwarder
             - name: Upload data-forwarder
@@ -38,6 +68,21 @@ jobs:
             - name: Build
               run: cargo build --all-features
               working-directory: kiln_lib/
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('kiln_lib/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('kiln_lib/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: kiln_lib/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('kiln_lib/Cargo.lock') }}
             - name: Test
               run: cargo test --all-features
               working-directory: kiln_lib/
