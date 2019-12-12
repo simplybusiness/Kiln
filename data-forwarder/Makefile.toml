@@ -1,6 +1,11 @@
 [tasks.build-data-forwarder]
 dependencies = [
+	"build",
     "clippy",
+]
+
+[tasks.build-data-forwarder-musl]
+dependencies = [
 	"musl-build", 
 	"copy-binary-to-root-dir",
 ]

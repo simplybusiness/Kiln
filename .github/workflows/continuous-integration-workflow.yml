@@ -26,8 +26,8 @@ jobs:
               with:
                 path: data-collector/target
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
-            - name: Build data-collector docker image
-              run: cargo make build-data-collector-docker
+            - name: Build
+              run: cargo make build-data-collector
     data-forwarder:
         name: Data-forwarder build
         runs-on: ubuntu-18.04
@@ -54,11 +54,6 @@ jobs:
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Build data-forwarder
               run: cargo make build-data-forwarder
-            - name: Upload data-forwarder
-              uses: actions/upload-artifact@v1
-              with:
-                name: data-forwarder
-                path: bin/data-forwarder
     kiln_lib:
         name: Kiln_lib build
         runs-on: ubuntu-18.04
@@ -89,24 +84,6 @@ jobs:
             - name: Lint
               run: cargo clippy --all-features
               working-directory: kiln_lib/
-    build-bundler-audit-docker:
-        name: Build Bundler-Audit tool docker image
-        runs-on: ubuntu-18.04
-        needs: data-forwarder
-        steps:
-            - uses: davidB/rust-cargo-make@v1
-              with:
-                version: 0.22.2
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Download pre-built data-forwarder
-              uses: actions/download-artifact@v1
-              with:
-                name: data-forwarder
-                path: tool-images/ruby/bundler-audit/
-            - name: Build bundler-audit
-              run: cargo make build-bundler-audit-master-docker
-              working-directory: tool-images/ruby/bundler-audit
     check-cargo-makefile-syntax:
         name: Check cargo Makefile syntax is valid
         runs-on: ubuntu-18.04

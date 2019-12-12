@@ -2,10 +2,15 @@
 GIT_SHA = { script = ["git rev-parse --short HEAD"] }
 GIT_BRANCH = { script = ["git rev-parse --abbrev-ref HEAD"] }
 
-[tasks.build-data-collector-docker]
+[tasks.build-data-collector]
 dependencies = [
     "clippy",
 	"test",
+	"build",
+]
+
+[tasks.build-data-collector-docker]
+dependencies = [
 	"musl-build",
 	"build-data-collector-docker-image",
 ]
