@@ -4,11 +4,19 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-avro-rs = "0.6"
+avro-rs = { version = "0.6", optional = true }
 chrono = { version = "0.4", features = ["serde"] }
-actix-web = "1.0"
-http = "0.1"
-serde_json = "1.0"
+actix-web = { version = "1.0", optional = true }
+http = { version = "0.1", optional = true }
+serde_json = { version = "1.0", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 regex = "1.0"
 failure = "0.1"
+
+[features]
+
+default = []
+all = ["avro", "web"]
+avro = ["avro-rs"]
+json = ["serde_json"]
+web = ["actix-web", "http", "json"]
