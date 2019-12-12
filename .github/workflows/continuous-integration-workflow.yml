@@ -28,6 +28,7 @@ jobs:
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Build
               run: cargo make build-data-collector
+              working-directory: data-collector/
     data-forwarder:
         name: Data-forwarder build
         runs-on: ubuntu-18.04
@@ -54,6 +55,7 @@ jobs:
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Build data-forwarder
               run: cargo make build-data-forwarder
+              working-directory: data-forwarder/
     kiln_lib:
         name: Kiln_lib build
         runs-on: ubuntu-18.04
