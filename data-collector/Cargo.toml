@@ -5,7 +5,7 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4"
-actix-web = "1.0"
+actix-web = { version = "1.0", features = ["fail"] }
 bytes = "0.4"
 futures = "0.1"
 http = "0.1"
