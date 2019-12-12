@@ -12,8 +12,7 @@ jobs:
               with:
                 version: 0.22.2
             - name: Build data-collector docker image
-              run: cargo make build-data-collector-docker-image
-              working-directory: data-collector
+              run: cargo make build-data-collector-docker
     data-forwarder:
         name: Data-forwarder build
         runs-on: ubuntu-18.04
