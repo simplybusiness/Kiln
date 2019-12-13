@@ -22,9 +22,17 @@ dependencies = ["build-bundler-audit-docker-tag-master-version", "build-bundler-
 command = "docker"
 args = ["build", "-t", "kiln/bundler-audit:master-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}", "--build-arg", "BUNDLER_AUDIT_VERSION=${TOOL_VERSION_BUNDLER_AUDIT}", "."]
 
+[tasks.bundler-audit-docker-push-master-version]
+command = "docker"
+args = ["push", "kiln/bundler-audit:master-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}"]
+
 [tasks.build-bundler-audit-docker-tag-master-latest]
 command = "docker"
 args = ["tag", "kiln/bundler-audit:master-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}", "kiln/bundler-audit:master-latest"]
+
+[tasks.bundler-audit-docker-push-master-latest]
+command = "docker"
+args = ["push", "kiln/bundler-audit:master-latest"]
 
 [tasks.build-bundler-audit-release-docker]
 dependencies = ["build-bundler-audit-docker-tag-release-version", "build-bundler-audit-docker-tag-release-latest"]
@@ -35,8 +43,18 @@ script = [
 	"docker build -t kiln/bundler-audit:$GIT_TAG-$TOOL_VERSION_BUNDLER_AUDIT --build-arg BUNDLER_AUDIT_VERSION=$TOOL_VERSION_BUNDLER_AUDIT ."
 ]
 
+[tasks.bundler-audit-docker-push-release-version]
+script = [
+	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
+	"docker push kiln/bundler-audit:$GIT_TAG-$TOOL_VERSION_BUNDLER_AUDIT"
+]
+
 [tasks.build-bundler-audit-docker-tag-release-latest]
 script = [
 	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
 	"docker tag kiln/bundler-audit:$GIT_TAG-$TOOL_VERSION_BUNDLER_AUDIT kiln/bundler-audit:latest"
 ]
+
+[tasks.bundler-audit-docker-push-release-latest]
+command = "docker"
+args = ["push", "kiln/bundler-audit:latest"]

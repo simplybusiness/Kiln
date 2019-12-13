@@ -31,9 +31,17 @@ dependencies = ["build-data-collector-docker-tag-master-version", "build-data-co
 command = "docker"
 args = ["build", "-t", "kiln/data-collector:master-${GIT_SHA}", "."]
 
+[tasks.push-data-collector-docker-master-version]
+command = "docker"
+args = ["push", "kiln/data-collector:master-${GIT_SHA}"]
+
 [tasks.build-data-collector-docker-tag-master-latest]
 command = "docker"
 args = ["tag", "kiln/data-collector:master-${GIT_SHA}", "kiln/data-collector:master-latest"]
+
+[tasks.push-data-collector-docker-master-latest]
+command = "docker"
+args = ["push", "kiln/data-collector:master-latest"]
 
 [tasks.build-data-collector-release-docker]
 dependencies = ["build-data-collector-docker-tag-release-version", "build-data-collector-docker-tag-release-latest"]
@@ -44,8 +52,19 @@ script = [
 	"docker build -t kiln/data-collector:$GIT_TAG ."
 ]
 
+[tasks.push-data-collector-docker-release-version]
+script = [
+	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
+	"docker push kiln/data-collector:$GIT_TAG ."
+]
+
 [tasks.build-data-collector-docker-tag-release-latest]
 script = [
 	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
 	"docker tag kiln/data-collector:$GIT_TAG kiln/data-collector:latest"
+]
+
+[tasks.push-data-collector-docker-release-latest]
+script = [
+	"docker push kiln/data-collector:latest"
 ]
