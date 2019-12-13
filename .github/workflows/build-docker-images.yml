@@ -1,0 +1,92 @@
+name: Build Master Docker Images
+on:
+    push:
+        branches:
+            - master
+
+jobs:
+    data-collector:
+        name: Data-collector build
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: data-collector/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Build
+              run: cargo make build-data-collector-docker
+            - name: docker login
+              uses: actions/docker/login@master
+              env:
+                DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+                DOCKER_USERNAME: kilnautomation
+    data-forwarder:
+        name: Data-forwarder build
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: data-forwarder/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Build data-forwarder
+              run: cargo make build-data-forwarder
+            - name: Upload data-forwarder
+              uses: actions/upload-artifact@v1
+              with:
+                name: data-forwarder
+                path: bin/data-forwarder
+    build-bundler-audit-docker:
+        name: Build Bundler-Audit tool docker image
+        runs-on: ubuntu-18.04
+        needs: data-forwarder
+        steps:
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Download pre-built data-forwarder
+              uses: actions/download-artifact@v1
+              with:
+                name: data-forwarder
+                path: tool-images/ruby/bundler-audit/
+            - name: Build bundler-audit
+              run: cargo make build-bundler-audit-master-docker
+              working-directory: tool-images/ruby/bundler-audit
+            - name: docker login
+              uses: actions/docker/login@master
+              env:
+                DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+                DOCKER_USERNAME: kilnautomation
