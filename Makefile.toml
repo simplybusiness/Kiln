@@ -1,7 +1,7 @@
 [tasks.build-docker-images]
 dependencies = [
     "build-data-collector-docker",
-	"build-data-forwarder",
+	"build-data-forwarder-musl",
 	"build-bundler-audit-docker"
 ]
 
@@ -9,9 +9,9 @@ dependencies = [
 command = "cargo"
 args = ["make", "--cwd", "data-collector", "build-data-collector-docker"]
 
-[tasks.build-data-forwarder]
+[tasks.build-data-forwarder-musl]
 command = "cargo"
-args = ["make", "--cwd", "data-forwarder", "build-data-forwarder"]
+args = ["make", "--cwd", "data-forwarder", "build-data-forwarder-musl"]
 
 [tasks.build-bundler-audit-docker]
 command = "cargo"

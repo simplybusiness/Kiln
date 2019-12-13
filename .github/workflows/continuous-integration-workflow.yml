@@ -2,127 +2,94 @@ name: CI
 on: [push]
 
 jobs:
-    build-data-collector:
+    data-collector:
         name: Data-collector build
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
               uses: actions/checkout@v1
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: data-collector/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Build
-              run: cargo build
+              run: cargo make build-data-collector
               working-directory: data-collector/
-    test-data-collector:
-        name: Data-collector tests
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Test
-              run: cargo test
-              working-directory: data-collector/
-    lint-data-collector:
-        name: Data-collector lint
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Lint
-              run: cargo clippy
-              working-directory: data-collector/
-    build-data-forwarder:
+    data-forwarder:
         name: Data-forwarder build
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
               uses: actions/checkout@v1
-            - name: Build
-              run: cargo build
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: data-forwarder/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Build data-forwarder
+              run: cargo make build-data-forwarder
               working-directory: data-forwarder/
-    test-data-forwarder:
-        name: Data-forwarder tests
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Test
-              run: cargo test
-              working-directory: data-forwarder/
-    lint-data-forwarder:
-        name: Data-forwarder lint
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Lint
-              run: cargo clippy
-              working-directory: data-forwarder/
-    build-kiln_lib:
+    kiln_lib:
         name: Kiln_lib build
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
               uses: actions/checkout@v1
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('kiln_lib/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('kiln_lib/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: kiln_lib/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('kiln_lib/Cargo.lock') }}
             - name: Build
-              run: cargo build
+              run: cargo build --all-features
               working-directory: kiln_lib/
-    test-kiln-lib:
-        name: Kiln_lib tests
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
             - name: Test
-              run: cargo test
+              run: cargo test --all-features
               working-directory: kiln_lib/
-    lint-kiln-lib:
-        name: Kiln_lib lint
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
             - name: Lint
-              run: cargo clippy
+              run: cargo clippy --all-features
               working-directory: kiln_lib/
-    build-data-collector-docker:
-        name: Build data-collector tool docker image
-        runs-on: ubuntu-18.04
-        steps:
-            - uses: davidB/rust-cargo-make@v1
-              with:
-                version: 0.22.2
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Build data-collector for musl-libc
-              run: cargo make musl-build
-              working-directory: data-collector
-            - name: Build data-collector docker image
-              run: cargo make build-data-collector-docker-image
-              working-directory: data-collector
-    build-bundler-audit-docker:
-        name: Build Bundler-Audit tool docker image
-        runs-on: ubuntu-18.04
-        steps:
-            - uses: davidB/rust-cargo-make@v1
-              with:
-                version: 0.22.2
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Build data-forwarder
-              run: cargo make build-data-forwarder
-            - name: Pre-build bundler-audit
-              run: cargo make pre-build-bundler-audit-docker
-              working-directory: tool-images/ruby/bundler-audit
-            - name: Build bundler-audit
-              run: cargo make build-bundler-audit-master-docker
-              working-directory: tool-images/ruby/bundler-audit
     check-cargo-makefile-syntax:
         name: Check cargo Makefile syntax is valid
         runs-on: ubuntu-18.04
         steps:
-            - uses: actions-rs/toolchain@v1
-              with:
-                toolchain: stable
-                override: true
             - uses: davidB/rust-cargo-make@v1
               with:
                 version: 0.22.2
@@ -135,3 +102,6 @@ jobs:
             - name: Check bundler-audit Makefile
               run: cargo make --print-steps 2>&1 > /dev/null
               working-directory: tool-images/ruby/bundler-audit
+            - name: Check data-forwarder Makefile
+              run: cargo make --print-steps 2>&1 > /dev/null
+              working-directory: data-forwarder

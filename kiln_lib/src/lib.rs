@@ -1,3 +1,4 @@
+#[cfg(feature = "avro")]
 pub mod avro_schema {
     pub const TOOL_REPORT_SCHEMA: &str = r#"
         {
@@ -31,7 +32,6 @@ pub mod avro_schema {
 }
 
 pub mod validation {
-    use actix_web::HttpResponse;
     use serde::Serialize;
     use std::error::Error; 
     use std::fmt; 
@@ -325,6 +325,10 @@ pub mod validation {
         }
     }
 
+    #[cfg(feature = "web")]
+    use actix_web::HttpResponse;
+
+    #[cfg(feature = "web")]
     impl Into<HttpResponse> for ValidationError {
         fn into(self) -> HttpResponse {
             HttpResponse::BadRequest()
@@ -334,17 +338,23 @@ pub mod validation {
 }
 
 pub mod tool_report {
+    #[cfg(feature = "avro")]
     use crate::avro_schema::TOOL_REPORT_SCHEMA;
+    #[cfg(feature = "avro")]
+    use avro_rs::schema::Schema;
+    #[cfg(feature = "avro")]
+    use avro_rs::types::{Record, ToAvro};
+
+    #[cfg(feature = "json")]
+    use serde_json::value::Value;
+
     use crate::validation::ValidationError;
 
     use std::convert::TryFrom;
 
-    use avro_rs::schema::Schema;
-    use avro_rs::types::{Record, ToAvro};
     use chrono::{DateTime, Utc};
     use failure::err_msg;
     use regex::Regex;
-    use serde_json::value::Value;
     use serde::Serialize;
 
     #[allow(dead_code)]
@@ -581,7 +591,8 @@ pub mod tool_report {
             }
         }
     }
-
+    
+    #[cfg(feature = "json")]
     impl TryFrom<&Value> for ToolReport {
         type Error = ValidationError;
 
@@ -611,6 +622,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
         type Error = failure::Error;
 
@@ -686,7 +698,8 @@ pub mod tool_report {
             }
         }
     }
-
+    
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for ApplicationName {
         type Error = ValidationError;
 
@@ -698,6 +711,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for GitBranch {
         type Error = ValidationError;
 
@@ -710,6 +724,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for GitCommitHash {
         type Error = ValidationError;
 
@@ -721,6 +736,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for ToolName {
         type Error = ValidationError;
 
@@ -732,6 +748,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for ToolOutput {
         type Error = ValidationError;
 
@@ -743,6 +760,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for OutputFormat {
         type Error = ValidationError;
 
@@ -760,6 +778,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for StartTime {
         type Error = ValidationError;
 
@@ -773,6 +792,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for EndTime {
         type Error = ValidationError;
 
@@ -799,6 +819,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for Environment {
         type Error = ValidationError;
 
@@ -812,6 +833,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for ToolVersion {
         type Error = ValidationError;
 
@@ -824,6 +846,7 @@ pub mod tool_report {
         }
     }
 
+    #[cfg(feature = "json")]
     impl ToolReport {
         fn parse_application_name(json_value: &Value) -> Result<ApplicationName, ValidationError> {
             let value = match &json_value["application_name"] {
@@ -932,13 +955,15 @@ pub mod tool_report {
     }
 
     #[cfg(test)]
+    #[cfg(feature = "all")]
     pub mod tests {
         // TODO: Separate tests based on whether they test the JSON validation or the business logic
         // validation
         use super::*;
+
         use avro_rs::{Reader, Schema, Writer};
 
-        pub mod tool_report {
+        pub mod tool_report_json {
             use super::*;
 
             #[test]
