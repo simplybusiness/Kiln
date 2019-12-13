@@ -31,6 +31,7 @@ jobs:
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Build
               run: cargo make build-data-collector-docker
+              working-directory: data-collector/
             - name: docker login
               uses: azure/docker-login@v1
               with:
@@ -38,8 +39,10 @@ jobs:
                 username: kilnautomation
             - name: Docker push version
               run: cargo make data-collector-push-master-version
+              working-directory: data-collector/
             - name: Docker push latest
               run: cargo make data-collector-push-master-latest
+              working-directory: data-collector/
     data-forwarder:
         name: Data-forwarder build
         runs-on: ubuntu-18.04
@@ -97,5 +100,7 @@ jobs:
                 username: kilnautomation
             - name: Docker push version
               run: cargo make bundler-audit-push-master-version
+              working-directory: tool-images/ruby/bundler-audit
             - name: Docker push latest
               run: cargo make bundler-audit-push-master-latest
+              working-directory: tool-images/ruby/bundler-audit
