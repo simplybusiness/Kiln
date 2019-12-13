@@ -20,18 +20,27 @@ fn main() {
         ).get_matches();
 
     let use_local_image = matches.is_present("use-local-image");
-
-    let tool_fut = match matches.subcommand() {
+    let test_tool_image_name = "kiln/bundler-audit:latest"; 
+    let test_tool_name = String::from("bundler-audit-kiln-container"); 
+    match matches.subcommand() {
         ("ruby", Some(sub_m)) => {
             match sub_m.subcommand_name() {
                 Some("dependencies") => {
-                    let prep_fut = prepare_tool_image("kiln/bundler-audit:latest", use_local_image);
-                    prep_fut
-                        .and_then(|_| {
-                            println!("Start container here");
-                            futures::future::ok(())
-                        })
-
+                    println!("Prepare tool image"); 
+                    let prep_fut = prepare_tool_image(test_tool_image_name.to_owned(), use_local_image);
+                    tokio::run(prep_fut);
+                        
+                    println!("Starting Container");
+                    let docker = Docker::new();
+                    let container_fut = docker
+                    .containers()
+                    .create(
+                    &shiplift::ContainerOptions::builder(test_tool_image_name)
+                    .name(&test_tool_name)
+                    .build(),)
+                    .map(|info| println!("{:?}", info))
+                    .map_err(|e| eprintln!("Error: {}", e));
+                    tokio::run(container_fut);
                 },
                 _ => unreachable!()
             }
@@ -39,7 +48,6 @@ fn main() {
         _ => unreachable!()
     };
 
-    tokio::run(tool_fut);
 }
 
 fn prepare_tool_image<T>(tool_image_name: T, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> 
@@ -90,3 +98,5 @@ fn prepare_tool_image<T>(tool_image_name: T, use_local_image: bool) -> Box<dyn F
             );
     }
 }
+
+
