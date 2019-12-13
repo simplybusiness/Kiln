@@ -5,6 +5,8 @@ pub mod avro_schema {
             "type": "record",
             "name": "ToolReport",
             "fields": [
+                {"name": "event_version", "type": "string"},
+                {"name": "event_id", "type": "string"},
                 {"name": "application_name", "type": "string"},
                 {"name": "git_branch", "type": ["null", "string"]},
                 {"name": "git_commit_hash", "type": "string"},
@@ -323,6 +325,70 @@ pub mod validation {
                 json_field_name: None, 
             }
         }
+
+        pub fn event_version_missing() -> ValidationError {
+            ValidationError {
+                error_code: 133,
+                error_message: "Event version missing".into(),
+                json_field_name: Some("event_version".into()),
+            }
+        }
+
+        pub fn event_version_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 134,
+                error_message: "Event version not a string".into(),
+                json_field_name: Some("event_version".into()),
+            }
+        }
+
+        pub fn event_version_present_but_empty() -> ValidationError {
+            ValidationError {
+                error_code: 134,
+                error_message: "Event version present but empty".into(),
+                json_field_name: Some("event_version".into()),
+            }
+        }
+
+        pub fn event_version_unknown() -> ValidationError {
+            ValidationError {
+                error_code: 135,
+                error_message: "Event version unknown".into(),
+                json_field_name: Some("event_version".into()),
+            }
+        }
+
+        pub fn event_id_missing() -> ValidationError {
+            ValidationError {
+                error_code: 136,
+                error_message: "Event ID missing".into(),
+                json_field_name: Some("event_version".into()),
+            }
+        }
+
+        pub fn event_id_not_a_string() -> ValidationError {
+            ValidationError {
+                error_code: 137,
+                error_message: "Event ID not a string".into(),
+                json_field_name: Some("event_version".into()),
+            }
+        }
+
+        pub fn event_id_present_but_empty() -> ValidationError {
+            ValidationError {
+                error_code: 138,
+                error_message: "Event ID present but empty".into(),
+                json_field_name: Some("event_version".into()),
+            }
+        }
+
+        pub fn event_id_not_a_uuid() -> ValidationError {
+            ValidationError {
+                error_code: 139,
+                error_message: "Event ID does not look like a UUID".into(),
+                json_field_name: Some("event_version".into()),
+            }
+        }
     }
 
     #[cfg(feature = "web")]
@@ -360,6 +426,8 @@ pub mod tool_report {
     #[allow(dead_code)]
     #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct ToolReport {
+        pub event_version: EventVersion,
+        pub event_id: EventID,
         pub application_name: ApplicationName,
         pub git_branch: GitBranch,
         pub git_commit_hash: GitCommitHash,
@@ -370,6 +438,54 @@ pub mod tool_report {
         pub end_time: EndTime,
         pub environment: Environment,
         pub tool_version: ToolVersion,
+    }
+
+
+    #[derive(Clone, Debug, PartialEq, Serialize)]
+    pub struct EventVersion(String);
+
+    impl TryFrom<String> for EventVersion{
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            if value.is_empty() {
+                Err(ValidationError::event_version_present_but_empty())
+            } else if value != "1" {
+                Err(ValidationError::event_version_unknown())
+            } else {
+                Ok(EventVersion(value))
+            }
+        }
+    }
+
+    impl std::fmt::Display for EventVersion {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq, Serialize)]
+    pub struct EventID(uuid::Uuid);
+
+    impl TryFrom<String> for EventID {
+        type Error = ValidationError;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            if value.is_empty() {
+                Err(ValidationError::event_id_present_but_empty())
+            } else {
+                match uuid::Uuid::parse_str(value.as_ref()) {
+                    Ok(id) => Ok(EventID(id)),
+                    Err(_) => Err(ValidationError::event_id_not_a_uuid())
+                }
+            }
+        }
+    }
+
+    impl std::fmt::Display for EventID {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
     }
 
     #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -597,6 +713,8 @@ pub mod tool_report {
         type Error = ValidationError;
 
         fn try_from(json_value: &Value) -> Result<Self, Self::Error> {
+            let event_version = ToolReport::parse_event_version(json_value)?;
+            let event_id = ToolReport::parse_event_id(json_value)?;
             let application_name = ToolReport::parse_application_name(json_value)?;
             let git_branch = ToolReport::parse_git_branch(json_value)?;
             let git_commit_hash = ToolReport::parse_git_commit_hash(json_value)?;
@@ -608,6 +726,8 @@ pub mod tool_report {
             let environment = ToolReport::parse_environment(json_value)?;
             let tool_version = ToolReport::parse_tool_version(json_value)?;
             Ok(ToolReport {
+                event_version,
+                event_id,
                 application_name,
                 git_branch,
                 git_commit_hash,
@@ -637,6 +757,22 @@ pub mod tool_report {
 
             if let avro_rs::types::Value::Record(record) = resolved_value {
                 let mut fields = record.iter();
+                let event_version = EventVersion::try_from(
+                    fields
+                        .find(|&x| x.0 == "event_version")
+                        .unwrap()
+                        .1
+                        .clone()
+                )
+                .map_err(|err| err_msg(err.error_message))?;
+                let event_id = EventID::try_from(
+                    fields
+                        .find(|&x| x.0 == "event_id")
+                        .unwrap()
+                        .1
+                        .clone()
+                )
+                .map_err(|err| err_msg(err.error_message))?;
                 let application_name = ApplicationName::try_from(
                     fields
                         .find(|&x| x.0 == "application_name")
@@ -682,6 +818,8 @@ pub mod tool_report {
                 .map_err(|err| err_msg(err.error_message))?;
 
                 Ok(ToolReport {
+                    event_version,
+                    event_id,
                     application_name,
                     git_branch,
                     git_commit_hash,
@@ -699,6 +837,30 @@ pub mod tool_report {
         }
     }
     
+    #[cfg(feature = "avro")]
+    impl TryFrom<avro_rs::types::Value> for EventVersion {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) => EventVersion::try_from(s),
+                _ => Err(ValidationError::event_version_not_a_string()),
+            }
+        }
+    }
+
+    #[cfg(feature = "avro")]
+    impl TryFrom<avro_rs::types::Value> for EventID {
+        type Error = ValidationError;
+
+        fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+            match value {
+                avro_rs::types::Value::String(s) => EventID::try_from(s),
+                _ => Err(ValidationError::event_id_not_a_string()),
+            }
+        }
+    }
+
     #[cfg(feature = "avro")]
     impl TryFrom<avro_rs::types::Value> for ApplicationName {
         type Error = ValidationError;
@@ -848,6 +1010,24 @@ pub mod tool_report {
 
     #[cfg(feature = "json")]
     impl ToolReport {
+        fn parse_event_version(json_value: &Value) -> Result<EventVersion, ValidationError> {
+            let value = match &json_value["event_version"] {
+                Value::Null => Err(ValidationError::event_version_missing()),
+                Value::String(value) => Ok(value),
+                _ => Err(ValidationError::event_version_not_a_string()),
+            }?;
+            EventVersion::try_from(value.to_owned())
+        }
+
+        fn parse_event_id(json_value: &Value) -> Result<EventID, ValidationError> {
+            let value = match &json_value["event_id"] {
+                Value::Null => Err(ValidationError::event_id_missing()),
+                Value::String(value) => Ok(value),
+                _ => Err(ValidationError::event_id_not_a_string()),
+            }?;
+            EventID::try_from(value.to_owned())
+        }
+
         fn parse_application_name(json_value: &Value) -> Result<ApplicationName, ValidationError> {
             let value = match &json_value["application_name"] {
                 Value::Null => Err(ValidationError::application_name_missing()),
