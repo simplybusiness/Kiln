@@ -28,7 +28,7 @@ jobs:
               uses: actions/cache@v1
               with:
                 path: data-collector/target
-                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
+                key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Build
               run: cargo make build-data-collector-docker
             - name: docker login
@@ -63,7 +63,7 @@ jobs:
               uses: actions/cache@v1
               with:
                 path: data-forwarder/target
-                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
+                key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Build data-forwarder
               run: cargo make build-data-forwarder-musl
               working-directory: data-forwarder/
