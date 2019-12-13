@@ -32,10 +32,10 @@ jobs:
             - name: Build
               run: cargo make build-data-collector-docker
             - name: docker login
-              uses: actions/docker/login@master
-              env:
-                DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-                DOCKER_USERNAME: kilnautomation
+              uses: azure/docker-login@v1
+              with:
+                password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+                username: kilnautomation
             - name: Docker push version
               run: cargo make data-collector-push-master-version
             - name: Docker push latest
@@ -90,10 +90,10 @@ jobs:
               run: cargo make build-bundler-audit-master-docker
               working-directory: tool-images/ruby/bundler-audit
             - name: docker login
-              uses: actions/docker/login@master
-              env:
-                DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-                DOCKER_USERNAME: kilnautomation
+              uses: azure/docker-login@v1
+              with:
+                password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+                username: kilnautomation
             - name: Docker push version
               run: cargo make bundler-audit-push-master-version
             - name: Docker push latest
