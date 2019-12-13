@@ -36,6 +36,10 @@ jobs:
               env:
                 DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
                 DOCKER_USERNAME: kilnautomation
+            - name: Docker push version
+              run: cargo make data-collector-push-master-version
+            - name: Docker push latest
+              run: cargo make data-collector-push-master-latest
     data-forwarder:
         name: Data-forwarder build
         runs-on: ubuntu-18.04
@@ -90,3 +94,7 @@ jobs:
               env:
                 DOCKER_PASSWORD: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
                 DOCKER_USERNAME: kilnautomation
+            - name: Docker push version
+              run: cargo make bundler-audit-push-master-version
+            - name: Docker push latest
+              run: cargo make bundler-audit-push-master-latest
