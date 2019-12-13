@@ -38,10 +38,10 @@ jobs:
                 password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
                 username: kilnautomation
             - name: Docker push version
-              run: cargo make data-collector-push-master-version
+              run: cargo make push-data-collector-docker-master-version
               working-directory: data-collector/
             - name: Docker push latest
-              run: cargo make data-collector-push-master-latest
+              run: cargo make push-data-collector-docker-master-latest
               working-directory: data-collector/
     data-forwarder:
         name: Data-forwarder build
@@ -99,8 +99,8 @@ jobs:
                 password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
                 username: kilnautomation
             - name: Docker push version
-              run: cargo make bundler-audit-push-master-version
+              run: cargo make bundler-audit-docker-push-master-version
               working-directory: tool-images/ruby/bundler-audit
             - name: Docker push latest
-              run: cargo make bundler-audit-push-master-latest
+              run: cargo make bundler-audit-docker-push-master-latest
               working-directory: tool-images/ruby/bundler-audit
