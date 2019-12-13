@@ -54,7 +54,7 @@ jobs:
                 path: data-forwarder/target
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Build data-forwarder
-              run: cargo make build-data-forwarder
+              run: cargo make build-data-forwarder-musl
               working-directory: data-forwarder/
     kiln_lib:
         name: Kiln_lib build
