@@ -30,7 +30,7 @@ jobs:
                 path: data-collector/target
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Build
-              run: cargo make build-data-collector-docker
+              run: cargo make build-data-collector-master-docker
               working-directory: data-collector/
             - name: docker login
               uses: azure/docker-login@v1
