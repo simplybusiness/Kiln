@@ -15,6 +15,8 @@ In Kiln, messages are serialised to the [Apache Avro format](https://avro.apache
     "type": "record",
     "name": "ToolReport",
     "fields": [
+        {"name": "event_version", "type": "string"},
+        {"name": "event_id", "type": "string"},
         {"name": "application_name", "type": "string"},
         {"name": "git_branch", "type": ["null", "string"]},
         {"name": "git_commit_hash", "type": "string"},
@@ -28,3 +30,5 @@ In Kiln, messages are serialised to the [Apache Avro format](https://avro.apache
     ]
 }
 ```
+
+Two things should be noted about the above schema. Currently, the only valid version of a ToolReport is "1". Secondly, event_id must be a UUIDv4 to ensure uniqueness in source events. Parsed events will then use this ID to enable them to be linked back to their source event.
