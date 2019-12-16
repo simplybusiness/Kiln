@@ -1150,6 +1150,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_application_name_missing() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
                     "tool_name": "example tool",
@@ -1173,6 +1175,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_git_commit_hash_missing() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "tool_name": "example tool",
@@ -1196,6 +1200,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_tool_name_missing() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1219,6 +1225,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_tool_output_missing() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1242,6 +1250,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_tool_output_format_missing() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1265,6 +1275,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_start_time_missing() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1288,6 +1300,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_end_time_missing() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1311,6 +1325,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_environment_missing() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1334,6 +1350,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_application_name_not_a_string() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": false,
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1358,6 +1376,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_git_branch_name_not_a_string() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": false,
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1382,6 +1402,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_git_commit_hash_not_a_string() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": false,
@@ -1406,6 +1428,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_tool_name_not_a_string() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1430,6 +1454,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_tool_output_format_not_a_string() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1454,6 +1480,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_environment_not_a_string() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1478,6 +1506,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_tool_version_present_but_not_a_string() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1502,6 +1532,8 @@ pub mod tool_report {
             fn try_from_returns_error_when_tool_output_not_a_string() {
                 let message = serde_json::from_str(
                     r#"{
+                    "event_version": "1",
+                    "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1581,6 +1613,8 @@ pub mod tool_report {
         fn try_from_returns_error_when_tool_output_format_empty() {
             let message = serde_json::from_str(
                 r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                 "application_name": "Test application",
                 "git_branch": "master",
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1605,6 +1639,8 @@ pub mod tool_report {
         fn try_from_returns_error_when_tool_output_format_not_a_valid_option() {
             let message = serde_json::from_str(
                 r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                 "application_name": "Test application",
                 "git_branch": "master",
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1629,6 +1665,8 @@ pub mod tool_report {
         fn try_from_returns_error_when_start_time_not_a_timestamp() {
             let message = serde_json::from_str(
                 r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                 "application_name": "Test application",
                 "git_branch": "master",
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1653,6 +1691,8 @@ pub mod tool_report {
         fn try_from_returns_error_when_end_time_not_a_timestamp() {
             let message = serde_json::from_str(
                 r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                 "application_name": "Test application",
                 "git_branch": "master",
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1677,6 +1717,8 @@ pub mod tool_report {
         fn try_from_returns_error_when_environment_not_a_valid_option() {
             let message = serde_json::from_str(
                 r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                 "application_name": "Test application",
                 "git_branch": "master",
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1701,6 +1743,8 @@ pub mod tool_report {
         fn try_from_returns_error_when_environment_empty() {
             let message = serde_json::from_str(
                 r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                 "application_name": "Test application",
                 "git_branch": "master",
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1725,6 +1769,8 @@ pub mod tool_report {
         fn try_from_returns_error_when_tool_version_present_but_empty() {
             let message = serde_json::from_str(
                 r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                 "application_name": "Test application",
                 "git_branch": "master",
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -1749,6 +1795,8 @@ pub mod tool_report {
         fn tool_report_can_round_trip_to_avro_and_back() {
             let message = serde_json::from_str(
                 r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
                 "application_name": "Test application",
                 "git_branch": "master",
                 "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
