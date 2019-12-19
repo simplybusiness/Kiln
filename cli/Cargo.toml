@@ -5,6 +5,6 @@ edition = "2018"
 
 [dependencies]
 clap = "2"
-shiplift = "0.5"
+shiplift = "0.6"
 tokio = "0.1"
 futures = "0.1"
