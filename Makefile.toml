@@ -1,9 +1,14 @@
 [tasks.build-docker-images]
 dependencies = [
     "build-data-collector-docker",
-	"build-data-forwarder-musl",
-	"build-bundler-audit-docker"
+    "build-data-forwarder-musl",
+    "build-bundler-audit-docker"
+    "build-kiln-cli"
 ]
+
+[tasks.build-kiln-cli]
+command = "cargo"
+args = ["make", "--cwd", "cli", "build-kiln-cli"]
 
 [tasks.build-data-collector-docker]
 command = "cargo"
