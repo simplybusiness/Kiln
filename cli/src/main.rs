@@ -1,6 +1,6 @@
 use clap::{App, AppSettings, Arg, SubCommand};
 use futures::prelude::Future;
-use shiplift::{builder::PullOptions, Docker};
+use shiplift::{builder::PullOptions, Docker, builder::LogsOptions, tty::StreamType};
 use tokio::prelude::*;
 
 use std::boxed::Box;
@@ -26,28 +26,58 @@ fn main() {
         ("ruby", Some(sub_m)) => {
             match sub_m.subcommand_name() {
                 Some("dependencies") => {
-                    println!("Prepare tool image"); 
                     let prep_fut = prepare_tool_image(test_tool_image_name.to_owned(), use_local_image);
                     tokio::run(prep_fut);
                         
-                    println!("Starting Container");
+                    let path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + ":" + "/code";
+                    let mut path_vec = Vec::new();
+                    path_vec.push(path.as_ref());
+                    
                     let docker = Docker::new();
-                    let container_fut = docker
+                    let tool_container_future = docker
                     .containers()
                     .create(
                     &shiplift::ContainerOptions::builder(test_tool_image_name)
                     .name(&test_tool_name)
+                    .attach_stdout(true)
+                    .attach_stderr(true)
+                    .auto_remove(true)
+                    .volumes(path_vec)
                     .build(),)
-                    .map(|info| println!("{:?}", info))
-                    .map_err(|e| eprintln!("Error: {}", e));
-                    tokio::run(container_fut);
+                    .map_err(|e| eprintln!("Error: {}", e))
+                    .and_then(|container| { 
+                        let docker = Docker::new();
+                        docker
+                        .containers()
+                        .get(&container.id)
+                        .start()
+                        .map_err(|e| eprintln!("Error: {}", e))
+                    })
+                    .and_then(move |_|{
+                       let docker = Docker::new();
+                       let log_future = docker
+                      .containers()
+                      .get(&test_tool_name)
+                      .logs(&LogsOptions::builder().stdout(true).stderr(true).follow(true).build())
+                      .for_each(|chunk| {
+                          match chunk.stream_type {
+                              StreamType::StdOut => println!("{}", chunk.as_string().unwrap()),
+                              StreamType::StdErr => eprintln!("{}", chunk.as_string().unwrap()),
+                              StreamType::StdIn => (),
+                          }
+                          Ok(())
+                      })
+                      .map_err(|e| eprintln!("Error: {}", e));
+                      tokio::spawn(log_future);
+                      Ok(())
+                    });
+                    tokio::run(tool_container_future); 
                 },
                 _ => unreachable!()
             }
         },
         _ => unreachable!()
     };
-
 }
 
 fn prepare_tool_image<T>(tool_image_name: T, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> 
