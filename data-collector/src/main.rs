@@ -201,7 +201,7 @@ mod tests {
     use serial_test_derive::serial;
 
     use kiln_lib::tool_report::{
-        ApplicationName, EndTime, Environment, GitBranch, GitCommitHash, OutputFormat, StartTime,
+        ApplicationName, EndTime, Environment, EventID, EventVersion, GitBranch, GitCommitHash, OutputFormat, StartTime,
         ToolName, ToolOutput, ToolVersion,
     };
 
@@ -250,6 +250,8 @@ mod tests {
     #[test]
     fn parse_payload_returns_tool_report_when_request_valid() {
         let p = r#"{
+                    "event_version": "1",
+                    "event_id": "95130bee-95ae-4dac-aecf-5650ff646ea1",
                     "application_name": "Test application",
                     "git_branch": "master",
                     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -267,6 +269,8 @@ mod tests {
         body.extend_from_slice(payload);
 
         let expected = ToolReport {
+            event_version: EventVersion::try_from("1".to_owned()).unwrap(),
+            event_id: EventID::try_from("95130bee-95ae-4dac-aecf-5650ff646ea1".to_owned()).unwrap(),
             application_name: ApplicationName::try_from("Test application".to_owned()).unwrap(),
             git_branch: GitBranch::try_from(Some("master".to_owned())).unwrap(),
             git_commit_hash: GitCommitHash::try_from(
