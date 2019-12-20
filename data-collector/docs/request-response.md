@@ -3,6 +3,8 @@ This service has a single endpoint, exposed behind an AWS API gateway.
 Requests to this endpoint must be in JSON format in the following format:
 ```
 {
+        event_version: String(always "1"),
+        event_id: UUIDv4,
         application_name: String,
         git_branch: String,
         git_commit_hash: String,
