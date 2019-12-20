@@ -1,4 +1,4 @@
-use kiln_lib::tool_report::{ToolReport, ApplicationName, GitBranch, GitCommitHash,  ToolName, ToolOutput, OutputFormat,StartTime,EndTime,Environment,ToolVersion}; 
+use kiln_lib::tool_report::{ToolReport, ApplicationName, GitBranch, GitCommitHash,  ToolName, ToolOutput, OutputFormat, EventVersion, EventID, Environment,ToolVersion}; 
 use kiln_lib::validation::ValidationError; 
 use clap::{Arg, App}; 
 use std::convert::TryFrom; 
@@ -9,6 +9,7 @@ use std::path::Path;
 use std::io::prelude::*;
 use std::env;
 use git2::Repository;
+use uuid::Uuid;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     let matches = App::new("Kiln data forwarder")
@@ -112,6 +113,8 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
         let git_commit = head.peel_to_commit()?.id().to_string(); 
 
 	let tool_report = ToolReport { 
+                event_version: EventVersion::try_from("1".to_string())?,
+                event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
 		application_name: ApplicationName::try_from(app_name.to_string())?, 
 		git_branch: GitBranch::try_from(git_branch_name)?, 
 		git_commit_hash: GitCommitHash::try_from(git_commit)?, 
