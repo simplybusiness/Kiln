@@ -98,6 +98,6 @@ Once you have completed these steps, Github Actions will trigger the release wor
 * Ensure GPG installed
 * Import release public keys from `meta/release-keys`
 * Verify signature on the release tag to ensure it was created by a trusted releaser
-* Zip contents of repo and upload to Github Releases
-* Build CLI app on Windows, Linux and MacOS and upload to Github Releases
+* Archive contents of repo and upload to Github Releases, compute hash of archive and upload to Github Releases, make detached signature of hash and upload to Github Releases
+* Build CLI app on Linux and MacOS and upload to Github Releases, compute hash of binaries and upload to Github Releases, make detached signature of hash and upload to Github Releases
 * Build all docker images with latest, datestamp and SemVer tags (including the version of tools where appropriate) and push to Docker Hub
