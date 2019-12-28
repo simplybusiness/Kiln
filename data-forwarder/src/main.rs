@@ -3,7 +3,8 @@ use kiln_lib::validation::ValidationError;
 use clap::{Arg, App}; 
 use std::convert::TryFrom; 
 use chrono::{DateTime, Utc};
-use reqwest::Client; 
+use reqwest::Client;
+use reqwest::StatusCode;
 use std::fs::File;
 use std::path::Path;
 use std::io::prelude::*;
@@ -128,8 +129,14 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 	}; 	
 
 	let client = Client::new();
-	client.post(endpoint_url)
+	let mut resp = client.post(endpoint_url)
         .json(&tool_report)
-        .send()?; 
+        .send()?;
+	
+	match resp.status() {
+            StatusCode::OK => (),
+            _ => eprintln!("Error received from data-collector: {}", resp.text()?)
+        };
+
         Ok(())
 }
