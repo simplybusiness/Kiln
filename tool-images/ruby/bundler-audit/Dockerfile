@@ -1,6 +1,7 @@
 FROM ruby:2-alpine
 RUN apk --no-cache add git
-RUN gem install bundler
+RUN gem install bundler -v "~>1.0" && \
+    gem install bundler -v "~>2.0"
 WORKDIR /code
 
 COPY entrypoint.sh /entrypoint.sh
