@@ -129,7 +129,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 	}; 	
 
 	let client = Client::new();
-	let resp = client.post(endpoint_url)
+	let mut resp = client.post(endpoint_url)
         .json(&tool_report)
         .send()?;
 	
