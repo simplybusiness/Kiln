@@ -128,8 +128,14 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 	}; 	
 
 	let client = Client::new();
-	client.post(endpoint_url)
+	let resp = client.post(endpoint_url)
         .json(&tool_report)
-        .send()?; 
+        .send()?;
+	
+	match resp.status() {
+            StatusCode::OK => (),
+            _ => eprintln!("Error received from data-collector: {}", resp.text()?)
+        };
+
         Ok(())
 }
