@@ -35,7 +35,7 @@ services:
   data-collector:
     depends_on: 
       - kafka
-    image: kiln/data-collector:latest
+    image: kiln/data-collector:master-latest
     ports:
       - "8081:8080"
     environment:
