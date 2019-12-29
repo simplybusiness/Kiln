@@ -52,6 +52,8 @@ Below are a valid JSON payload for a request to the data-collector and an exampl
 
 ```
 {
+    "event_version": "1",
+    "event_id": "123e4567-e89b-12d3-a456-426655440000",
     "application_name": "Test application",
     "git_branch": "master",
     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
@@ -77,6 +79,8 @@ curl -X POST \
   -H 'Host: 127.0.0.1:8081' \
   -H 'cache-control: no-cache' \
   -d '{
+    "event_version": "1",
+    "event_id": "123e4567-e89b-12d3-a456-426655440000",
     "application_name": "Test application",
     "git_branch": "master",
     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
