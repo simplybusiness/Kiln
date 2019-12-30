@@ -35,10 +35,9 @@ pub const DEPENDENCY_EVENT_SCHEMA: &str = r#"
             {"name": "timestamp", "type": "string"},
             {"name": "advisory_id", "type": "string"},
             {"name": "url", "type": "string"},
-            {"name": "description", "type": "string"}
+            {"name": "advisory_description", "type": "string"}
         ]
     }
-
 "#;
 
 #[cfg(test)]
