@@ -1,0 +1,8 @@
+[package]
+name = "report-parser"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "master", features = ["avro", "streaming"] }
+kafka = "0.8"
