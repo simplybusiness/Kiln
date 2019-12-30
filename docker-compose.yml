@@ -44,3 +44,13 @@ services:
       - SSL_CERT_FILE=/tls/ca-cert
     volumes:
       - ./tls:/tls
+  report-parser:
+    depends_on:
+      - kafka
+    image: kiln/report-parser:master-latest
+    environment:
+      - KAFKA_BOOTSTRAP_TLS=kafka:9092
+      - DISABLE_KAFKA_DOMAIN_VALIDATION=true
+      - SSL_CERT_FILE=/tls/ca-cert
+    volumes:
+      - ./tls:/tls
