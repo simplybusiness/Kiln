@@ -1,6 +1,10 @@
 #[cfg(feature = "avro")]
 pub mod avro_schema;
 
+pub mod dependency_event;
+
+#[cfg(feature = "kafka")]
 pub mod kafka;
+
 pub mod tool_report;
 pub mod validation;
