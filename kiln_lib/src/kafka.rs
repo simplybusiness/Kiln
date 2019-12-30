@@ -1,5 +1,6 @@
 use addr::DomainName;
-use kafka::client::{Compression, SecurityConfig};
+use kafka::client::{Compression, GroupOffsetStorage, SecurityConfig};
+use kafka::consumer::Consumer;
 use kafka::error::Error as KafkaError;
 use kafka::producer::Producer;
 use openssl::error::ErrorStack;
@@ -87,5 +88,21 @@ pub fn build_kafka_producer(
     Producer::from_hosts(config.0)
         .with_compression(Compression::GZIP)
         .with_security(security_config)
+        .create()
+}
+
+pub fn build_kafka_consumer(
+    config: KafkaBootstrapTlsConfig,
+    topic: String,
+    consumer_group_name: String,
+    ssl_connector: SslConnector,
+) -> Result<Consumer, KafkaError> {
+    let security_config = SecurityConfig::new(ssl_connector).with_hostname_verification(true);
+
+    Consumer::from_hosts(config.0)
+        .with_security(security_config)
+        .with_topic(topic)
+        .with_group(consumer_group_name)
+        .with_offset_storage(GroupOffsetStorage::Kafka)
         .create()
 }
