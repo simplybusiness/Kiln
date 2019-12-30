@@ -6,11 +6,9 @@ use openssl::error::ErrorStack;
 use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode, SslVersion};
 
 #[derive(Debug)]
-pub struct Config {
-    kafka_bootstrap_tls: Vec<String>,
-}
+pub struct KafkaBootstrapTlsConfig(Vec<String>);
 
-pub fn get_configuration<I>(vars: &mut I) -> Result<Config, String>
+pub fn get_bootstrap_config<I>(vars: &mut I) -> Result<KafkaBootstrapTlsConfig, String>
 where
     I: Iterator<Item = (String, String)>,
 {
@@ -68,9 +66,7 @@ where
         }
     }?;
 
-    Ok(Config {
-        kafka_bootstrap_tls,
-    })
+    Ok(KafkaBootstrapTlsConfig(kafka_bootstrap_tls))
 }
 
 pub fn build_ssl_connector() -> Result<SslConnector, ErrorStack> {
@@ -83,12 +79,12 @@ pub fn build_ssl_connector() -> Result<SslConnector, ErrorStack> {
 }
 
 pub fn build_kafka_producer(
-    config: Config,
+    config: KafkaBootstrapTlsConfig,
     ssl_connector: SslConnector,
 ) -> Result<Producer, KafkaError> {
     let security_config = SecurityConfig::new(ssl_connector).with_hostname_verification(true);
 
-    Producer::from_hosts(config.kafka_bootstrap_tls)
+    Producer::from_hosts(config.0)
         .with_compression(Compression::GZIP)
         .with_security(security_config)
         .create()
