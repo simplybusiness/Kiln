@@ -106,3 +106,111 @@ pub fn build_kafka_consumer(
         .with_offset_storage(GroupOffsetStorage::Kafka)
         .create()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_bootstrap_config_returns_config_when_environment_vars_present_and_valid() {
+        let hostname =
+            "my.kafka.host.example.com:1234,my.second.kafka.host.example.com:1234".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname)].into_iter();
+
+        let expected = vec![
+            "my.kafka.host.example.com:1234".to_owned(),
+            "my.second.kafka.host.example.com:1234".to_owned(),
+        ];
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect("expected Ok(_) value");
+
+        assert_eq!(actual.0, expected);
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_error_when_environment_vars_missing() {
+        let mut fake_vars = std::iter::empty::<(String, String)>();
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Required environment variable missing: KAFKA_BOOTSTRAP_TLS"
+        )
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_error_when_environment_vars_present_but_empty() {
+        let hostname = "".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())].into_iter();
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Required environment variable present but empty: KAFKA_BOOTSTRAP_TLS"
+        )
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_error_when_hostname_invalid_and_domain_validation_enabled() {
+        let hostname = "kafka:1234".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())].into_iter();
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "KAFKA_BOOTSTRAP_TLS environment variable did not pass validation"
+        )
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_configration_when_hostname_not_a_valid_domain_and_domain_validation_disabled() {
+        let hostname = "kafka:1234".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()), ("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "true".to_owned())].into_iter();
+        let expected = vec![hostname.clone()];
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect("expected Ok(_) value");
+
+        assert_eq!(
+            actual.0,
+            expected
+        )
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_error_when_port_number_invalid() {
+        let hostname = "my.kafka.host.example.com:1234567".to_owned();
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone())].into_iter();
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "KAFKA_BOOTSTRAP_TLS environment variable did not pass validation"
+        )
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_error_when_disable_kafka_domain_validation_present_but_empty() {
+        let mut fake_vars = vec![("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "".to_owned())].into_iter();
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Optional environment variable present but empty: DISABLE_KAFKA_DOMAIN_VALIDATION"
+        )
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_error_when_disable_kafka_domain_validation_present_but_invalid() {
+        let mut fake_vars = vec![("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "blah".to_owned())].into_iter();
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Optional environment variable did not pass validation: DISABLE_KAFKA_DOMAIN_VALIDATION"
+        )
+    }
+}
