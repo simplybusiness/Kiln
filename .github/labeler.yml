@@ -16,3 +16,6 @@ tool:
 
 data-forwarder:
 - data-forwarder/**
+
+report-parser:
+- report-parser/**
