@@ -30,11 +30,11 @@ pub const DEPENDENCY_EVENT_SCHEMA: &str = r#"
             {"name": "application_name", "type": "string"},
             {"name": "git_branch", "type": ["null", "string"]},
             {"name": "git_commit_hash", "type": "string"},
+            {"name": "timestamp", "type": "string"},
             {"name": "affected_package", "type": "string"},
             {"name": "installed_version", "type": "string"},
-            {"name": "timestamp", "type": "string"},
             {"name": "advisory_id", "type": "string"},
-            {"name": "url", "type": "string"},
+            {"name": "advisory_url", "type": "string"},
             {"name": "advisory_description", "type": "string"}
         ]
     }
