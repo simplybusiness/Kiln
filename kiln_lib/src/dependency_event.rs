@@ -12,10 +12,11 @@ use avro_rs::schema::Schema;
 use std::convert::TryFrom;
 
 use chrono::{DateTime, Utc};
+use serde::{Serialize, Serializer};
 use url::Url;
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct DependencyEvent{
     pub event_version: EventVersion,
     pub event_id: EventID,
@@ -143,7 +144,7 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Timestamp(DateTime<Utc>);
 
 impl std::fmt::Display for Timestamp {
@@ -180,7 +181,7 @@ impl TryFrom<avro_rs::types::Value> for Timestamp {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct AffectedPackage(String);
 
 impl TryFrom<String> for AffectedPackage {
@@ -214,7 +215,7 @@ impl std::fmt::Display for AffectedPackage {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct InstalledVersion(String);
 
 impl TryFrom<String> for InstalledVersion {
@@ -248,7 +249,7 @@ impl std::fmt::Display for InstalledVersion {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct AdvisoryId(String);
 
 impl TryFrom<String> for AdvisoryId {
@@ -310,7 +311,16 @@ impl TryFrom<avro_rs::types::Value> for AdvisoryUrl {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl Serialize for AdvisoryUrl {
+fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.0.as_str())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct AdvisoryDescription(String);
 
 impl TryFrom<String> for AdvisoryDescription {
@@ -343,3 +353,99 @@ impl std::fmt::Display for AdvisoryDescription {
         write!(f, "{}", self.0)
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "all")]
+pub mod tests {
+    use avro_rs::{Reader, Schema, Writer};
+    use super::*;
+
+    #[test]
+    fn timestamp_try_from_string_returns_error_when_timestamp_not_valid() {
+        let expected = ValidationError::timestamp_not_a_valid_timestamp();
+        let actual = Timestamp::try_from("not a timestamp".to_string()).expect_err("Expected Err(_) value");
+
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn affected_package_try_from_string_returns_error_when_value_empty() {
+        let expected = ValidationError::affected_package_empty();
+        let actual = AffectedPackage::try_from("".to_string()).expect_err("Expected Err(_) value");
+
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn installed_version_try_from_string_returns_error_when_value_empty() {
+        let expected = ValidationError::installed_version_empty();
+        let actual = InstalledVersion::try_from("".to_string()).expect_err("Expected Err(_) value");
+
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn advisory_id_try_from_string_returns_error_when_value_empty() {
+        let expected = ValidationError::advisory_id_empty();
+        let actual = AdvisoryId::try_from("".to_string()).expect_err("Expected Err(_) value");
+
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn advisory_url_try_from_string_returns_error_when_value_empty() {
+        let expected = ValidationError::advisory_url_empty();
+        let actual = AdvisoryUrl::try_from("".to_string()).expect_err("Expected Err(_) value");
+
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn advisory_url_try_from_string_returns_error_when_value_not_valid() {
+        let expected = ValidationError::advisory_url_not_valid();
+        let actual = AdvisoryUrl::try_from("not a url".to_string()).expect_err("Expected Err(_) value");
+
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn advisory_description_try_from_string_returns_error_when_value_empty() {
+        let expected = ValidationError::advisory_description_empty();
+        let actual = AdvisoryDescription::try_from("".to_string()).expect_err("Expected Err(_) value");
+
+        assert_eq!(expected, actual)
+    }
+
+    #[test]
+    fn dependency_event_can_round_trip_to_avro_and_back() {
+        let event = DependencyEvent {
+            event_version: EventVersion::try_from("1".to_string()).unwrap(),
+            event_id: EventID::try_from("383bc5f5-d099-40a4-a1a9-8c8a97559479".to_string()).unwrap(),
+            parent_event_id: EventID::try_from("383bc5f5-d099-40a4-a1a9-8c8a97559479".to_string()).unwrap(),
+            application_name: ApplicationName::try_from("Test application".to_string()).unwrap(),
+            git_branch: GitBranch::try_from(Some("master".to_string())).unwrap(),
+            git_commit_hash: GitCommitHash::try_from("e99f715d0fe787cd43de967b8a79b56960fed3e5".to_string()).unwrap(),
+            timestamp: Timestamp::try_from("2019-09-13T19:37:14+00:00".to_string()).unwrap(),
+            affected_package: AffectedPackage::try_from("BadPkg".to_string()).unwrap(),
+            installed_version: InstalledVersion::try_from("1.0".to_string()).unwrap(),
+            advisory_id: AdvisoryId::try_from("CVE-2017-5638".to_string()).unwrap(),
+            advisory_url: AdvisoryUrl::try_from("https://nvd.nist.gov/vuln/detail/CVE-2017-5638".to_string()).unwrap(),
+            advisory_description: AdvisoryDescription::try_from("The Jakarta Multipart parser in Apache Struts 2 2.3.x before 2.3.32 and 2.5.x before 2.5.10.1 has incorrect exception handling and error-message generation during file-upload attempts, which allows remote attackers to execute arbitrary commands via a crafted Content-Type, Content-Disposition, or Content-Length HTTP header, as exploited in the wild in March 2017 with a Content-Type header containing a #cmd= string.".to_string()).unwrap()
+        };
+
+        let schema = Schema::parse_str(DEPENDENCY_EVENT_SCHEMA).unwrap();
+        let mut writer = Writer::new(&schema, Vec::new());
+        writer.append_ser(event.clone()).unwrap();
+        writer.flush().unwrap();
+
+        let input = writer.into_inner();
+        let reader = Reader::with_schema(&schema, &input[..]).unwrap();
+        let mut input_records = reader.into_iter().collect::<Vec<_>>();
+        let parsed_record = input_records.remove(0).unwrap();
+
+        let actual = DependencyEvent::try_from(parsed_record).expect("expected Ok(_) value");
+
+        assert_eq!(event, actual);
+    }
+}
+
