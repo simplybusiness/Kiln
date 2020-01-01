@@ -2,6 +2,8 @@
 use crate::avro_schema::TOOL_REPORT_SCHEMA;
 #[cfg(feature = "avro")]
 use avro_rs::schema::Schema;
+#[cfg(feature = "avro")]
+use failure::err_msg;
 
 #[cfg(feature = "json")]
 use serde_json::value::Value;
@@ -11,7 +13,6 @@ use crate::validation::ValidationError;
 use std::convert::TryFrom;
 
 use chrono::{DateTime, Utc};
-use failure::err_msg;
 use regex::Regex;
 use serde::Serialize;
 
