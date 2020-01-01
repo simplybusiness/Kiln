@@ -274,9 +274,9 @@ impl std::fmt::Display for OutputFormat {
     }
 }
 
-impl PartialEq<str> for OutputFormat {
-    fn eq(&self, other: &str) -> bool {
-        let parsed_other = OutputFormat::try_from(other);
+impl PartialEq<&str> for OutputFormat {
+    fn eq(&self, other: &&str) -> bool {
+        let parsed_other = OutputFormat::try_from(*other);
         match parsed_other {
             Ok(parsed_other) => parsed_other == *self,
             _ => false
