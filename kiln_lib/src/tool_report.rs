@@ -177,6 +177,12 @@ impl std::fmt::Display for ToolName {
     }
 }
 
+impl PartialEq<str> for ToolName {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ToolOutput(String);
 
