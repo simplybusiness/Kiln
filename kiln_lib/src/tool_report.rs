@@ -177,9 +177,9 @@ impl std::fmt::Display for ToolName {
     }
 }
 
-impl PartialEq<str> for ToolName {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
+impl PartialEq<&str> for ToolName {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
     }
 }
 
