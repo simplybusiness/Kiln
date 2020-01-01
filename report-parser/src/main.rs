@@ -1,7 +1,9 @@
 use avro_rs::Reader;
 use failure::err_msg;
 use kiln_lib::kafka::*;
+use kiln_lib::dependency_event::DependencyEvent;
 use kiln_lib::tool_report::ToolReport;
+use regex::Regex;
 use std::convert::TryFrom;
 use std::env;
 
