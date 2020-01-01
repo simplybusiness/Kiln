@@ -19,13 +19,39 @@ pub const TOOL_REPORT_SCHEMA: &str = r#"
     }
 "#;
 
+pub const DEPENDENCY_EVENT_SCHEMA: &str = r#"
+    {
+        "type": "record",
+        "name": "DependencyEvent",
+        "fields": [
+            {"name": "event_version", "type": "string"},
+            {"name": "event_id", "type": "string"},
+            {"name": "parent_event_id", "type": "string"},
+            {"name": "application_name", "type": "string"},
+            {"name": "git_branch", "type": ["null", "string"]},
+            {"name": "git_commit_hash", "type": "string"},
+            {"name": "timestamp", "type": "string"},
+            {"name": "affected_package", "type": "string"},
+            {"name": "installed_version", "type": "string"},
+            {"name": "advisory_id", "type": "string"},
+            {"name": "advisory_url", "type": "string"},
+            {"name": "advisory_description", "type": "string"}
+        ]
+    }
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use avro_rs::Schema;
 
     #[test]
-    fn schema_is_valid() {
+    fn tool_report_schema_is_valid() {
         Schema::parse_str(TOOL_REPORT_SCHEMA).expect("expected Ok(_) value");
+    }
+
+    #[test]
+    fn dependency_event_schema_is_valid() {
+        Schema::parse_str(DEPENDENCY_EVENT_SCHEMA).expect("expected Ok(_) value");
     }
 }

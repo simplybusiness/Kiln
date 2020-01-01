@@ -353,6 +353,110 @@ impl ValidationError {
             json_field_name: Some("event_version".into()),
         }
     }
+
+    pub fn advisory_description_empty() -> ValidationError {
+        ValidationError {
+            error_code: 140,
+            error_message: "Advisory description empty".into(),
+            json_field_name: Some("advisory_description".into()),
+        }
+    }
+
+    pub fn advisory_id_empty() -> ValidationError {
+        ValidationError {
+            error_code: 141,
+            error_message: "Advisory Id empty".into(),
+            json_field_name: Some("advisory_id".into()),
+        }
+    }
+
+    pub fn affected_package_empty() -> ValidationError {
+        ValidationError {
+            error_code: 142,
+            error_message: "Affected package empty".into(),
+            json_field_name: Some("affected_package".into()),
+        }
+    }
+
+    pub fn installed_version_empty() -> ValidationError {
+        ValidationError {
+            error_code: 143,
+            error_message: "Installed version empty".into(),
+            json_field_name: Some("installed_version".into()),
+        }
+    }
+
+    pub fn timestamp_not_a_valid_timestamp() -> ValidationError {
+        ValidationError {
+            error_code: 144,
+            error_message: "Timestamp does not look like a valid timestamp".into(),
+            json_field_name: Some("timestamp".into()),
+        }
+    }
+
+    pub fn timestamp_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 145,
+            error_message: "Timestamp does not look like a string".into(),
+            json_field_name: Some("timestamp".into()),
+        }
+    }
+
+    pub fn affected_package_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 146,
+            error_message: "Affected package not a string".into(),
+            json_field_name: Some("affected_package".into()),
+        }
+    }
+
+    pub fn installed_version_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 147,
+            error_message: "Installed version not a string".into(),
+            json_field_name: Some("installed_version".into()),
+        }
+    }
+
+    pub fn advisory_id_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 148,
+            error_message: "Advisory Id not a string".into(),
+            json_field_name: Some("advisory_id".into()),
+        }
+    }
+
+    pub fn advisory_url_empty() -> ValidationError {
+        ValidationError {
+            error_code: 149,
+            error_message: "Advisory url empty".into(),
+            json_field_name: Some("advisory_url".into()),
+        }
+    }
+
+    pub fn advisory_url_not_valid() -> ValidationError {
+        ValidationError {
+            error_code: 150,
+            error_message: "Advisory Url not a valid Url".into(),
+            json_field_name: Some("advisory_url".into()),
+        }
+    }
+
+    pub fn advisory_url_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 151,
+            error_message: "Advisory Url not a string".into(),
+            json_field_name: Some("advisory_url".into()),
+        }
+    }
+
+    pub fn advisory_description_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 151,
+            error_message: "Advisory description not a string".into(),
+            json_field_name: Some("advisory_description".into()),
+        }
+    }
 }
 
 #[cfg(feature = "web")]

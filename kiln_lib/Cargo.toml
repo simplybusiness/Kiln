@@ -15,6 +15,7 @@ failure = "0.1"
 kafka = { version = "0.8", optional = true }
 addr = { version = "0.2", optional = true }
 openssl = { version = "0.10", optional = true }
+url = "2.1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 
 [features]
