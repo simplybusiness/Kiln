@@ -9,3 +9,6 @@ failure = "0.1"
 kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "master", features = ["avro", "streaming"] }
 kafka = "0.8"
 regex = "1"
+lazy_static = "1"
+uuid = { version = "0.8", features = ["v4"] }
+serde = "1.0"
