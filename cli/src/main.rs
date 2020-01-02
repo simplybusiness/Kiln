@@ -5,7 +5,9 @@ use tokio::prelude::*;
 use std::fs::{File};
 use std::boxed::Box;
 use serde::{Deserialize};
-use std::fmt::{self, Debug, Display};
+use std::fmt::{self, Debug};
+use std::error::Error;
+use std::process; 
 
 #[derive(Debug)]
 #[derive(Deserialize)]
@@ -23,10 +25,51 @@ impl fmt::Display for ScanEnv {
 #[derive(Debug)]
 #[derive(Deserialize)]
 struct CliConfigOptions{ 
-    data_collector_url: String, 
-    app_name: String, 
-    scan_env: ScanEnv,
+    data_collector_url: Option<String>, 
+    app_name: Option<String>, 
+    scan_env: Option<ScanEnv>,
 } 
+
+#[derive(Debug)]
+pub struct ConfigFileError {
+        pub error_message: String,
+        pub toml_field_name: String,
+}
+ 
+impl Error for ConfigFileError { } 
+
+impl fmt::Display for ConfigFileError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error in kiln.toml config file: {} ({})", self.error_message, self.toml_field_name)
+    }
+}
+
+impl ConfigFileError {
+    pub fn app_name_unspecified() -> ConfigFileError {
+        ConfigFileError {
+            error_message: "Field unspecified".into(),
+            toml_field_name: "app_name".to_string(),
+        }
+    }
+    pub fn app_name_empty() -> ConfigFileError {
+        ConfigFileError {
+            error_message: "Field left empty".into(),
+            toml_field_name: "app_name".to_string(),
+        }
+    }
+    pub fn data_collector_url_empty() -> ConfigFileError {
+        ConfigFileError {
+            error_message: "Field left empty".into(),
+            toml_field_name: "data_collector_url".to_string(),
+        }
+    }
+    pub fn data_collector_url_unspecified() -> ConfigFileError {
+        ConfigFileError {
+            error_message: "Field left unspecified".into(),
+            toml_field_name: "data_collector_url".to_string(),
+        }
+    }
+}
 
 fn main() {
     let matches = App::new("Kiln CLI")
@@ -45,7 +88,35 @@ fn main() {
     let use_local_image = matches.is_present("use-local-image");
     let test_tool_image_name = "kiln/bundler-audit:latest"; 
     let test_tool_name = String::from("bundler-audit-kiln-container"); 
-    let config_info = parse_kiln_toml_file(); 
+    
+    let mut env_vec = Vec::new(); 
+    let mut env_app_name = "APP_NAME=".to_string();
+    let mut env_scan_env= "SCAN_ENV=".to_string();
+    let mut env_df_url = "DATA_COLLECTOR_URL=".to_string();
+    
+    match parse_kiln_toml_file() { 
+        Err(e) => { 
+            println!("{}", e); 
+            process::exit(1);
+        },
+        Ok(config_info) =>  { 
+            env_app_name.push_str((config_info.app_name.unwrap()).as_ref()); 
+            
+            match config_info.scan_env { 
+                Some(scan_env) => 
+                    env_scan_env.push_str((scan_env).to_string().as_ref()),
+                None => 
+                    env_scan_env.push_str("Local".to_string().as_ref()),
+            };
+
+            env_df_url.push_str((config_info.data_collector_url.unwrap()).as_ref()); 
+                    
+            env_vec.push(env_df_url.as_ref());
+            env_vec.push(env_app_name.as_ref());
+            env_vec.push(env_scan_env.as_ref());
+        } 
+    };
+
     match matches.subcommand() {
         ("ruby", Some(sub_m)) => {
             match sub_m.subcommand_name() {
@@ -56,17 +127,6 @@ fn main() {
                     let path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + ":" + "/code";
                     let mut path_vec = Vec::new();
                     path_vec.push(path.as_ref());
-
-                    let mut env_vec = Vec::new(); 
-                    let mut env_app_name = "APP_NAME=".to_string();
-                    env_app_name.push_str((config_info.app_name).as_ref()); 
-                    let mut env_scan_env= "SCAN_ENV=".to_string();
-                    env_scan_env.push_str((config_info.scan_env).to_string().as_ref()); 
-                    let mut env_df_url = "DATA_COLLECTOR_URL=".to_string();
-                    env_df_url.push_str((config_info.data_collector_url).as_ref()); 
-                    env_vec.push(env_df_url.as_ref());
-                    env_vec.push(env_app_name.as_ref());
-                    env_vec.push(env_scan_env.as_ref());
 
                     let docker = Docker::new();
                     let tool_container_future = docker
@@ -116,22 +176,49 @@ fn main() {
     };
 }
 
-fn parse_kiln_toml_file() -> CliConfigOptions {  
+fn parse_kiln_toml_file() -> Result<CliConfigOptions,ConfigFileError> {  
     /* Read default kiln config file */
     let kiln_config_file_name = std::env::current_dir().unwrap().to_str().unwrap().to_string() + "/kiln.toml";
     let mut kiln_config_file = match File::open(kiln_config_file_name) { 
         Ok(f) => f, 
-        Err(e) => panic!("Error occured while opening the kiln.toml file. Please ensure you have this in your current working directory (Err: {})", e)
+        Err(e) => { 
+            println!("Error occured while opening the kiln.toml file. Please ensure you have this in your current working directory (Err: {})", e); 
+            process::exit(1);
+        } 
     }; 
     
     let mut config_file_str = String::new();
     match kiln_config_file.read_to_string(&mut config_file_str) { 
         Ok(_s) => {
             let config_info: CliConfigOptions = toml::from_str(config_file_str.as_ref()).unwrap(); 
-            config_info
+            validate_config_info(&config_info)?;
+            Ok(config_info)
         },
-        Err(e) => panic!("Error reading kiln.toml file (Err: {})", e)
-    } 
+        Err(e) => { 
+            println!("Error reading kiln.toml file (Err: {})", e); 
+            process::exit(1);
+        } 
+    }
+}
+
+fn validate_config_info(config_info: &CliConfigOptions) -> Result<(), ConfigFileError> {
+    match &config_info.app_name {
+        Some(app_name) =>  {
+            if app_name.is_empty() {
+                Err(ConfigFileError::app_name_empty())?
+            }
+        }
+        None => Err(ConfigFileError::app_name_unspecified())?
+    }; 
+    match &config_info.data_collector_url {
+        Some(url) => 
+            if url.is_empty() { 
+                Err(ConfigFileError::data_collector_url_empty())?
+            } 
+        None => Err(ConfigFileError::data_collector_url_unspecified())?
+    };
+                   
+    Ok(())
 } 
 
 fn prepare_tool_image<T>(tool_image_name: T, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> 
