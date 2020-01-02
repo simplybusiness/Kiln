@@ -204,6 +204,12 @@ impl std::fmt::Display for ToolOutput {
     }
 }
 
+impl AsRef<str> for ToolOutput {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ToolVersion(Option<String>);
 
