@@ -9,6 +9,8 @@ use crate::validation::ValidationError;
 #[cfg(feature = "avro")]
 use avro_rs::schema::Schema;
 
+#[cfg(feature = "avro")]
+use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use chrono::{DateTime, Utc};
@@ -29,7 +31,8 @@ pub struct DependencyEvent{
     pub installed_version: InstalledVersion,
     pub advisory_id: AdvisoryId,
     pub advisory_url: AdvisoryUrl,
-    pub advisory_description: AdvisoryDescription
+    pub advisory_description: AdvisoryDescription,
+    pub cvss: Cvss
 }
 
 #[cfg(feature = "avro")]
@@ -123,6 +126,14 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
                     .clone(),
             )
             .map_err(|err| err_msg(err.error_message))?;
+            let cvss = Cvss::try_from(
+                fields
+                    .find(|&x| x.0 == "cvss")
+                    .unwrap()
+                    .1
+                    .clone(),
+            )
+            .map_err(|err| err_msg(err.error_message))?;
 
             Ok(DependencyEvent {
                 event_version,
@@ -136,7 +147,8 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
                 installed_version,
                 advisory_id,
                 advisory_url,
-                advisory_description
+                advisory_description,
+                cvss
             })
         } else {
             Err(err_msg("Something went wrong decoding Avro record"))
@@ -354,6 +366,103 @@ impl std::fmt::Display for AdvisoryDescription {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum CvssVersion {
+    Unknown,
+    V2,
+    V3
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(default)]
+pub struct Cvss {
+    version: CvssVersion,
+    score: Option<f32>
+}
+
+#[cfg(feature = "avro")]
+impl TryFrom<avro_rs::types::Value> for Cvss {
+    type Error = ValidationError;
+
+    fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+        match value {
+            avro_rs::types::Value::Record(fields) => {
+                let fields = fields.into_iter().collect::<HashMap<_, _>>();
+
+                let version = match fields.get("version").unwrap() {
+                    avro_rs::types::Value::Enum(_, version) => {
+                        match version.as_ref() {
+                            "V2" => Ok(CvssVersion::V2),
+                            "V3" => Ok(CvssVersion::V3),
+                            _ => Ok(CvssVersion::Unknown)
+                        }
+                    },
+                    _ => Err(ValidationError::cvss_version_not_a_string())
+                }?;
+
+                let score = match fields.get("score").unwrap() {
+                    avro_rs::types::Value::Null => Ok(None),
+                    avro_rs::types::Value::Float(val) => Ok(Some(*val)),
+                    _ => Err(ValidationError::cvss_score_not_valid())
+                }?;
+
+                Cvss::builder()
+                    .with_version(version)
+                    .with_score(score)
+                    .build()
+            },
+            _ => Err(ValidationError::cvss_not_a_record()),
+        }
+    }
+}
+
+pub struct CvssBuilder {
+    version: CvssVersion,
+    score: Option<f32>
+}
+
+impl Cvss {
+    pub fn builder() -> CvssBuilder {
+        CvssBuilder {
+            version: CvssVersion::Unknown,
+            score: None 
+        }
+    }
+}
+
+impl CvssBuilder {
+    pub fn new() -> CvssBuilder {
+        CvssBuilder {
+            version: CvssVersion::Unknown,
+            score: None 
+        }
+    }
+
+    pub fn with_version(mut self, version: CvssVersion) -> Self {
+        self.version = version;
+        self
+    }
+
+    pub fn with_score(mut self, score: Option<f32>) -> Self {
+        self.score = score;
+        self
+    }
+
+    pub fn build(self) -> Result<Cvss, ValidationError> {
+        if self.version == CvssVersion::Unknown && self.score.is_some() {
+            return Err(ValidationError::cvss_version_unknown_with_score());
+        } else if self.version != CvssVersion::Unknown && self.score.is_none() {
+            return Err(ValidationError::cvss_version_known_without_score());
+        } else {
+            Ok(Cvss {
+                version: self.version,
+                score: self.score
+            })
+        }
+    }
+}
+
+
 #[cfg(test)]
 #[cfg(feature = "all")]
 pub mod tests {
@@ -430,7 +539,12 @@ pub mod tests {
             installed_version: InstalledVersion::try_from("1.0".to_string()).unwrap(),
             advisory_id: AdvisoryId::try_from("CVE-2017-5638".to_string()).unwrap(),
             advisory_url: AdvisoryUrl::try_from("https://nvd.nist.gov/vuln/detail/CVE-2017-5638".to_string()).unwrap(),
-            advisory_description: AdvisoryDescription::try_from("The Jakarta Multipart parser in Apache Struts 2 2.3.x before 2.3.32 and 2.5.x before 2.5.10.1 has incorrect exception handling and error-message generation during file-upload attempts, which allows remote attackers to execute arbitrary commands via a crafted Content-Type, Content-Disposition, or Content-Length HTTP header, as exploited in the wild in March 2017 with a Content-Type header containing a #cmd= string.".to_string()).unwrap()
+            advisory_description: AdvisoryDescription::try_from("The Jakarta Multipart parser in Apache Struts 2 2.3.x before 2.3.32 and 2.5.x before 2.5.10.1 has incorrect exception handling and error-message generation during file-upload attempts, which allows remote attackers to execute arbitrary commands via a crafted Content-Type, Content-Disposition, or Content-Length HTTP header, as exploited in the wild in March 2017 with a Content-Type header containing a #cmd= string.".to_string()).unwrap(),
+            cvss: Cvss::builder()
+                .with_version(CvssVersion::V3)
+                .with_score(Some(10.0f32))
+                .build()
+                .unwrap()
         };
 
         let schema = Schema::parse_str(DEPENDENCY_EVENT_SCHEMA).unwrap();
