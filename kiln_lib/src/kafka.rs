@@ -6,7 +6,7 @@ use kafka::producer::Producer;
 use openssl::error::ErrorStack;
 use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode, SslVersion};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KafkaBootstrapTlsConfig(Vec<String>);
 
 pub fn get_bootstrap_config<I>(vars: &mut I) -> Result<KafkaBootstrapTlsConfig, String>
