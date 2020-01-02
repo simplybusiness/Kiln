@@ -457,6 +457,46 @@ impl ValidationError {
             json_field_name: Some("advisory_description".into()),
         }
     }
+
+    pub fn cvss_version_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 152,
+            error_message: "CVSS Version field not parsable as a string".into(),
+            json_field_name: None,
+        }
+    }
+
+    pub fn cvss_score_not_valid() -> ValidationError {
+        ValidationError {
+            error_code: 153,
+            error_message: "CVSS score not valid".into(),
+            json_field_name: None,
+        }
+    }
+
+    pub fn cvss_version_known_without_score() -> ValidationError {
+        ValidationError {
+            error_code: 154,
+            error_message: "CVSS version is known but score not provided".into(),
+            json_field_name: None,
+        }
+    }
+
+    pub fn cvss_version_unknown_with_score() -> ValidationError {
+        ValidationError {
+            error_code: 155,
+            error_message: "CVSS version is unknown but score was provided".into(),
+            json_field_name: None,
+        }
+    }
+
+    pub fn cvss_not_a_record() -> ValidationError {
+        ValidationError {
+            error_code: 156,
+            error_message: "CVSS avro value not a record".into(),
+            json_field_name: None,
+        }
+    }
 }
 
 #[cfg(feature = "web")]

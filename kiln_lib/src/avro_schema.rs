@@ -35,7 +35,13 @@ pub const DEPENDENCY_EVENT_SCHEMA: &str = r#"
             {"name": "installed_version", "type": "string"},
             {"name": "advisory_id", "type": "string"},
             {"name": "advisory_url", "type": "string"},
-            {"name": "advisory_description", "type": "string"}
+            {"name": "advisory_description", "type": "string"},
+            {"name": "cvss", "type": {
+                "name": "Cvss", "type": "record", "fields": [
+                    {"name": "version", "type": {"type": "enum", "name": "CvssVersion", "symbols": ["Unknown", "V2", "V3"]}},
+                    {"name": "score", "type": ["null", "float"]}]
+                }
+            }
         ]
     }
 "#;
