@@ -4,7 +4,7 @@ use avro_rs::{Reader, Schema, Writer};
 use failure::err_msg;
 use kiln_lib::avro_schema::DEPENDENCY_EVENT_SCHEMA;
 use kiln_lib::kafka::*;
-use kiln_lib::dependency_event::{DependencyEvent, Timestamp, AdvisoryDescription, AdvisoryId, AdvisoryUrl, InstalledVersion, AffectedPackage};
+use kiln_lib::dependency_event::{DependencyEvent, Timestamp, AdvisoryDescription, AdvisoryId, AdvisoryUrl, InstalledVersion, AffectedPackage, Cvss, CvssVersion};
 use kiln_lib::tool_report::{ToolReport, EventVersion, EventID};
 use regex::Regex;
 use serde::Serialize;
@@ -113,6 +113,7 @@ fn parse_bundler_audit_plaintext(report: &ToolReport) -> Result<Vec<DependencyEv
             advisory_id: AdvisoryId::try_from(fields.get("Advisory").or(Some(&"".to_string())).unwrap().to_owned())?,
             advisory_url: AdvisoryUrl::try_from(fields.get("URL").or(Some(&"".to_string())).unwrap().to_owned())?,
             advisory_description: AdvisoryDescription::try_from(fields.get("Title").or(Some(&"".to_string())).unwrap().to_owned())?,
+            cvss: Cvss::builder().with_version(CvssVersion::Unknown).build()?,
        };
        events.push(event);
     }
