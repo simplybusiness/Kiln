@@ -1,0 +1,16 @@
+[tasks.build-kiln-cli]
+dependencies = [
+	"kiln-cli-build", 
+	"copy-binary-to-root-dir",
+]
+
+[tasks.kiln-cli-build]
+script = [
+	"cargo build --release"
+] 
+
+[tasks.copy-binary-to-root-dir]
+script = [
+	"mkdir -p ../bin && cp ./target/release/kiln-cli ../bin"
+] 
+
