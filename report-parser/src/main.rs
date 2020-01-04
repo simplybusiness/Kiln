@@ -1,21 +1,31 @@
 #[macro_use] extern crate lazy_static;
+#[macro_use] extern crate log;
 
 use avro_rs::{Reader, Schema, Writer};
+use chrono::prelude::*;
+use data_encoding::HEXUPPER;
 use failure::err_msg;
+use flate2::read::GzDecoder;
+use iter_read::IterRead;
 use kiln_lib::avro_schema::DEPENDENCY_EVENT_SCHEMA;
 use kiln_lib::kafka::*;
 use kiln_lib::dependency_event::{DependencyEvent, Timestamp, AdvisoryDescription, AdvisoryId, AdvisoryUrl, InstalledVersion, AffectedPackage, Cvss, CvssVersion};
 use kiln_lib::tool_report::{ToolReport, EventVersion, EventID};
 use regex::Regex;
-use serde::Serialize;
+use ring::digest;
+use serde_json::Value;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::error::Error;
+use std::io::Read;
+use std::str::FromStr;
+use url::Url;
 use uuid::Uuid;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
@@ -41,6 +51,41 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
         .map_err(|err| err_msg(format!("Kafka Producer Error: {}", err.description())))?;
 
+    let base_url = Url::parse("http://localhost:3000/")?;
+    let mut last_updated_time = None;
+
+    let mut all_parsed_vulns = Vec::new();
+    for year in 2002..=2019 {
+        let parsed_vulns = download_and_parse_vulns(year.to_string(), last_updated_time, &base_url);
+        if let Err(err) = parsed_vulns {
+            error!("{}", err);
+            return Err(err)
+        } else {
+            all_parsed_vulns.push(parsed_vulns.unwrap());
+        }
+    }
+
+    let modified_vulns = download_and_parse_vulns("modified".to_string(), last_updated_time, &base_url);
+    if let Err(err) = modified_vulns {
+        error!("{}", err);
+        return Err(err)
+    } else {
+        all_parsed_vulns.push(modified_vulns.unwrap());
+    }
+
+    let vulns = all_parsed_vulns
+        .into_iter()
+        .fold(HashMap::new(), |mut acc, values| {
+            if values.is_some() {
+                for (k, v) in values.unwrap().drain() {
+                    acc.insert(k, v);
+                }
+            }
+            acc
+        });
+
+    last_updated_time = Some(Utc::now());
+
     loop {
         for ms in consumer.poll().unwrap().iter() {
             for m in ms.messages() {
@@ -62,6 +107,82 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         consumer.commit_consumed()?;
     }
+}
+
+fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Utc>>, base_url: &Url) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
+    lazy_static! {
+        static ref META_LAST_MOD_RE: Regex = Regex::new("lastModifiedDate:(.*)\r\n").unwrap();
+        static ref META_COMPRESSED_GZ_SIZE_RE: Regex = Regex::new("gzSize:(.*)\r\n").unwrap();
+        static ref META_UNCOMPRESSED_SIZE_RE: Regex = Regex::new("size:(.*)\r\n").unwrap();
+        static ref META_SHA256_RE: Regex = Regex::new("sha256:(.*)\r\n").unwrap();
+    }
+
+    let meta_filename = format!("nvdcve-1.1-{}.meta", index);
+    let meta_url = base_url.join(&meta_filename)?;
+
+    let meta_resp_text = reqwest::blocking::get(meta_url)
+        .map_err(|err| Box::new(err_msg(format!("Error downloading {}: {}", meta_filename, err)).compat()))
+        .and_then(|resp| resp.text()
+            .map_err(|err| Box::new(err_msg(format!("Error reading body of {}: {}", meta_filename, err)).compat()))
+        )?;
+
+    println!("{}", meta_resp_text);
+
+    let last_mod_timestamp = META_LAST_MOD_RE.captures(&meta_resp_text)
+        .and_then(|captures| captures.get(1))
+        .ok_or(Box::new(err_msg(format!("Error reading lastModifiedDate from {}", meta_filename)).compat()))
+        .map(|capture| capture.as_str())?;
+
+    let uncompressed_size = META_UNCOMPRESSED_SIZE_RE.captures(&meta_resp_text)
+        .and_then(|captures| captures.get(1))
+        .ok_or(Box::new(err_msg(format!("Error reading size from {}", meta_filename)).compat()))
+        .map(|capture| capture.as_str())?;
+
+    let compressed_size = META_COMPRESSED_GZ_SIZE_RE.captures(&meta_resp_text)
+        .and_then(|captures| captures.get(1))
+        .ok_or(Box::new(err_msg(format!("Error reading compressed size from {}", meta_filename)).compat()))
+        .map(|capture| capture.as_str())?;
+
+    let hash = META_SHA256_RE.captures(&meta_resp_text)
+        .and_then(|captures| captures.get(1))
+        .ok_or(Box::new(err_msg(format!("Error reading sha256 hash from {}", meta_filename)).compat()))
+        .map(|capture| capture.as_str())?;
+
+    if last_updated_time.is_none() || last_updated_time.unwrap().lt(&DateTime::parse_from_rfc3339(last_mod_timestamp)?.with_timezone(&Utc)) {
+        let data_filename = format!("nvdcve-1.1-{}.json.gz", index);
+        let data_url = base_url.join(&data_filename)?;
+
+        let mut resp = reqwest::blocking::get(data_url)
+            .map_err(|err| Box::new(err_msg(format!("Error downloading {}: {}", data_filename, err)).compat()))?;
+
+        let mut resp_compressed_bytes = Vec::<u8>::with_capacity(usize::from_str(compressed_size)?);
+        resp.read_to_end(&mut resp_compressed_bytes)
+            .map_err(|err| Box::new(err_msg(format!("Error reading {} ({})", data_filename, err)).compat()))?;
+
+        let mut uncompressed_bytes = Vec::<u8>::with_capacity(usize::from_str(uncompressed_size)?);
+        let mut gz = GzDecoder::new(IterRead::new(resp_compressed_bytes.iter()));
+        gz.read_to_end(&mut uncompressed_bytes)
+            .map_err(|err| Box::new(err_msg(format!("Error decompressing {} ({})", data_filename, err)).compat()))?;
+
+        let computed_hash = HEXUPPER.encode(digest::digest(&digest::SHA256, &uncompressed_bytes).as_ref());
+
+        if hash != computed_hash {
+            return Err(Box::new(err_msg(format!("Hash mismatch for {}, expected {}, got {}", data_filename, hash, computed_hash)).compat()));
+        }
+
+        let parsed_json: Value = serde_json::from_slice(&uncompressed_bytes)?;
+
+        let cve_items = parsed_json["CVE_Items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| (value["cve"]["CVE_data_meta"]["ID"].as_str().unwrap().to_string(), value.to_owned()))
+            .collect::<HashMap<_, _>>();
+
+        return Ok(Some(cve_items))
+    }
+
+    Ok(None)
 }
 
 fn parse_tool_report(report: &ToolReport) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
