@@ -3,6 +3,7 @@
 
 use avro_rs::{Reader, Schema, Writer};
 use chrono::prelude::*;
+use chrono::Duration;
 use data_encoding::HEXUPPER;
 use failure::err_msg;
 use flate2::read::GzDecoder;
@@ -73,7 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         all_parsed_vulns.push(modified_vulns.unwrap());
     }
 
-    let vulns = all_parsed_vulns
+    let mut vulns = all_parsed_vulns
         .into_iter()
         .fold(HashMap::new(), |mut acc, values| {
             if values.is_some() {
@@ -87,6 +88,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     last_updated_time = Some(Utc::now());
 
     loop {
+        if last_updated_time.unwrap().lt(&(Utc::now() - Duration::hours(2))) {
+            let modified_vulns = download_and_parse_vulns("modified".to_string(), last_updated_time, &base_url);
+            if let Err(err) = modified_vulns {
+                error!("{}", err);
+            } else {
+                if let Some(mut modified_vulns) = modified_vulns.unwrap() {
+                    for (k, v) in modified_vulns.drain() {
+                        vulns.insert(k, v);
+                    }
+                }
+                last_updated_time = Some(Utc::now());
+            }
+        }
+
         for ms in consumer.poll().unwrap().iter() {
             for m in ms.messages() {
                 let reader = Reader::new(m.value)?;
