@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
         .map_err(|err| err_msg(format!("Kafka Producer Error: {}", err.description())))?;
 
-    let base_url = Url::parse("http://localhost:3000/")?;
+    let base_url = Url::parse(&env::var("NVD_BASE_URL").unwrap_or("https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()))?;
     let mut last_updated_time = None;
 
     let mut all_parsed_vulns = Vec::new();
