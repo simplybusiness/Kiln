@@ -62,6 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             error!("{}", err);
             return Err(err)
         } else {
+            info!("Successfully got vulns for {}", year);
             all_parsed_vulns.push(parsed_vulns.unwrap());
         }
     }
@@ -71,6 +72,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         error!("{}", err);
         return Err(err)
     } else {
+        info!("Successfully got latest vulns");
         all_parsed_vulns.push(modified_vulns.unwrap());
     }
 
@@ -97,6 +99,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     for (k, v) in modified_vulns.drain() {
                         vulns.insert(k, v);
                     }
+                    info!("Successfully got new vuln information"); 
                 }
                 last_updated_time = Some(Utc::now());
             }
@@ -140,8 +143,6 @@ fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Ut
         .and_then(|resp| resp.text()
             .map_err(|err| Box::new(err_msg(format!("Error reading body of {}: {}", meta_filename, err)).compat()))
         )?;
-
-    println!("{}", meta_resp_text);
 
     let last_mod_timestamp = META_LAST_MOD_RE.captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
