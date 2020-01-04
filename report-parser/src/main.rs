@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let reader = Reader::new(m.value)?;
                 for value in reader {
                     let report = ToolReport::try_from(value?)?;
-                    let records = parse_tool_report(&report)?;
+                    let records = parse_tool_report(&report, &vulns)?;
                     for record in records.into_iter() {
                         producer
                             .send(&kafka::producer::Record::from_value(
@@ -201,10 +201,10 @@ fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Ut
     Ok(None)
 }
 
-fn parse_tool_report(report: &ToolReport) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
+fn parse_tool_report(report: &ToolReport, vulns: &HashMap<String, Value>) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
     let events = if report.tool_name == "bundler-audit" {
         if report.output_format == "PlainText" {
-            parse_bundler_audit_plaintext(&report)
+            parse_bundler_audit_plaintext(&report, &vulns)
         } else {
             Err(Box::new(err_msg(format!("Unknown output format for Bundler-audit in ToolReport: {:?}", report)).compat()).into())
         }
@@ -224,7 +224,7 @@ fn parse_tool_report(report: &ToolReport) -> Result<Vec<Vec<u8>>, Box<dyn Error>
         .collect::<Vec<Vec<u8>>>())
 }
 
-fn parse_bundler_audit_plaintext(report: &ToolReport) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+fn parse_bundler_audit_plaintext(report: &ToolReport, vulns: &HashMap<String, Value>) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     lazy_static! {
         static ref BLOCK_RE: Regex = Regex::new("(Name: .*\nVersion: .*\nAdvisory: .*\nCriticality: .*\nURL: .*\nTitle: .*\nSolution:.*\n)").unwrap();
     }
@@ -237,7 +237,42 @@ fn parse_bundler_audit_plaintext(report: &ToolReport) -> Result<Vec<DependencyEv
             .map(|line| line.split(": ").collect::<Vec<_>>())
             .map(|fields| (fields[0].to_string(), fields[1].to_string()))
             .collect::<HashMap<_, _>>();
-       let event = DependencyEvent {
+        let advisory_id = AdvisoryId::try_from(fields.get("Advisory").or(Some(&"".to_string())).unwrap().to_owned())?;
+
+        let cvss = vulns.get(&advisory_id.to_string())
+            .and_then(|vuln_info| {
+                let v3_score = vuln_info.get("impact")
+                    .and_then(|impact| impact.get("baseMetricV3"))
+                    .and_then(|base_metric_v3| base_metric_v3.get("cvssV3"))
+                    .and_then(|cvss| cvss["baseScore"].as_f64());
+
+                if let Some(v3_score) = v3_score {
+                    return Some(Cvss::builder()
+                        .with_version(CvssVersion::V3)
+                        .with_score(Some(v3_score as f32))
+                        .build());
+                }
+
+                let v2_score = vuln_info.get("impact")
+                    .and_then(|impact| impact.get("baseMetricV2"))
+                    .and_then(|base_metric_v2| base_metric_v2.get("cvssV2"))
+                    .and_then(|cvss| cvss["baseScore"].as_f64());
+
+                if let Some(v2_score) = v2_score {
+                    return Some(Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(v2_score as f32))
+                        .build());
+                }
+
+                return None;
+            }).unwrap_or_else(||
+                Cvss::builder()
+                    .with_version(CvssVersion::Unknown)
+                    .build()
+            )?;
+
+        let event = DependencyEvent {
             event_version: EventVersion::try_from("1".to_string())?,
             event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
             parent_event_id: report.event_id.clone(),
@@ -247,10 +282,10 @@ fn parse_bundler_audit_plaintext(report: &ToolReport) -> Result<Vec<DependencyEv
             timestamp: Timestamp::try_from(report.end_time.to_string())?,
             affected_package: AffectedPackage::try_from(fields.get("Name").or(Some(&"".to_string())).unwrap().to_owned())?,
             installed_version: InstalledVersion::try_from(fields.get("Version").or(Some(&"".to_string())).unwrap().to_owned())?,
-            advisory_id: AdvisoryId::try_from(fields.get("Advisory").or(Some(&"".to_string())).unwrap().to_owned())?,
             advisory_url: AdvisoryUrl::try_from(fields.get("URL").or(Some(&"".to_string())).unwrap().to_owned())?,
+            advisory_id,
             advisory_description: AdvisoryDescription::try_from(fields.get("Title").or(Some(&"".to_string())).unwrap().to_owned())?,
-            cvss: Cvss::builder().with_version(CvssVersion::Unknown).build()?,
+            cvss,
        };
        events.push(event);
     }
