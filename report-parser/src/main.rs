@@ -55,15 +55,24 @@ fn main() -> Result<(), Box<dyn Error>> {
     let base_url = Url::parse(&env::var("NVD_BASE_URL").unwrap_or("https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()))?;
     let mut last_updated_time = None;
 
-    let mut all_parsed_vulns = Vec::new();
+    let mut vulns = HashMap::new();
     for year in 2002..=2019 {
         let parsed_vulns = download_and_parse_vulns(year.to_string(), last_updated_time, &base_url);
         if let Err(err) = parsed_vulns {
             error!("{}", err);
             return Err(err)
         } else {
+            parsed_vulns
+            .into_iter()
+            .fold(&mut vulns, |acc, values| {
+                if values.is_some() {
+                    for (k, v) in values.unwrap().drain() {
+                        acc.insert(k, v);
+                    }
+                }
+                acc
+            });
             info!("Successfully got vulns for {}", year);
-            all_parsed_vulns.push(parsed_vulns.unwrap());
         }
     }
 
@@ -72,13 +81,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         error!("{}", err);
         return Err(err)
     } else {
-        info!("Successfully got latest vulns");
-        all_parsed_vulns.push(modified_vulns.unwrap());
-    }
-
-    let mut vulns = all_parsed_vulns
+        modified_vulns
         .into_iter()
-        .fold(HashMap::new(), |mut acc, values| {
+        .fold(&mut vulns, |acc, values| {
             if values.is_some() {
                 for (k, v) in values.unwrap().drain() {
                     acc.insert(k, v);
@@ -86,6 +91,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             acc
         });
+        info!("Successfully got latest vulns");
+    }
 
     last_updated_time = Some(Utc::now());
 
@@ -127,7 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Utc>>, base_url: &Url) -> Result<Option<HashMap<String, Value>>, Box<dyn Error>> {
+fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Utc>>, base_url: &Url) -> Result<Option<HashMap<String, Cvss>>, Box<dyn Error>> {
     lazy_static! {
         static ref META_LAST_MOD_RE: Regex = Regex::new("lastModifiedDate:(.*)\r\n").unwrap();
         static ref META_COMPRESSED_GZ_SIZE_RE: Regex = Regex::new("gzSize:(.*)\r\n").unwrap();
@@ -192,16 +199,44 @@ fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Ut
             .as_array()
             .unwrap()
             .iter()
-            .map(|value| (value["cve"]["CVE_data_meta"]["ID"].as_str().unwrap().to_string(), value.to_owned()))
+            .map(|vuln_info| {
+                let v3_score = vuln_info.get("impact")
+                    .and_then(|impact| impact.get("baseMetricV3"))
+                    .and_then(|base_metric_v3| base_metric_v3.get("cvssV3"))
+                    .and_then(|cvss| cvss["baseScore"].as_f64());
+
+                let v2_score = vuln_info.get("impact")
+                    .and_then(|impact| impact.get("baseMetricV2"))
+                    .and_then(|base_metric_v2| base_metric_v2.get("cvssV2"))
+                    .and_then(|cvss| cvss["baseScore"].as_f64());
+
+                let cvss = if let Some(v3_score) = v3_score {
+                    Cvss::builder()
+                        .with_version(CvssVersion::V3)
+                        .with_score(Some(v3_score as f32))
+                        .build()
+                } else if let Some(v2_score) = v2_score {
+                    Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(v2_score as f32))
+                        .build()
+                } else {
+                    Cvss::builder()
+                    .with_version(CvssVersion::Unknown)
+                    .build()
+                };
+
+                return (vuln_info["cve"]["CVE_data_meta"]["ID"].as_str().unwrap().to_string(), cvss.unwrap());
+            })
             .collect::<HashMap<_, _>>();
 
-        return Ok(Some(cve_items))
+        return Ok(Some(cve_items));
     }
 
     Ok(None)
 }
 
-fn parse_tool_report(report: &ToolReport, vulns: &HashMap<String, Value>) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
+fn parse_tool_report(report: &ToolReport, vulns: &HashMap<String, Cvss>) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
     let events = if report.tool_name == "bundler-audit" {
         if report.output_format == "PlainText" {
             parse_bundler_audit_plaintext(&report, &vulns)
@@ -224,7 +259,7 @@ fn parse_tool_report(report: &ToolReport, vulns: &HashMap<String, Value>) -> Res
         .collect::<Vec<Vec<u8>>>())
 }
 
-fn parse_bundler_audit_plaintext(report: &ToolReport, vulns: &HashMap<String, Value>) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+fn parse_bundler_audit_plaintext(report: &ToolReport, vulns: &HashMap<String, Cvss>) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     lazy_static! {
         static ref BLOCK_RE: Regex = Regex::new("(Name: .*\nVersion: .*\nAdvisory: .*\nCriticality: .*\nURL: .*\nTitle: .*\nSolution:.*\n)").unwrap();
     }
@@ -239,38 +274,13 @@ fn parse_bundler_audit_plaintext(report: &ToolReport, vulns: &HashMap<String, Va
             .collect::<HashMap<_, _>>();
         let advisory_id = AdvisoryId::try_from(fields.get("Advisory").or(Some(&"".to_string())).unwrap().to_owned())?;
 
+        let default_cvss = Cvss::builder()
+                .with_version(CvssVersion::Unknown)
+                .build()
+                .unwrap();
+
         let cvss = vulns.get(&advisory_id.to_string())
-            .and_then(|vuln_info| {
-                let v3_score = vuln_info.get("impact")
-                    .and_then(|impact| impact.get("baseMetricV3"))
-                    .and_then(|base_metric_v3| base_metric_v3.get("cvssV3"))
-                    .and_then(|cvss| cvss["baseScore"].as_f64());
-
-                if let Some(v3_score) = v3_score {
-                    return Some(Cvss::builder()
-                        .with_version(CvssVersion::V3)
-                        .with_score(Some(v3_score as f32))
-                        .build());
-                }
-
-                let v2_score = vuln_info.get("impact")
-                    .and_then(|impact| impact.get("baseMetricV2"))
-                    .and_then(|base_metric_v2| base_metric_v2.get("cvssV2"))
-                    .and_then(|cvss| cvss["baseScore"].as_f64());
-
-                if let Some(v2_score) = v2_score {
-                    return Some(Cvss::builder()
-                        .with_version(CvssVersion::V2)
-                        .with_score(Some(v2_score as f32))
-                        .build());
-                }
-
-                return None;
-            }).unwrap_or_else(||
-                Cvss::builder()
-                    .with_version(CvssVersion::Unknown)
-                    .build()
-            )?;
+            .unwrap_or(&default_cvss);
 
         let event = DependencyEvent {
             event_version: EventVersion::try_from("1".to_string())?,
@@ -285,7 +295,7 @@ fn parse_bundler_audit_plaintext(report: &ToolReport, vulns: &HashMap<String, Va
             advisory_url: AdvisoryUrl::try_from(fields.get("URL").or(Some(&"".to_string())).unwrap().to_owned())?,
             advisory_id,
             advisory_description: AdvisoryDescription::try_from(fields.get("Title").or(Some(&"".to_string())).unwrap().to_owned())?,
-            cvss,
+            cvss: cvss.clone(),
        };
        events.push(event);
     }
