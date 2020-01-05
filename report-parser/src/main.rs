@@ -27,6 +27,7 @@ use uuid::Uuid;
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+    openssl_probe::init_ssl_cert_env_vars();
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
