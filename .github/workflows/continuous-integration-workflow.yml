@@ -110,6 +110,33 @@ jobs:
             - name: Build
               run: cargo make build-report-parser
               working-directory: report-parser/
+    slack-connector:
+        name: Slack-connector build
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('slack-connector/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('slack-connector/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: slack-connector/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('slack-connector/Cargo.lock') }}
+            - name: Build
+              run: cargo make build-slack-connector
+              working-directory: slack-connector/
     kiln_lib:
         name: Kiln_lib build
         runs-on: ubuntu-18.04

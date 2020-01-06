@@ -19,3 +19,6 @@ data-forwarder:
 
 report-parser:
 - report-parser/**
+
+slack-connector:
+- slack-connector/**

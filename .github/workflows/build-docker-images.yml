@@ -142,3 +142,41 @@ jobs:
             - name: Docker push latest
               run: cargo make push-report-parser-docker-master-latest
               working-directory: report-parser/
+    slack-connector:
+        name: Slack-connector build
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('slack-connector/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('slack-connector/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: slack-connector/target
+                key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('slack-connector/Cargo.lock') }}
+            - name: Build
+              run: cargo make build-slack-connector-master-docker
+              working-directory: slack-connector/
+            - name: docker login
+              uses: azure/docker-login@v1
+              with:
+                password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+                username: kilnautomation
+            - name: Docker push version
+              run: cargo make push-slack-connector-docker-master-version
+              working-directory: slack-connector/
+            - name: Docker push latest
+              run: cargo make push-slack-connector-docker-master-latest
+              working-directory: slack-connector/
