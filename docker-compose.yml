@@ -54,3 +54,15 @@ services:
       - DISABLE_KAFKA_DOMAIN_VALIDATION=true
     volumes:
       - ./tls:/tls
+  slack-connector:
+    depends_on:
+      - kafka
+    image: kiln/slack-connector:master-latest
+    environment:
+      - KAFKA_BOOTSTRAP_TLS=kafka:9092
+      - RUST_LOG=info
+      - DISABLE_KAFKA_DOMAIN_VALIDATION=true
+      - OAUTH2_TOKEN
+      - SLACK_CHANNEL_ID
+    volumes:
+      - ./tls:/tls
