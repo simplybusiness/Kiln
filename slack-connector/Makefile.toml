@@ -1,0 +1,70 @@
+[env]
+GIT_SHA = { script = ["git rev-parse --short HEAD"] }
+GIT_BRANCH = { script = ["git rev-parse --abbrev-ref HEAD"] }
+
+[tasks.build-slack-connector]
+dependencies = [
+    "clippy",
+	"test",
+	"build",
+]
+
+[tasks.build-slack-connector-docker]
+dependencies = [
+	"musl-build",
+	"build-slack-connector-docker-image",
+]
+
+[tasks.musl-build]
+script = [
+	"docker run --rm -v $PWD:/workdir -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry registry.gitlab.com/rust_musl_docker/image:stable-latest cargo build --release --target=x86_64-unknown-linux-musl"
+]
+
+[tasks.build-slack-connector-docker-image]
+command = "docker"
+args = ["build", "-t", "kiln/slack-connector:${GIT_BRANCH}-${GIT_SHA}", "."]
+
+[tasks.build-slack-connector-master-docker]
+dependencies = ["musl-build", "build-slack-connector-docker-tag-master-version", "build-slack-connector-docker-tag-master-latest"]
+
+[tasks.build-slack-connector-docker-tag-master-version]
+command = "docker"
+args = ["build", "-t", "kiln/slack-connector:master-${GIT_SHA}", "."]
+
+[tasks.push-slack-connector-docker-master-version]
+command = "docker"
+args = ["push", "kiln/slack-connector:master-${GIT_SHA}"]
+
+[tasks.build-slack-connector-docker-tag-master-latest]
+command = "docker"
+args = ["tag", "kiln/slack-connector:master-${GIT_SHA}", "kiln/slack-connector:master-latest"]
+
+[tasks.push-slack-connector-docker-master-latest]
+command = "docker"
+args = ["push", "kiln/slack-connector:master-latest"]
+
+[tasks.build-slack-connector-release-docker]
+dependencies = ["musl-build", "build-slack-connector-docker-tag-release-version", "build-slack-connector-docker-tag-release-latest"]
+
+[tasks.build-slack-connector-docker-tag-release-version]
+script = [
+	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
+	"docker build -t kiln/slack-connector:$GIT_TAG ."
+]
+
+[tasks.push-slack-connector-docker-release-version]
+script = [
+	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
+	"docker push kiln/slack-connector:$GIT_TAG ."
+]
+
+[tasks.build-slack-connector-docker-tag-release-latest]
+script = [
+	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
+	"docker tag kiln/slack-connector:$GIT_TAG kiln/slack-connector:latest"
+]
+
+[tasks.push-slack-connector-docker-release-latest]
+script = [
+	"docker push kiln/slack-connector:latest"
+]
