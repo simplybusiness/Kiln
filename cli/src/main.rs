@@ -86,7 +86,7 @@ fn main() {
         ).get_matches();
 
     let use_local_image = matches.is_present("use-local-image");
-    let test_tool_image_name = "kiln/bundler-audit:latest"; 
+    let test_tool_image_name = "kiln/bundler-audit:master-latest"; 
     let test_tool_name = String::from("bundler-audit-kiln-container"); 
     
     let mut env_vec = Vec::new(); 

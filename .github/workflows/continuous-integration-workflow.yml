@@ -56,6 +56,33 @@ jobs:
             - name: Build data-forwarder
               run: cargo make build-data-forwarder-musl
               working-directory: data-forwarder/
+    kiln-cli:
+        name: CLI build
+        runs-on: ubuntu-18.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v1
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Cache cargo registry
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/registry
+                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('cli/Cargo.lock') }}
+            - name: Cache cargo index
+              uses: actions/cache@v1
+              with:
+                path: ~/.cargo/git
+                key: ${{ runner.os }}-cargo-index-${{ hashFiles('cli/Cargo.lock') }}
+            - name: Cache cargo build
+              uses: actions/cache@v1
+              with:
+                path: cli/target
+                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('cli/Cargo.lock') }}
+            - name: Build kiln-cli-tool
+              run: cargo make build-kiln-cli
+              working-directory: cli/
     report-parser:
         name: Report-parser build
         runs-on: ubuntu-18.04
