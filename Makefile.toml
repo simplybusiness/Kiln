@@ -2,7 +2,7 @@
 dependencies = [
     "build-data-collector-docker",
     "build-data-forwarder-musl",
-    "build-bundler-audit-docker"
+    "build-bundler-audit-docker", 
     "build-kiln-cli"
 ]
 
