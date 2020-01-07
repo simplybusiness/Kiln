@@ -21,7 +21,7 @@ Kiln Security Scanners are docker containers with security tools baked into the 
 Please note that this project is released with a Contributor Code of Conduct. By participating in this project, you agree to abide by its terms. The Code of Conduct can be found [here](CODE_OF_CONDUCT.md).
 
 To contribute to Kiln, you'll need the following tools installed:
-- Rust (stable channel, assuming 1.37 as minimum)
+- Rust (stable channel, assuming 1.40 as minimum)
 - Clippy (For linting)
 - Cargo Make (For building docker images)
 - Docker
