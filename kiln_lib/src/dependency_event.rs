@@ -288,7 +288,7 @@ impl TryFrom<avro_rs::types::Value> for AdvisoryId {
     }
 }
 
-impl std::fmt::Display for AdvisoryId{
+impl std::fmt::Display for AdvisoryId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -308,6 +308,12 @@ impl TryFrom<String> for AdvisoryUrl {
         } else {
             Ok(AdvisoryUrl(Url::parse(&value).unwrap()))
         }
+    }
+}
+
+impl std::fmt::Display for AdvisoryUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.0.as_str())
     }
 }
 
@@ -359,7 +365,6 @@ impl TryFrom<avro_rs::types::Value> for AdvisoryDescription {
     }
 }
 
-
 impl std::fmt::Display for AdvisoryDescription {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -373,11 +378,30 @@ pub enum CvssVersion {
     V3
 }
 
+impl std::fmt::Display for CvssVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            CvssVersion::Unknown => write!(f, "Unknown"),
+            CvssVersion::V2 => write!(f, "V2"),
+            CvssVersion::V3 => write!(f, "V3"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(default)]
 pub struct Cvss {
     version: CvssVersion,
     score: Option<f32>
+}
+
+impl std::fmt::Display for Cvss {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self.version {
+            CvssVersion::Unknown => write!(f, "Unknown"),
+            _ => write!(f, "{}({})", self.version.to_string(), self.score.unwrap().to_string())
+        }
+    }
 }
 
 #[cfg(feature = "avro")]
