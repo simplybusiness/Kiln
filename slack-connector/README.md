@@ -8,7 +8,7 @@ First, ensure you have cargo-make installed by running `cargo install cargo-make
 ## Deploying
 See the [suggested Kafka deployment](../docs/suggested_kafka_deployment.md) documentation to understand how this component should be deployed and what it needs to be able to communicate with. The slack-connector container is setup with an entrypoint, so no command needs to be passed to the container when calling docker run.
 
-DependencyEvents are consumed from to a Kafka topic called "DependencyEvents". If you do not have auto topic creation enabled for your cluster, you will need to create this topic.
+DependencyEvents are consumed from a Kafka topic called "DependencyEvents". If you do not have auto topic creation enabled for your cluster, you will need to create this topic.
 
 To grant the Slack Connector access to your Slack workspace, you will need to register it as a Slack app for your workspace and generate an access token for it. Instructions for this can be found [here](https://api.slack.com/authentication/basics). Follow those instructions up to and including "Installing the app to a workspace". When you get to the step where you're adding OAuth Scopes, add the following scopes: `channels:read` and `chat:write`. By the end of that step, you should have an OAuth2 Access token for the Slack Connector. It is important that this token is handled carefully, because it grants access to your Slack workspace.
 
