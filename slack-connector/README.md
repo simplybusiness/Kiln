@@ -19,6 +19,6 @@ By default, this component will validate that hosts in the `KAFKA_BOOTSTRAP_TLS`
 
 If your Kafka cluster uses TLS certificates issued by a private Certificate Authority, you will need to provide the CA Certificate in PEM format so that certificate validation can be performed when connecting to the Kafka cluster. You should do this by including the CA certificate in PEM format in the `/tls` directory of the container, probably through a volume mount.
 
-You will also need the Channel ID for the Slack Channel you want to route notifications to. This can be found by opening Slack in a web browser and loading the channel you want Kiln to send notifications to. The last components of the URL path will contain the channel ID and will begin with a 'C'. This is supplied to the connector using the `CHANNEL_ID` environment variabnle.
+You will also need the Channel ID for the Slack Channel you want to route notifications to. This can be found by opening Slack in a web browser and loading the channel you want Kiln to send notifications to. The last components of the URL path will contain the channel ID and will begin with a 'C'. This is supplied to the connector using the `SLACK_CHANNEL_ID` environment variabnle.
 
 Lastly, you will need to supply the OAuth2 access token you created earlier as the `OAUTH2_TOKEN` environment variable. This value is a secret and should be handled accordingly to avoid accidental disclosure in shell history, logs etc. Unfortunately the topic of secrets management is out of the scope of this documentation.
