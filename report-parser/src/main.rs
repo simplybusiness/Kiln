@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut last_updated_time = None;
 
     let mut vulns = HashMap::new();
-    for year in 2002..=2019 {
+    for year in 2002..=2020 {
         let parsed_vulns = download_and_parse_vulns(year.to_string(), last_updated_time, &base_url);
         if let Err(err) = parsed_vulns {
             error!("{}", err);
