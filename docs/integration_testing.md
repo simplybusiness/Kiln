@@ -4,6 +4,8 @@ Currently, there is no automated integration testing of Kiln, but it is possible
 * Data forwarder compiled for musl-libc (to include in tool image)
 * Tool image of choice (using bundler-audit as an example)
 * Data collector docker image built
+* Report parser docker image built
+* Slack connector docker image built
 * Java JRE (required for building Java Key Store for Kafka)
 
 Parts of this process have been automated using Cargo-make, which is the task runner for the Kiln build process.
@@ -21,10 +23,16 @@ cargo make build-bundler-audit-master-docker
 The first task will ensure that the Data-forwarder binary is available for the Docker image build to copy it into the image, while the second one will actually build the image.
 
 ## Building the Data-collector docker image
-To build the data-collector Docker image, run `cargo make build-docker-images` from the project root. This target will be kept updated with all of the docker image targets. It also includes linting and unit testing of the code being built. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-data-collector-master-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: kiln/data-collector:master-latest.
+To build the data-collector Docker image, run `cargo make build-docker-images` from the project root. This target will be kept updated with all of the docker image targets. It also includes linting and unit testing of the code being built. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-data-collector-master-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/data-collector:master-latest`.
 
 ## Building the report-parser docker image
-This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-report-parser-master-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: kiln/report-parser:master-latest.
+This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-report-parser-master-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/report-parser:master-latest`.
+
+## Building the slack-connector docker image
+This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-slack-connector-master-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/slack-connector:master-latest`.
+
+## Configuring the slack-connector docker container
+You will need to create a `.env` file in the root of the project. This path is ignored by Git, because it will contain a Slack OAuth2 token. Find the information needed by following the instructions in the Slack-connector component README.
 
 ## Generating TLS certificates
 Kiln expects to connect to a Kafka cluster over TLS only, so in order to run a stack locally, we need to setup a basic PKI to ensure certificates can be validated and the connection will be successful. This process has been scripted, but still requires a small amount of user interaction.
@@ -34,7 +42,7 @@ To start the process, run the `gen_certs.sh` script in the root of the project. 
 ## Starting the stack
 Once you've built the required docker images and generated the PKI using the `gen_certs.sh` script, you can bring up a Kiln stack. This requires two terminals, because Kiln expects that the Kafka cluster is ready to accept incoming connections when it starts.
 
-In the first terminal, run `docker-compose up zookeeper kafka`. Once this has finished starting up and you see a message in the console output about the ToolReports topic being created, you can bring up the data-collector and report-parser by running `docker-compose up data-collector report-parser` in the second terminal. You initially won't see any output from the data-collector, but you can check it's working by sending an HTTP request to it and checking that a log line is printed.
+In the first terminal, run `docker-compose up zookeeper kafka`. Once this has finished starting up and you see a message in the console output about the ToolReports topic being created, you can bring up the data-collector and report-parser by running `docker-compose up data-collector report-parser slack-connector` in the second terminal. 
 
 ## Connecting the console consumer
 To check the full flow of messages being consumed from the Kafka DependencyEvents topic, the easiest way is to start a Kafka console consumer. To do this, you need to `docker exec` into the Kafka broker container and from there you can start the console consumer.
