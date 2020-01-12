@@ -6,7 +6,7 @@ on:
 
 jobs:
     source-tarball:
-        name: Data-collector build
+        name: Archive source
         runs-on: ubuntu-18.04
         steps:
             - name: Checkout
