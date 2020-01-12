@@ -51,13 +51,28 @@ jobs:
           ruby-version: 2.6.x
       - name: Install fpm
         run: gem install --no-document fpm
+      - name: Install packaging tools
+        run: sudo apt install -yq dpkg-sig rpm
+        env:
+          DEBIAN_FRONTEND: noninteractive
+      - name: Setup RPM macros
+        run: cat > .rpmmacros <<'EOF'
+        %_signature gpg
+        %_gpg_path /root/.gnupg
+        %_gpg_name Kiln Automated Builder
+        %_gpgbin /usr/bin/gpg2
+        %__gpg_sign_cmd %{__gpg} gpg --force-v3-sigs --batch --verbose --no-armor --passphrase-fd 3 --no-secmem-warning -u "%{_gpg_name}" -sbo %{__signature_filename} --digest-algo sha256 %{__plaintext_filename}'
       - name: Build CLI app
         run: cargo build --release && mkdir -p ../bin/usr/bin && cp target/release/kiln-cli ../bin/usr/bin/kiln
         working-directory: cli
       - name: Build .deb package
         run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" -d "openssl > 1.1" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "gz" --deb-dist "buster"
+      - name: Sign .deb package
+        run: dpkg-sig --sign builder kiln-cli_0.2.0_amd64.deb
       - name: Build .rpm package
         run: fpm -s dir -t rpm -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker-ce > 18.09" -d "openssl > 1.1" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --rpm-digest "sha256" --rpm-os "linux" 
+      - name: Sign .rpm package
+        run: rpm --addsign kiln-cli-0.2.0-1.x86_64.rpm
       - name: Upload .deb package
         uses: actions/upload-artifact@v1
         with:
