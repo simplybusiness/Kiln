@@ -55,9 +55,9 @@ jobs:
         run: cargo build --release && mkdir -p ../bin/usr/bin && cp target/release/kiln-cli ../bin/usr/bin/kiln
         working-directory: cli
       - name: Build .deb package
-        run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "gz" --deb-dist "buster"
+        run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" -d "openssl > 1.1" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "gz" --deb-dist "buster"
       - name: Build .rpm package
-        run: fpm -s dir -t rpm -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker-ce > 18.09" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --rpm-digest "sha256" --rpm-os "linux" 
+        run: fpm -s dir -t rpm -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker-ce > 18.09" -d "openssl > 1.1" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --rpm-digest "sha256" --rpm-os "linux" 
       - name: Upload .deb package
         uses: actions/upload-artifact@v1
         with:
