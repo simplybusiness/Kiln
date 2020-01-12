@@ -8,6 +8,13 @@ use serde::{Deserialize};
 use std::fmt::{self, Debug};
 use std::error::Error;
 use std::process; 
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
+use std::sync::Arc;
+use std::thread;
+use std::collections::HashMap;
+
 
 #[derive(Debug)]
 #[derive(Deserialize)]
@@ -70,6 +77,30 @@ impl ConfigFileError {
         }
     }
 }
+
+static PBAR_FMT: &'static str =
+    "{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
+
+pub fn create_progress_bar(len: u64) -> ProgressBar {
+    //println!("Creating a progress bar {} : {}", msg, length.unwrap());
+    let progbar = ProgressBar::new(len);
+
+        progbar.set_style(
+            ProgressStyle::default_bar()
+                .template(PBAR_FMT)
+                .progress_chars("=> "),
+        );
+
+    progbar
+}
+
+#[derive(Debug)]
+pub struct ProgressTracker { 
+    id: String,
+    status: String, 
+    bar: ProgressBar,
+} 
+
 
 fn main() {
     let matches = App::new("Kiln CLI")
@@ -246,12 +277,95 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
         let pull_options = PullOptions::builder()
             .image(tool_image_name.as_ref())
             .build();
-
+        let mut pull_object_vec: Vec<ProgressTracker> = Vec::new();
+        let m = Arc::new(MultiProgress::new());
+        let mut prog_channels : HashMap<std::string::String, std::sync::mpsc::Sender<serde_json::value::Value>> = HashMap::new();
+        let mut channel_creation_complete = false;
+        let mut channel_creation_started = false;
         return Box::new(
             docker.images()
             .pull(&pull_options)
-            .inspect(|item| println!("{}", item["status"].as_str().unwrap()))
-            .collect()
+            .for_each(move |output| {
+                if output["id"] != serde_json::Value::Null {
+                    if output["status"] != serde_json::Value::Null {
+                        let status = output["status"].as_str().unwrap().to_string(); 
+                        let id = output["id"].as_str().unwrap().to_string();
+                        if status == "Pulling fs layer" { 
+                            if channel_creation_started == false { 
+                                channel_creation_started = true; 
+                            }
+                            let pgbar = m.add(create_progress_bar(10));
+                            pgbar.set_message([id.clone(),":".to_string(),status.clone()].concat().as_ref());
+                            pgbar.set_position(0);
+                            let (sender, receiver) = mpsc::channel();
+                            prog_channels.insert(id.clone().to_string(),sender);
+                            thread::spawn(move || {
+                                let mut status_val = status.clone(); 
+                                let mut bar_length = 0; 
+                                loop { 
+                                    let output_val = receiver.recv();
+                                    match output_val { 
+                                        Err(e) => break,
+                                        Ok(val) => {//println!("Thread received {:?}", val), 
+                                            if val["status"] != serde_json::Value::Null {
+                                                if val["status"].as_str().unwrap().to_string() != status_val { 
+                                                    status_val = val["status"].as_str().unwrap().to_string();
+                                                    if val["id"] != serde_json::Value::Null {
+                                                        pgbar.set_message([val["id"].as_str().unwrap().to_string(),":".to_string(),status_val.clone()].concat().as_ref());
+                                                    }
+                                                }
+                                            }
+                                            if val["progressDetail"] != serde_json::Value::Null {
+                                                if val["progressDetail"]["current"] != serde_json::Value::Null { 
+                                                    if val["progressDetail"]["total"] != serde_json::Value::Null { 
+                                                        let curr_count = (val["progressDetail"]["current"]).as_u64().unwrap();
+                                                        let total_count = (val["progressDetail"]["total"]).as_u64().unwrap();
+                                                        if bar_length < total_count { 
+                                                            pgbar.set_length(total_count);
+                                                            pgbar.set_position(curr_count);
+                                                            bar_length = total_count;
+                                                        } 
+                                                        if curr_count < total_count {
+                                                            pgbar.set_position(curr_count);
+                                                            //println!(" Update: id {}, status {}, msg {}, curr_count {}, total_count{}", id, status, msg, curr_count, total_count);
+                                                        }
+                                                        if curr_count >= total_count { 
+                                                            pgbar.set_length(0);
+                                                            pgbar.set_position(0);
+                                                            bar_length = 0;
+                                                        } 
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }; 
+                                } 
+                            });
+                        } else {
+                            if channel_creation_started {
+                                if channel_creation_complete == false { 
+                                    channel_creation_complete = true;
+                                    let m2 = m.clone();
+                                    thread::spawn(move || {
+                                        m2.join_and_clear().unwrap();
+                                    });
+                                }
+                            }
+                            match prog_channels.get(&id) {
+                                Some(trx) => 
+                                    //trx.send("Hello").unwrap(),
+                                    trx.send(output).unwrap(), 
+                                None => { 
+                                    println!("Cannot find channel for sending progress update message in kiln-cli"); 
+                                    println!("{:?}", output);
+                                }
+                            }
+                        } 
+                    }
+                }
+                //}; 
+                Ok(())
+            })
             .then(move |res| {
                 match res {
                     Ok(_) => {
