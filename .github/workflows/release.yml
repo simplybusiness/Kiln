@@ -60,4 +60,4 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: deb-package
-          path: "*.deb"
+          path: "kiln-cli_0.2.0_amd64.deb"
