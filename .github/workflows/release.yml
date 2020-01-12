@@ -52,11 +52,9 @@ jobs:
       - name: Install fpm
         run: gem install --no-document fpm
       - name: Install packaging tools
-        run: sudo apt install -yq dpkg-sig rpm
+        run: sudo apt install -yq dpkg-sig
         env:
           DEBIAN_FRONTEND: noninteractive
-      - name: Setup RPM macros
-        run: cp .rpmmacros ~/.rpmmacros
       - name: Build CLI app
         run: cargo build --release && mkdir -p ../bin/usr/bin && cp target/release/kiln-cli ../bin/usr/bin/kiln
         working-directory: cli
@@ -64,15 +62,8 @@ jobs:
         run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" -d "openssl > 1.1" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "gz" --deb-dist "buster"
       - name: Sign .deb package
         run: dpkg-sig --sign builder kiln-cli_0.2.0_amd64.deb
-      - name: Build .rpm package
-        run: fpm -s dir -t rpm -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker-ce > 18.09" -d "openssl > 1.1" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --rpm-digest "sha256" --rpm-os "linux" --rpm-sign
       - name: Upload .deb package
         uses: actions/upload-artifact@v1
         with:
           name: deb-package
           path: "kiln-cli_0.2.0_amd64.deb"
-      - name: Upload .rpm package
-        uses: actions/upload-artifact@v1
-        with:
-          name: rpm-package
-          path: "kiln-cli-0.2.0-1.x86_64.rpm"

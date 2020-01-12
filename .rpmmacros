@@ -1,4 +1,0 @@
-%_signature gpg
-%_gpg_path ~/.gnupg
-%_gpg_name "Kiln Automated Builder"
-%_gpgbin /usr/bin/gpg
