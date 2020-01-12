@@ -1,38 +1,39 @@
 name: Build release artifacts
 on:
-    push:
-        branches:
-            - release_automation
+  push:
+    branches:
+      - release_automation
 
 jobs:
-    source-tarball:
-        name: Archive source
-        runs-on: ubuntu-18.04
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v2
-              with:
-                path: 'src'
-            - name: Import CI signing key
-              run: echo -e "${{ secrets.AUTOMATED_SIGNING_PRIVATE_KEY }}" | gpg --import
-            - name: Archive source
-              run: tar -cJf kiln-source.tar.xz src/
-            - name: Hash source archive
-              run: sha256sum kiln-source.tar.xz > kiln-source.tar.xz.sha256
-            - name: Sign hash file
-              run: gpg --output kiln-source.tar.xz.sha256.sig --detach-sig kiln-source.tar.xz.sha256
-            - name: Upload tarball
-              uses: actions/upload-artifact@v1
-              with:
-                name: kiln-source.tar.xz
-                path: kiln-source.tar.xz
-            - name: Upload hash file
-              uses: actions/upload-artifact@v1
-              with:
-                name: kiln-source.tar.xz.sha256
-                path: kiln-source.tar.xz.sha256
-            - name: Upload hash file signature
-              uses: actions/upload-artifact@v1
-              with:
-                name: kiln-source.tar.xz.sha256.sig
-                path: kiln-source.tar.xz.sha256.sig
+  source-tarball:
+    name: Archive source
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          path: 'src'
+      - name: Import CI signing key
+        run: echo -e "${{ secrets.AUTOMATED_SIGNING_PRIVATE_KEY }}" | gpg --import
+      - name: Archive source
+        run: tar -cJf kiln-source.tar.xz src/
+      - name: Hash source archive
+        run: sha256sum kiln-source.tar.xz > kiln-source.tar.xz.sha256
+      - name: Sign hash file
+        run: gpg --output kiln-source.tar.xz.sha256.sig --detach-sig kiln-source.tar.xz.sha256
+      - name: Upload tarball
+        uses: actions/upload-artifact@v1
+        with:
+          name: kiln-source.tar.xz
+          path: kiln-source.tar.xz
+      - name: Upload hash file
+        uses: actions/upload-artifact@v1
+        with:
+          name: kiln-source.tar.xz.sha256
+          path: kiln-source.tar.xz.sha256
+      - name: Upload hash file signature
+        uses: actions/upload-artifact@v1
+        with:
+          name: kiln-source.tar.xz.sha256.sig
+          path: kiln-source.tar.xz.sha256.sig
+
