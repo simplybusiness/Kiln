@@ -52,7 +52,7 @@ jobs:
       - name: Install fpm
         run: gem install --no-document fpm
       - name: Build CLI app
-        run: cargo build --release && mkdir ../bin && cp target/release/kiln-cli ../bin/kiln
+        run: cargo build --release && mkdir -p ../bin/usr/bin && cp target/release/kiln-cli ../bin/usr/bin/kiln
         working-directory: cli
       - name: Build .deb package
         run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "gz" --deb-dist "buster"
