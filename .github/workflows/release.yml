@@ -14,7 +14,7 @@ jobs:
               with:
                 path: 'src'
             - name: Install GPG
-              run: apt update && apt install -yq gnupg
+              run: sudo apt update && sudo apt install -yq gnupg
               env:
                 DEBIAN_FRONTEND: noninteractive
             - name: Import CI signing key
