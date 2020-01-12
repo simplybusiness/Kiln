@@ -52,7 +52,7 @@ jobs:
       - name: Install fpm
         run: gem install --no-document fpm
       - name: Install packaging tools
-        run: sudo apt install -yq dpkg-sig rpmsign rpm
+        run: sudo apt install -yq dpkg-sig rpm
         env:
           DEBIAN_FRONTEND: noninteractive
       - name: Setup RPM macros
