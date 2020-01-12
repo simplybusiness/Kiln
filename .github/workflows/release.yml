@@ -18,7 +18,7 @@ jobs:
               env:
                 DEBIAN_FRONTEND: noninteractive
             - name: Import CI signing key
-              run: echo ${{ secrets.AUTOMATED_SIGNING_PRIVATE_KEY }} | gpg --import
+              run: gpg --import < $(echo ${{ secrets.AUTOMATED_SIGNING_PRIVATE_KEY }})
             - name: Archive source
               run: tar -cJf kiln-source.tar.xz src/
             - name: Hash source archive
