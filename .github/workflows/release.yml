@@ -45,6 +45,10 @@ jobs:
         uses: actions/checkout@v2
       - name: Import CI signing key
         run: echo -e "${{ secrets.AUTOMATED_SIGNING_PRIVATE_KEY }}" | gpg --import
+      - name: Set up Ruby 2.6
+        uses: actions/setup-ruby@v1
+        with:
+          version: 2.6.x
       - name: Install fpm
         run: gem install --no-document fpm
       - name: Build CLI app
