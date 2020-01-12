@@ -67,4 +67,4 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: rpm-package
-          path: "kiln-cli_0.2.0_amd64.rpm"
+          path: "kiln-cli-0.2.0-1.x86_64.rpm"
