@@ -39,4 +39,4 @@ jobs:
               uses: actions/upload-artifact@v1
               with:
                 name: kiln-source.tar.xz.sha256.sig
-                path: kiln-source.tar.xz.sha256.si6
+                path: kiln-source.tar.xz.sha256.sig
