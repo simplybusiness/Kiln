@@ -55,7 +55,7 @@ jobs:
         run: cargo build --release && mkdir ../bin && cp target/release/kiln-cli ../bin/kiln
         working-directory: cli
       - name: Build .deb package
-        run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "xz" --deb-dist-tag "buster"
+        run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "xz" --deb-dist "buster"
       - name: Upload .deb package
         uses: actions/upload-artifact@v1
         with:
