@@ -37,3 +37,22 @@ jobs:
           name: kiln-source.tar.xz.sha256.sig
           path: kiln-source.tar.xz.sha256.sig
 
+  build-linux-packages:
+    name: Build linux packages
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Import CI signing key
+        run: echo -e "${{ secrets.AUTOMATED_SIGNING_PRIVATE_KEY }}" | gpg --import
+      - name: Install fpm
+        run: gem install --no-document fpm
+      - name: Build CLI app
+        run: cargo build --release && mkdir bin && cp target/release/kiln-cli ./bin/kiln
+      - name: Build .deb package
+        run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "xz" --deb-dist-tag "buster"
+      - name: Upload .deb package
+        uses: actions/upload-artifact@v1
+        with:
+          name: deb-package
+          path: *.deb
