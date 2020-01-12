@@ -56,8 +56,15 @@ jobs:
         working-directory: cli
       - name: Build .deb package
         run: fpm -s dir -t deb -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker.io > 18.09" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "gz" --deb-dist "buster"
+      - name: Build .rpm package
+        run: fpm -s dir -t rpm -C bin --name "kiln-cli" -v 0.2.0 --license MIT --vendor "Simply Business" -d "docker-ce > 18.09" --provides "kiln" -m "kiln@simplybusiness.co.uk" --url "https://github.com/simplybusiness/Kiln" --deb-compression "gz" --deb-dist "buster"
       - name: Upload .deb package
         uses: actions/upload-artifact@v1
         with:
           name: deb-package
           path: "kiln-cli_0.2.0_amd64.deb"
+      - name: Upload .rpm package
+        uses: actions/upload-artifact@v1
+        with:
+          name: rpm-package
+          path: "kiln-cli_0.2.0_amd64.rpm"
