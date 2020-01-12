@@ -52,9 +52,11 @@ jobs:
       - name: Install fpm
         run: gem install --no-document fpm
       - name: Install packaging tools
-        run: sudo apt install -yq dpkg-sig
+        run: sudo apt install -yq dpkg-sig rpmsign rpm
         env:
           DEBIAN_FRONTEND: noninteractive
+      - name: Setup RPM macros
+        run: cp .rpmmacros ~/.rpmmacros
       - name: Build CLI app
         run: cargo build --release && mkdir -p ../bin/usr/bin && cp target/release/kiln-cli ../bin/usr/bin/kiln
         working-directory: cli
