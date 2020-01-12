@@ -15,7 +15,8 @@ jobs:
                 path: 'src'
             - name: Install GPG
               run: apt update && apt install -yq gnupg
-              env: DEBIAN_FRONTEND=noninteractive
+              env:
+                DEBIAN_FRONTEND: noninteractive
             - name: Import CI signing key
               run: echo ${{ secrets.AUTOMATED_SIGNING_PRIVATE_KEY }} | gpg --import
             - name: Archive source
