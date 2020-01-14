@@ -18,7 +18,7 @@ use std::collections::HashMap;
 #[derive(Deserialize)]
 enum ScanEnv { 
     Local, 
-    CI,
+        CI,
 } 
 
 impl fmt::Display for ScanEnv {
@@ -37,10 +37,10 @@ struct CliConfigOptions{
 
 #[derive(Debug)]
 pub struct ConfigFileError {
-        pub error_message: String,
-        pub toml_field_name: String,
+    pub error_message: String,
+    pub toml_field_name: String,
 }
- 
+
 impl Error for ConfigFileError { } 
 
 impl fmt::Display for ConfigFileError {
@@ -77,31 +77,22 @@ impl ConfigFileError {
 }
 
 static PBAR_FMT: &'static str =
-    "{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
+"{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
 
 static PBAR_FINISH_FMT: &'static str =
-    "{msg}"; 
+"{msg}"; 
 
 pub fn create_progress_bar(len: u64) -> ProgressBar {
-    //println!("Creating a progress bar {} : {}", msg, length.unwrap());
     let progbar = ProgressBar::new(len);
 
-        progbar.set_style(
-            ProgressStyle::default_bar()
-                .template(PBAR_FMT)
-                .progress_chars("=> "),
-        );
+    progbar.set_style(
+        ProgressStyle::default_bar()
+        .template(PBAR_FMT)
+        .progress_chars("=> "),
+    );
 
     progbar
 }
-
-#[derive(Debug)]
-pub struct ProgressTracker { 
-    id: String,
-    status: String, 
-    bar: ProgressBar,
-} 
-
 
 fn main() {
     let matches = App::new("Kiln CLI")
@@ -120,12 +111,12 @@ fn main() {
     let use_local_image = matches.is_present("use-local-image");
     let test_tool_image_name = "kiln/bundler-audit:master-latest"; 
     let test_tool_name = String::from("bundler-audit-kiln-container"); 
-    
+
     let mut env_vec = Vec::new(); 
     let mut env_app_name = "APP_NAME=".to_string();
     let mut env_scan_env= "SCAN_ENV=".to_string();
     let mut env_df_url = "DATA_COLLECTOR_URL=".to_string();
-    
+
     match parse_kiln_toml_file() { 
         Err(e) => { 
             println!("{}", e); 
@@ -133,7 +124,7 @@ fn main() {
         },
         Ok(config_info) =>  { 
             env_app_name.push_str((config_info.app_name.unwrap()).as_ref()); 
-            
+
             match config_info.scan_env { 
                 Some(scan_env) => 
                     env_scan_env.push_str((scan_env).to_string().as_ref()),
@@ -142,7 +133,7 @@ fn main() {
             };
 
             env_df_url.push_str((config_info.data_collector_url.unwrap()).as_ref()); 
-                    
+
             env_vec.push(env_df_url.as_ref());
             env_vec.push(env_app_name.as_ref());
             env_vec.push(env_scan_env.as_ref());
@@ -218,7 +209,7 @@ fn parse_kiln_toml_file() -> Result<CliConfigOptions,ConfigFileError> {
             process::exit(1);
         } 
     }; 
-    
+
     let mut config_file_str = String::new();
     match kiln_config_file.read_to_string(&mut config_file_str) { 
         Ok(_s) => {
@@ -249,7 +240,7 @@ fn validate_config_info(config_info: &CliConfigOptions) -> Result<(), ConfigFile
             } 
         None => Err(ConfigFileError::data_collector_url_unspecified())?
     };
-                   
+
     Ok(())
 } 
 
@@ -279,11 +270,11 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
             .image(tool_image_name.as_ref())
             .build();
         let m = Arc::new(MultiProgress::new());
-        
+
         let mut prog_channels : HashMap<std::string::String, std::sync::mpsc::Sender<serde_json::value::Value>> = HashMap::new();
         let mut channel_creation_complete = false;
         let mut channel_creation_started = false;
-        
+
         return Box::new(
             docker.images()
             .pull(&pull_options)
@@ -304,10 +295,10 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
                             let pgbar = m.add(create_progress_bar(10));
                             pgbar.set_message([id.clone(),":".to_string(),status.clone()].concat().as_ref());
                             pgbar.set_position(0);
-                            
+
                             let (sender, receiver) = mpsc::channel();
                             prog_channels.insert(id.clone().to_string(),sender);
-                            
+
                             thread::spawn(move || {
                                 let mut status_val = status.clone(); 
                                 let mut bar_length = 0; 
@@ -315,7 +306,7 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
                                     let output_val = receiver.recv();
                                     match output_val { 
                                         Err(_e) => break,
-                                        Ok(val) => {//println!("Thread received {:?}", val), 
+                                        Ok(val) => {
                                             if val["status"] != serde_json::Value::Null {
                                                 if val["status"].as_str().unwrap().to_string() == "Pull complete" { 
                                                     let id_val = val["id"].as_str().unwrap().to_string();
@@ -345,7 +336,6 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
                                                         } 
                                                         if curr_count < total_count {
                                                             pgbar.set_position(curr_count);
-                                                            //println!(" Update: id {}, status {}, msg {}, curr_count {}, total_count{}", id, status, msg, curr_count, total_count);
                                                         }
                                                         if curr_count >= total_count { 
                                                             pgbar.set_length(0);
@@ -370,8 +360,7 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
                                 } else { 
                                     match prog_channels.get(&id) {
                                         Some(trx) => 
-                                            //trx.send("Hello").unwrap(),
-                                             trx.send(output).unwrap(), 
+                                            trx.send(output).unwrap(), 
                                         None => { 
                                             println!("Cannot find channel for sending progress update message in kiln-cli"); 
                                             println!("{:?}", output);
@@ -389,20 +378,20 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
                 }; 
                 Ok(())
             })
-            .then(move |res| {
-                match res {
-                    Ok(_) => {
-                        futures::future::ok(())
-                    },
-                    Err(err) => {
-                        match &err {
-                            shiplift::errors::Error::Fault{code, message: _} if *code == 404 => eprintln!("Could not find {} on Docker Hub. Quitting!", tool_image_name),
-                            _  => eprintln!("{}", err)
-                        };
-                        futures::future::err(())
-                    }
+        .then(move |res| {
+            match res {
+                Ok(_) => {
+                    futures::future::ok(())
+                },
+                Err(err) => {
+                    match &err {
+                        shiplift::errors::Error::Fault{code, message: _} if *code == 404 => eprintln!("Could not find {} on Docker Hub. Quitting!", tool_image_name),
+                        _  => eprintln!("{}", err)
+                    };
+                    futures::future::err(())
                 }
-            })
+            }
+        })
         );
     }
 }
