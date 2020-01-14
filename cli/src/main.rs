@@ -9,12 +9,10 @@ use std::fmt::{self, Debug};
 use std::error::Error;
 use std::process; 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 use std::collections::HashMap;
-
 
 #[derive(Debug)]
 #[derive(Deserialize)]
@@ -80,6 +78,9 @@ impl ConfigFileError {
 
 static PBAR_FMT: &'static str =
     "{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
+
+static PBAR_FINISH_FMT: &'static str =
+    "{msg}"; 
 
 pub fn create_progress_bar(len: u64) -> ProgressBar {
     //println!("Creating a progress bar {} : {}", msg, length.unwrap());
@@ -277,11 +278,12 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
         let pull_options = PullOptions::builder()
             .image(tool_image_name.as_ref())
             .build();
-        let mut pull_object_vec: Vec<ProgressTracker> = Vec::new();
         let m = Arc::new(MultiProgress::new());
+        
         let mut prog_channels : HashMap<std::string::String, std::sync::mpsc::Sender<serde_json::value::Value>> = HashMap::new();
         let mut channel_creation_complete = false;
         let mut channel_creation_started = false;
+        
         return Box::new(
             docker.images()
             .pull(&pull_options)
@@ -294,20 +296,36 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
                             if channel_creation_started == false { 
                                 channel_creation_started = true; 
                             }
+                            if channel_creation_complete == true {
+                                println!("{:?}", output); 
+                                panic!("Error: Violating assumption about ordering of messages in docker pull\n");
+                            } 
+
                             let pgbar = m.add(create_progress_bar(10));
                             pgbar.set_message([id.clone(),":".to_string(),status.clone()].concat().as_ref());
                             pgbar.set_position(0);
+                            
                             let (sender, receiver) = mpsc::channel();
                             prog_channels.insert(id.clone().to_string(),sender);
+                            
                             thread::spawn(move || {
                                 let mut status_val = status.clone(); 
                                 let mut bar_length = 0; 
                                 loop { 
                                     let output_val = receiver.recv();
                                     match output_val { 
-                                        Err(e) => break,
+                                        Err(_e) => break,
                                         Ok(val) => {//println!("Thread received {:?}", val), 
                                             if val["status"] != serde_json::Value::Null {
+                                                if val["status"].as_str().unwrap().to_string() == "Pull complete" { 
+                                                    let id_val = val["id"].as_str().unwrap().to_string();
+                                                    pgbar.set_style(
+                                                        ProgressStyle::default_bar()
+                                                        .template(PBAR_FINISH_FMT),
+                                                    );
+                                                    pgbar.finish_with_message([id_val.clone(), ": Pull complete".to_string()].concat().as_ref());
+                                                    break;
+                                                } 
                                                 if val["status"].as_str().unwrap().to_string() != status_val { 
                                                     status_val = val["status"].as_str().unwrap().to_string();
                                                     if val["id"] != serde_json::Value::Null {
@@ -347,23 +365,28 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
                                     channel_creation_complete = true;
                                     let m2 = m.clone();
                                     thread::spawn(move || {
-                                        m2.join_and_clear().unwrap();
+                                        m2.join().unwrap();
                                     });
+                                } else { 
+                                    match prog_channels.get(&id) {
+                                        Some(trx) => 
+                                            //trx.send("Hello").unwrap(),
+                                             trx.send(output).unwrap(), 
+                                        None => { 
+                                            println!("Cannot find channel for sending progress update message in kiln-cli"); 
+                                            println!("{:?}", output);
+                                        }
+                                    }
                                 }
-                            }
-                            match prog_channels.get(&id) {
-                                Some(trx) => 
-                                    //trx.send("Hello").unwrap(),
-                                    trx.send(output).unwrap(), 
-                                None => { 
-                                    println!("Cannot find channel for sending progress update message in kiln-cli"); 
-                                    println!("{:?}", output);
-                                }
-                            }
+                            } else if output["status"] != serde_json::Value::Null { 
+                                println!("{}",output["status"].as_str().unwrap().to_string());      
+                            }    
                         } 
                     }
-                }
-                //}; 
+                } 
+                else if output["status"] != serde_json::Value::Null { 
+                    println!("{}",output["status"].as_str().unwrap().to_string());      
+                }; 
                 Ok(())
             })
             .then(move |res| {
