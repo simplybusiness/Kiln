@@ -321,8 +321,6 @@ fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local
         let m = Arc::new(MultiProgress::new());
         for layer in layers.unwrap() { 
             let pgbar = m.add(create_progress_bar(10));
-            //pgbar.set_message([layer.clone(),":".to_string()].concat().as_ref());
-            //pgbar.set_position(0);
 
             let (sender, receiver) = mpsc::channel();
             prog_channels.insert(layer.clone().to_string(),sender);
@@ -385,7 +383,6 @@ fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local
             docker.images()
             .pull(&pull_options)
             .for_each(move |output| {
-                //println!("{:?}", output);
                 if output["id"] != serde_json::Value::Null {
                     if output["status"] != serde_json::Value::Null {
                         if pull_started == true { 
