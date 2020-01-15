@@ -5,6 +5,7 @@ use tokio::prelude::*;
 use std::fs::{File};
 use std::boxed::Box;
 use serde::{Deserialize};
+use serde_json::{Value};
 use std::fmt::{self, Debug};
 use std::error::Error;
 use std::process; 
@@ -13,6 +14,10 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 use std::collections::HashMap;
+use reqwest::blocking::Client;
+use reqwest::Method;
+use std::collections::HashSet;
+
 
 #[derive(Debug)]
 #[derive(Deserialize)]
@@ -79,9 +84,6 @@ impl ConfigFileError {
 static PBAR_FMT: &'static str =
 "{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
 
-static PBAR_FINISH_FMT: &'static str =
-"{msg}"; 
-
 pub fn create_progress_bar(len: u64) -> ProgressBar {
     let progbar = ProgressBar::new(len);
 
@@ -93,6 +95,42 @@ pub fn create_progress_bar(len: u64) -> ProgressBar {
 
     progbar
 }
+
+static DOCKER_AUTH_URL: &'static str=
+"https://auth.docker.io/token?service=registry.docker.io&scope=repository"; 
+
+static DOCKER_REGISTRY_URL: &'static str=
+"https://registry.hub.docker.com"; 
+
+pub fn get_fs_layers_for_docker_image(repo_name: String, tag: String) -> Result<HashSet<String>, reqwest::Error>{
+    let client = Client::new();
+    
+    let docker_auth_url = format!("{}:{}:pull",DOCKER_AUTH_URL, repo_name);
+    let req = client.request(Method::GET, &docker_auth_url)
+        .build()?;
+    let resp = client.execute(req)?;
+    let resp_body: Value = resp.json()?;
+    let token = resp_body["token"].as_str().unwrap();  
+
+    let docker_manifest_url = format!("{}/v2/{}/manifests/{}",DOCKER_REGISTRY_URL,repo_name, tag);
+    let manifest_req = client.request(Method::GET, &docker_manifest_url)
+        .bearer_auth(token)
+        .build()?;
+    let manifest_resp = client.execute(manifest_req)?;
+    let manifest_resp_body:Value = manifest_resp.json()?;
+
+    let layers = manifest_resp_body["fsLayers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|hashval| {
+            let hashstr: String = hashval["blobSum"].as_str().unwrap().to_string(); 
+            let v:Vec<&str> = hashstr.split(":").collect(); 
+            (&(v[1].to_string())[..12]).to_string()
+        })
+    .collect::<HashSet<_>>();
+    Ok(layers)
+} 
 
 fn main() {
     let matches = App::new("Kiln CLI")
@@ -109,7 +147,8 @@ fn main() {
         ).get_matches();
 
     let use_local_image = matches.is_present("use-local-image");
-    let test_tool_image_name = "kiln/bundler-audit:master-latest"; 
+    let test_tool_image_name = "kiln/bundler-audit"; 
+    let tool_image_tag = "master-latest";
     let test_tool_name = String::from("bundler-audit-kiln-container"); 
 
     let mut env_vec = Vec::new(); 
@@ -144,7 +183,8 @@ fn main() {
         ("ruby", Some(sub_m)) => {
             match sub_m.subcommand_name() {
                 Some("dependencies") => {
-                    let prep_fut = prepare_tool_image(test_tool_image_name.to_owned(), use_local_image);
+
+                    let prep_fut = prepare_tool_image(test_tool_image_name.to_owned(), tool_image_tag.to_owned(),use_local_image);
                     tokio::run(prep_fut);
 
                     let path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + ":" + "/code";
@@ -152,10 +192,11 @@ fn main() {
                     path_vec.push(path.as_ref());
 
                     let docker = Docker::new();
+                    let tool_image_name_full =format!("{}:{}",test_tool_image_name, tool_image_tag); 
                     let tool_container_future = docker
                         .containers()
                         .create(
-                            &shiplift::ContainerOptions::builder(test_tool_image_name)
+                            &shiplift::ContainerOptions::builder(&tool_image_name_full)
                             .name(&test_tool_name)
                             .attach_stdout(true)
                             .attach_stderr(true)
@@ -244,13 +285,13 @@ fn validate_config_info(config_info: &CliConfigOptions) -> Result<(), ConfigFile
     Ok(())
 } 
 
-fn prepare_tool_image<T>(tool_image_name: T, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> 
-where T: AsRef<str> + std::fmt::Display + Send + 'static {
+fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> {
     let docker = Docker::new();
+    let tool_image_name_full = format!("{}:{}", tool_image_name, tool_image_tag); 
     if use_local_image {
         return Box::new(
             docker.images()
-            .get(tool_image_name.as_ref())
+            .get(tool_image_name_full.as_ref())
             .inspect()
             .then(move |res| {
                 match res {
@@ -267,133 +308,122 @@ where T: AsRef<str> + std::fmt::Display + Send + 'static {
         );
     } else {
         let pull_options = PullOptions::builder()
-            .image(tool_image_name.as_ref())
+            .image(&tool_image_name_full)
             .build();
-        let m = Arc::new(MultiProgress::new());
+
+        let layers = get_fs_layers_for_docker_image(tool_image_name, tool_image_tag);
+        match layers { 
+            Ok(_) => (), 
+            Err(e) => panic!("Error: Unable to get fs layers for tool image {}",e),
+        };
 
         let mut prog_channels : HashMap<std::string::String, std::sync::mpsc::Sender<serde_json::value::Value>> = HashMap::new();
-        let mut channel_creation_complete = false;
-        let mut channel_creation_started = false;
+        let m = Arc::new(MultiProgress::new());
+        for layer in layers.unwrap() { 
+            let pgbar = m.add(create_progress_bar(10));
+            //pgbar.set_message([layer.clone(),":".to_string()].concat().as_ref());
+            //pgbar.set_position(0);
 
+            let (sender, receiver) = mpsc::channel();
+            prog_channels.insert(layer.clone().to_string(),sender);
+
+            thread::spawn(move || {
+                let mut status_val = "".to_string(); 
+                let mut bar_length = 0; 
+                loop { 
+                    let output_val = receiver.recv();
+                    match output_val { 
+                        Err(_e) => break,
+                        Ok(val) => {
+                            if val["status"] != serde_json::Value::Null {
+                                if val["status"].as_str().unwrap().to_string() == "Pull complete" { 
+                                    let id_val = val["id"].as_str().unwrap().to_string();
+                                    pgbar.finish_and_clear();
+                                    break;
+                                } 
+                                if val["status"].as_str().unwrap().to_string() != status_val { 
+                                    status_val = val["status"].as_str().unwrap().to_string();
+                                    if val["id"] != serde_json::Value::Null {
+                                        pgbar.set_message([val["id"].as_str().unwrap().to_string(),":".to_string(),status_val.clone()].concat().as_ref());
+                                    }
+                                }
+                            }
+                            if val["progressDetail"] != serde_json::Value::Null {
+                                if val["progressDetail"]["current"] != serde_json::Value::Null { 
+                                    if val["progressDetail"]["total"] != serde_json::Value::Null { 
+                                        let curr_count = (val["progressDetail"]["current"]).as_u64().unwrap();
+                                        let total_count = (val["progressDetail"]["total"]).as_u64().unwrap();
+                                        if bar_length < total_count { 
+                                            pgbar.set_length(total_count);
+                                            pgbar.set_position(curr_count);
+                                            bar_length = total_count;
+                                        } 
+                                        if curr_count < total_count {
+                                            pgbar.set_position(curr_count);
+                                        }
+                                        if curr_count >= total_count { 
+                                            pgbar.set_length(0);
+                                            pgbar.set_position(0);
+                                            bar_length = 0;
+                                        } 
+                                    }
+                                }
+                            }
+                        }
+                    }; 
+                } 
+            });
+        };
+
+        let m2 = m.clone();
+        thread::spawn(move || {
+            m2.join().unwrap();
+        });
+
+        let mut pull_started = false; 
         return Box::new(
             docker.images()
             .pull(&pull_options)
             .for_each(move |output| {
+                //println!("{:?}", output);
                 if output["id"] != serde_json::Value::Null {
                     if output["status"] != serde_json::Value::Null {
-                        let status = output["status"].as_str().unwrap().to_string(); 
-                        let id = output["id"].as_str().unwrap().to_string();
-                        if status == "Pulling fs layer" { 
-                            if channel_creation_started == false { 
-                                channel_creation_started = true; 
+                        if pull_started == true { 
+                            let status = output["status"].as_str().unwrap().to_string(); 
+                            let id = output["id"].as_str().unwrap().to_string();
+                            match prog_channels.get(&id) {
+                                Some(trx) => 
+                                    trx.send(output).unwrap(), 
+                                None => { 
+                                    println!("Cannot find channel for sending progress update message in kiln-cli for id {} and status {}",id, status); 
+                                    println!("{:?}", output);
+                                },
                             }
-                            if channel_creation_complete == true {
-                                println!("{:?}", output); 
-                                panic!("Error: Violating assumption about ordering of messages in docker pull\n");
-                            } 
-
-                            let pgbar = m.add(create_progress_bar(10));
-                            pgbar.set_message([id.clone(),":".to_string(),status.clone()].concat().as_ref());
-                            pgbar.set_position(0);
-
-                            let (sender, receiver) = mpsc::channel();
-                            prog_channels.insert(id.clone().to_string(),sender);
-
-                            thread::spawn(move || {
-                                let mut status_val = status.clone(); 
-                                let mut bar_length = 0; 
-                                loop { 
-                                    let output_val = receiver.recv();
-                                    match output_val { 
-                                        Err(_e) => break,
-                                        Ok(val) => {
-                                            if val["status"] != serde_json::Value::Null {
-                                                if val["status"].as_str().unwrap().to_string() == "Pull complete" { 
-                                                    let id_val = val["id"].as_str().unwrap().to_string();
-                                                    pgbar.set_style(
-                                                        ProgressStyle::default_bar()
-                                                        .template(PBAR_FINISH_FMT),
-                                                    );
-                                                    pgbar.finish_with_message([id_val.clone(), ": Pull complete".to_string()].concat().as_ref());
-                                                    break;
-                                                } 
-                                                if val["status"].as_str().unwrap().to_string() != status_val { 
-                                                    status_val = val["status"].as_str().unwrap().to_string();
-                                                    if val["id"] != serde_json::Value::Null {
-                                                        pgbar.set_message([val["id"].as_str().unwrap().to_string(),":".to_string(),status_val.clone()].concat().as_ref());
-                                                    }
-                                                }
-                                            }
-                                            if val["progressDetail"] != serde_json::Value::Null {
-                                                if val["progressDetail"]["current"] != serde_json::Value::Null { 
-                                                    if val["progressDetail"]["total"] != serde_json::Value::Null { 
-                                                        let curr_count = (val["progressDetail"]["current"]).as_u64().unwrap();
-                                                        let total_count = (val["progressDetail"]["total"]).as_u64().unwrap();
-                                                        if bar_length < total_count { 
-                                                            pgbar.set_length(total_count);
-                                                            pgbar.set_position(curr_count);
-                                                            bar_length = total_count;
-                                                        } 
-                                                        if curr_count < total_count {
-                                                            pgbar.set_position(curr_count);
-                                                        }
-                                                        if curr_count >= total_count { 
-                                                            pgbar.set_length(0);
-                                                            pgbar.set_position(0);
-                                                            bar_length = 0;
-                                                        } 
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }; 
-                                } 
-                            });
-                        } else {
-                            if channel_creation_started {
-                                if channel_creation_complete == false { 
-                                    channel_creation_complete = true;
-                                    let m2 = m.clone();
-                                    thread::spawn(move || {
-                                        m2.join().unwrap();
-                                    });
-                                } else { 
-                                    match prog_channels.get(&id) {
-                                        Some(trx) => 
-                                            trx.send(output).unwrap(), 
-                                        None => { 
-                                            println!("Cannot find channel for sending progress update message in kiln-cli"); 
-                                            println!("{:?}", output);
-                                        }
-                                    }
-                                }
-                            } else if output["status"] != serde_json::Value::Null { 
-                                println!("{}",output["status"].as_str().unwrap().to_string());      
-                            }    
+                        } else { 
+                            println!("{}",output["status"].as_str().unwrap().to_string());      
+                            pull_started = true;
                         } 
                     }
-                } 
-                else if output["status"] != serde_json::Value::Null { 
+                } else if output["status"] != serde_json::Value::Null { 
                     println!("{}",output["status"].as_str().unwrap().to_string());      
-                }; 
+                }
                 Ok(())
             })
-        .then(move |res| {
-            match res {
-                Ok(_) => {
-                    futures::future::ok(())
-                },
-                Err(err) => {
-                    match &err {
-                        shiplift::errors::Error::Fault{code, message: _} if *code == 404 => eprintln!("Could not find {} on Docker Hub. Quitting!", tool_image_name),
-                        _  => eprintln!("{}", err)
-                    };
-                    futures::future::err(())
+            .then(move |res| {
+                match res {
+                    Ok(_) => {
+                        futures::future::ok(())
+                    },
+                    Err(err) => {
+                        match &err {
+                            shiplift::errors::Error::Fault{code, message: _} if *code == 404 => eprintln!("Could not find {} on Docker Hub. Quitting!", tool_image_name_full),
+                            _  => eprintln!("{}", err)
+                        };
+                        futures::future::err(())
+                    }
                 }
-            }
-        })
-        );
-    }
+            })
+        )}
 }
 
 
