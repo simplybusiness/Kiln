@@ -12,6 +12,7 @@ use std::process;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::sync::mpsc;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::thread;
 use std::collections::HashMap;
 use reqwest::blocking::Client;
@@ -80,57 +81,6 @@ impl ConfigFileError {
         }
     }
 }
-
-static PBAR_FMT: &'static str =
-"{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
-
-pub fn create_progress_bar(len: u64) -> ProgressBar {
-    let progbar = ProgressBar::new(len);
-
-    progbar.set_style(
-        ProgressStyle::default_bar()
-        .template(PBAR_FMT)
-        .progress_chars("=> "),
-    );
-
-    progbar
-}
-
-static DOCKER_AUTH_URL: &'static str=
-"https://auth.docker.io/token?service=registry.docker.io&scope=repository"; 
-
-static DOCKER_REGISTRY_URL: &'static str=
-"https://registry.hub.docker.com"; 
-
-pub fn get_fs_layers_for_docker_image(repo_name: String, tag: String) -> Result<HashSet<String>, reqwest::Error>{
-    let client = Client::new();
-    
-    let docker_auth_url = format!("{}:{}:pull",DOCKER_AUTH_URL, repo_name);
-    let req = client.request(Method::GET, &docker_auth_url)
-        .build()?;
-    let resp = client.execute(req)?;
-    let resp_body: Value = resp.json()?;
-    let token = resp_body["token"].as_str().unwrap();  
-
-    let docker_manifest_url = format!("{}/v2/{}/manifests/{}",DOCKER_REGISTRY_URL,repo_name, tag);
-    let manifest_req = client.request(Method::GET, &docker_manifest_url)
-        .bearer_auth(token)
-        .build()?;
-    let manifest_resp = client.execute(manifest_req)?;
-    let manifest_resp_body:Value = manifest_resp.json()?;
-
-    let layers = manifest_resp_body["fsLayers"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|hashval| {
-            let hashstr: String = hashval["blobSum"].as_str().unwrap().to_string(); 
-            let v:Vec<&str> = hashstr.split(":").collect(); 
-            (&(v[1].to_string())[..12]).to_string()
-        })
-    .collect::<HashSet<_>>();
-    Ok(layers)
-} 
 
 fn main() {
     let matches = App::new("Kiln CLI")
@@ -285,46 +235,80 @@ fn validate_config_info(config_info: &CliConfigOptions) -> Result<(), ConfigFile
     Ok(())
 } 
 
-fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> {
-    let docker = Docker::new();
-    let tool_image_name_full = format!("{}:{}", tool_image_name, tool_image_tag); 
-    if use_local_image {
-        return Box::new(
-            docker.images()
-            .get(tool_image_name_full.as_ref())
-            .inspect()
-            .then(move |res| {
-                match res {
-                    Ok(_) => futures::future::ok(()),
-                    Err(err) => {
-                        match &err {
-                            shiplift::errors::Error::Fault{code, message: _} if *code == 404 => eprintln!("Could not find {} locally. Quitting!", tool_image_name),
-                            _  => eprintln!("{}", err)
-                        };
-                        futures::future::err(())
-                    }
-                }
-            })
+static DOCKER_AUTH_URL: &'static str=
+"https://auth.docker.io/token?service=registry.docker.io&scope=repository"; 
+
+static DOCKER_REGISTRY_URL: &'static str=
+"https://registry.hub.docker.com"; 
+
+pub fn get_fs_layers_for_docker_image(repo_name: String, tag: String) -> Result<HashSet<String>, reqwest::Error>{
+    let client = Client::new();
+
+    let docker_auth_url = format!("{}:{}:pull",DOCKER_AUTH_URL, repo_name);
+    let req = client.request(Method::GET, &docker_auth_url)
+        .build()?;
+    let resp = client.execute(req)?;
+    let resp_body: Value = resp.json()?;
+    let token = resp_body["token"].as_str().unwrap();  
+
+    let docker_manifest_url = format!("{}/v2/{}/manifests/{}",DOCKER_REGISTRY_URL,repo_name, tag);
+    let manifest_req = client.request(Method::GET, &docker_manifest_url)
+        .bearer_auth(token)
+        .build()?;
+    let manifest_resp = client.execute(manifest_req)?;
+    let manifest_resp_body:Value = manifest_resp.json()?;
+
+    let layers = manifest_resp_body["fsLayers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|hashval| {
+            let hashstr: String = hashval["blobSum"].as_str().unwrap().to_string(); 
+            let v:Vec<&str> = hashstr.split(":").collect(); 
+            (&(v[1].to_string())[..12]).to_string()
+        })
+    .collect::<HashSet<_>>();
+    Ok(layers)
+} 
+
+
+struct ProgressBarDisplay { 
+    prog_channels : HashMap<std::string::String, Arc<Mutex<mpsc::Sender<serde_json::value::Value>>>>, 
+    multibar_arc : Arc<MultiProgress>,
+    pull_started : bool, 
+}
+
+static PBAR_FMT: &'static str =
+"{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
+
+impl ProgressBarDisplay { 
+    fn create_progress_bar(len: u64) -> ProgressBar {
+        let progbar = ProgressBar::new(len);
+
+        progbar.set_style(
+            ProgressStyle::default_bar()
+            .template(PBAR_FMT)
+            .progress_chars("=> "),
         );
-    } else {
-        let pull_options = PullOptions::builder()
-            .image(&tool_image_name_full)
-            .build();
 
-        let layers = get_fs_layers_for_docker_image(tool_image_name, tool_image_tag);
-        match layers { 
-            Ok(_) => (), 
-            Err(e) => panic!("Error: Unable to get fs layers for tool image {}",e),
-        };
+        progbar
+    }
 
-        let mut prog_channels : HashMap<std::string::String, std::sync::mpsc::Sender<serde_json::value::Value>> = HashMap::new();
-        let m = Arc::new(MultiProgress::new());
-        for layer in layers.unwrap() { 
-            let pgbar = m.add(create_progress_bar(10));
+    pub fn new() -> ProgressBarDisplay {
+        ProgressBarDisplay {
+            multibar_arc: Arc::new(MultiProgress::new()),
+            prog_channels: HashMap::new(),
+            pull_started:false
+        }
+    } 
+
+    pub fn create_threads_for_progress_bars(&mut self, layers: HashSet<String>)  { 
+        for layer in layers { 
+            let pgbar = self.multibar_arc.add(Self::create_progress_bar(10));
 
             let (sender, receiver) = mpsc::channel();
-            prog_channels.insert(layer.clone().to_string(),sender);
-
+            let sender = Arc::new(Mutex::new(sender));
+            self.prog_channels.insert(layer.clone().to_string(),Arc::clone(&sender));
             thread::spawn(move || {
                 let mut status_val = "".to_string(); 
                 let mut bar_length = 0; 
@@ -335,7 +319,6 @@ fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local
                         Ok(val) => {
                             if val["status"] != serde_json::Value::Null {
                                 if val["status"].as_str().unwrap().to_string() == "Pull complete" { 
-                                    let id_val = val["id"].as_str().unwrap().to_string();
                                     pgbar.finish_and_clear();
                                     break;
                                 } 
@@ -368,59 +351,105 @@ fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local
                                 }
                             }
                         }
-                    }; 
+                    } 
                 } 
             });
-        };
+        }
 
-        let m2 = m.clone();
+        let multibar_arc_clone = self.multibar_arc.clone();
         thread::spawn(move || {
-            m2.join().unwrap();
+            multibar_arc_clone.join().unwrap();
         });
+    }
 
-        let mut pull_started = false; 
+    pub fn update_progress_bar(&mut self, output : serde_json::Value) -> () { 
+        if output["id"] != serde_json::Value::Null {
+            if output["status"] != serde_json::Value::Null {
+                if self.pull_started == true { 
+                    let status = output["status"].as_str().unwrap().to_string(); 
+                    let id = output["id"].as_str().unwrap().to_string();
+                    match self.prog_channels.get(&id) {
+                        Some(trx) => 
+                            trx.lock().unwrap().send(output).unwrap(), 
+                        None => { 
+                            println!("Cannot find channel for sending progress update message in kiln-cli for id {} and status {}",id, status); 
+                        },
+                    }
+                } else { 
+                    println!("{}",output["status"].as_str().unwrap().to_string());      
+                    self.pull_started = true;
+                } 
+            }
+        } else if output["status"] != serde_json::Value::Null { 
+            println!("{}",output["status"].as_str().unwrap().to_string());      
+        }
+    } 
+} 
+
+fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> {
+    let docker = Docker::new();
+    let tool_image_name_full = format!("{}:{}", tool_image_name, tool_image_tag); 
+    if use_local_image {
         return Box::new(
             docker.images()
-            .pull(&pull_options)
-            .for_each(move |output| {
-                if output["id"] != serde_json::Value::Null {
-                    if output["status"] != serde_json::Value::Null {
-                        if pull_started == true { 
-                            let status = output["status"].as_str().unwrap().to_string(); 
-                            let id = output["id"].as_str().unwrap().to_string();
-                            match prog_channels.get(&id) {
-                                Some(trx) => 
-                                    trx.send(output).unwrap(), 
-                                None => { 
-                                    println!("Cannot find channel for sending progress update message in kiln-cli for id {} and status {}",id, status); 
-                                    println!("{:?}", output);
-                                },
-                            }
-                        } else { 
-                            println!("{}",output["status"].as_str().unwrap().to_string());      
-                            pull_started = true;
-                        } 
-                    }
-                } else if output["status"] != serde_json::Value::Null { 
-                    println!("{}",output["status"].as_str().unwrap().to_string());      
-                }
-                Ok(())
-            })
+            .get(tool_image_name_full.as_ref())
+            .inspect()
             .then(move |res| {
                 match res {
-                    Ok(_) => {
-                        futures::future::ok(())
-                    },
+                    Ok(_) => futures::future::ok(()),
                     Err(err) => {
                         match &err {
-                            shiplift::errors::Error::Fault{code, message: _} if *code == 404 => eprintln!("Could not find {} on Docker Hub. Quitting!", tool_image_name_full),
+                            shiplift::errors::Error::Fault{code, message: _} if *code == 404 => eprintln!("Could not find {} locally. Quitting!", tool_image_name),
                             _  => eprintln!("{}", err)
                         };
                         futures::future::err(())
                     }
                 }
             })
-        )}
+        );
+    } else {
+        let pull_options = PullOptions::builder()
+            .image(&tool_image_name_full)
+            .build();
+
+        let layers = get_fs_layers_for_docker_image(tool_image_name, tool_image_tag);
+        let mut prog_bar_disp: Option<ProgressBarDisplay> =  match layers { 
+            Ok(fslayers) => {  
+                let mut p = ProgressBarDisplay::new(); 
+                p.create_threads_for_progress_bars(fslayers); 
+                Some(p)
+            },
+            Err(e) =>  { 
+                eprintln!("Error: Unable to get fs layers for tool image {}",e); 
+                None 
+            },
+        };
+
+        return Box::new(
+            docker.images()
+            .pull(&pull_options)
+            .for_each(move |output| {
+                if prog_bar_disp.is_some() { 
+                    prog_bar_disp.as_mut().unwrap().update_progress_bar(output);
+                }
+                Ok(())
+            })
+            .then(move |res| {
+                match res {
+                    Ok(_) => {
+                        Ok(())
+                    },
+                    Err(err) => {
+                        match &err {
+                            shiplift::errors::Error::Fault{code, message: _} if *code == 404 => eprintln!("Could not find {} on Docker Hub. Quitting!", tool_image_name_full),
+                            _  => eprintln!("{}", err)
+                        };
+                        Err(())
+                    }
+                }
+            })
+            )
+    }
 }
 
 
