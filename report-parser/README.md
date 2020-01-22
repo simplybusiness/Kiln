@@ -10,6 +10,8 @@ See the [suggested Kafka deployment](../docs/suggested_kafka_deployment.md) docu
 
 Tool reports are consumed from to a Kafka topic called "ToolReports" and vulnerable dependency events are published to a topic called "DependencyEvents". If you do not have auto topic creation enabled for your cluster, you will need to create these topics.
 
+**Please note: There is currently a known issue with running this component in a HA configuration, which results in duplicate messages being written to the DependencyEvents Kafka topic. This is being tracked in #139.**
+
 ## Configuration
 This component is configured using environment variables. Ensure that the environment variable `KAFKA_BOOTSTRAP_TLS` is set to a comma separated list of host:port pairs to bootstrap connectivity to your Kafka cluster over TLS.
 
