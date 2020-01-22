@@ -62,7 +62,8 @@ obligated to maintain confidentiality with regard to the reporter of an incident
 Further details of specific enforcement policies may be posted separately.
 
 Project maintainers who do not follow or enforce the Code of Conduct in good
-faith may face temporary or permanent repercussions as determined by other
+faith may face temporary or permanent repercussions (including temporary or 
+permanent banning from contributing to the project) as determined by other
 members of the project's leadership.
 
 ## Attribution
