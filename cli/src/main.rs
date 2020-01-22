@@ -318,7 +318,9 @@ impl ProgressBarDisplay {
                         Err(_e) => break,
                         Ok(val) => {
                             if val["status"] != serde_json::Value::Null {
-                                if val["status"].as_str().unwrap().to_string() == "Pull complete" { 
+                                if (val["status"].as_str().unwrap().to_string() == "Pull complete") || 
+                                    (val["status"].as_str().unwrap().to_string() == "Already exists")    
+                                { 
                                     pgbar.finish_and_clear();
                                     break;
                                 } 
