@@ -108,7 +108,7 @@ fn main() {
 
     match parse_kiln_toml_file() { 
         Err(e) => { 
-            println!("{}", e); 
+            eprintln!("{}", e); 
             process::exit(1);
         },
         Ok(config_info) =>  { 
@@ -196,7 +196,7 @@ fn parse_kiln_toml_file() -> Result<CliConfigOptions,ConfigFileError> {
     let mut kiln_config_file = match File::open(kiln_config_file_name) { 
         Ok(f) => f, 
         Err(e) => { 
-            println!("Error occured while opening the kiln.toml file. Please ensure you have this in your current working directory (Err: {})", e); 
+            eprintln!("Error occured while opening the kiln.toml file. Please ensure you have this in your current working directory (Err: {})", e); 
             process::exit(1);
         } 
     }; 
@@ -209,7 +209,7 @@ fn parse_kiln_toml_file() -> Result<CliConfigOptions,ConfigFileError> {
             Ok(config_info)
         },
         Err(e) => { 
-            println!("Error reading kiln.toml file (Err: {})", e); 
+            eprintln!("Error reading kiln.toml file (Err: {})", e); 
             process::exit(1);
         } 
     }
@@ -374,7 +374,7 @@ impl ProgressBarDisplay {
                         Some(trx) => 
                             trx.lock().unwrap().send(output).unwrap(), 
                         None => { 
-                            println!("Cannot find channel for sending progress update message in kiln-cli for id {} and status {}",id, status); 
+                            eprintln!("Error: Cannot find channel for sending progress update message in kiln-cli for id {} and status {}",id, status); 
                         },
                     }
                 } else { 
