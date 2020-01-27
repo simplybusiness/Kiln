@@ -17,3 +17,4 @@ This document aims to get you up and running with a Kiln stack fairly quickly an
 * Kops installed - Instructions can be found here: [https://github.com/kubernetes/kops/blob/master/docs/install.md](https://github.com/kubernetes/kops/blob/master/docs/install.md)
 * Helm installed - Instructions can be found here: [https://helm.sh/docs/intro/install/](https://helm.sh/docs/intro/install/)
 * An AWS account and an IAM user with permissions to create a new IAM user
+* A domain name hosted in AWS Route53
