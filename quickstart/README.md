@@ -61,3 +61,67 @@ aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY
 ```
 
 Now, the `kops` user can be used for our subsequent steps by exporting the following environment variable: `export AWS_PROFILE=kops`.
+
+### Configuring DNS
+
+Now we have an IAM user created with the necessary permissions to use `kops`, we need to setup the DNS domain that will be used for our Kubernetes cluster, which we assume is already hosted in Route53. The simplest approach is to add records to the root of a domain, where all subdomains related to the cluster will be in the form `something.clustername.mydomain.tld`. If this is appropriate for your environment, then you don't need to do anything else here.
+
+If you want to create all cluster subdomains under a specific subdomain under your domain name (taking the form `something.clustername.subdomain.mydomain.tld`), then you will need to create a new hosted zone in Route53 and setup an NS record for this subdomain in the parent domain.
+
+Note: these instructions assume you have [jq](https://stedolan.github.io/jq/) installed.
+
+* Create the subdomain hosted zone in Route53, make a note of the output of this command. It is the Nameservers for the subdomain, which you will need later.
+
+``` shell
+ID=$(uuidgen) && aws route53 create-hosted-zone --name subdomain.example.com --caller-reference $ID | jq .DelegationSet.NameServers
+```
+
+* Find your parent hosted zone ID
+
+``` shell
+aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="mydomain.tld.") | .Id'
+```
+
+* Create a configuration file with your **subdomain** nameservers, replacing the domains containing `awsdns` with the values you made a note of earlier
+
+``` json
+{
+  "Comment": "Create a subdomain NS record in the parent domain",
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "subdomain.mydomain.tld",
+        "Type": "NS",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "ns-1.awsdns-1.co.uk"
+          },
+          {
+            "Value": "ns-2.awsdns-2.org"
+          },
+          {
+            "Value": "ns-3.awsdns-3.com"
+          },
+          {
+            "Value": "ns-4.awsdns-4.net"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+* Create an NS record in the parent hosted zone, delegating name resolution for the subdomain to the correct name servers
+
+``` shell
+aws route53 change-resource-record-sets --hosted-zone-id <parent-zone-id> --change-batch file://<path to subdomain config file from previous step>.json
+```
+
+* Ensure your NS records have been configured correctly by running the following command. If the correct nameservers are not returned, do not proceed. Correct DNS configuration is critical to the following steps. This step is not required if you are using a bare domain for your cluster.
+
+``` shell
+dig ns mysubdomain.mydomain.tls
+```
