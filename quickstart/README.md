@@ -43,4 +43,21 @@ aws iam add-user-to-group --user-name kops --group-name kops
 aws iam create-access-key --user-name kops
 ```
 
-Make a note of the output from the final command that creates the API access keys for the `kops` user, particularly `SecretAccessKey` and `AccessKeyId` and be sure to store these securely. We will need them later, and exposing them would grant an attacker access to your AWS account.
+Make a note of the output from the final command that creates the API access keys for the `kops` user, particularly `SecretAccessKey` and `AccessKeyId` and be sure to store these securely, exposing them would grant an attacker access to your AWS account.
+
+Next, we'll setup the `kops` user in the AWS CLI credentials and configuration files, so that it can easily be used in subsequent steps.
+
+In `~/.aws/config`, add the following block of text, replacing the region ID with the region you wish to build your cluster in:
+```
+[profile kops]
+region = eu-west-2
+```
+
+In `~/.aws/credentials`, add the following block of text, replacing the Access Key ID and Secret Access Key with the values you noted earlier.
+```
+[kops]
+aws_access_key_id     = AKIAIOSFODNN7EXAMPLE
+aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY
+```
+
+Now, the `kops` user can be used for our subsequent steps by exporting the following environment variable: `export AWS_PROFILE=kops`.
