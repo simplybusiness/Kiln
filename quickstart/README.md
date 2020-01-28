@@ -16,6 +16,8 @@ This document aims to get you up and running with a Kiln stack fairly quickly an
 * Kubectl installed - Instructions can be found here: [https://kubernetes.io/docs/tasks/tools/install-kubectl/](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * Kops installed - Instructions can be found here: [https://github.com/kubernetes/kops/blob/master/docs/install.md](https://github.com/kubernetes/kops/blob/master/docs/install.md)
 * Helm installed - Instructions can be found here: [https://helm.sh/docs/intro/install/](https://helm.sh/docs/intro/install/)
+* LibreSSL or OpenSSL (for generating a Certificate Authority and TLS certificates)
+* Java Developer Kit (for generating Java Keystore files for Kafka using KeyTool) - Instructions can be found here: [https://adoptopenjdk.net/installation.html?variant=openjdk11&jvmVariant=hotspot](https://adoptopenjdk.net/installation.html?variant=openjdk11&jvmVariant=hotspot)
 * An AWS account and an IAM user with permissions to create a new IAM user
 * A domain name hosted in AWS Route53
 
