@@ -202,3 +202,11 @@ kops validate cluster ${NAME} --wait 30s #This will check the state of your clus
 ExternalDNS is a cluster add-on provided by the Kubernetes ExternalDNS Special Interest Group (SIG) and instructions for customising how this is deployed can be found at [https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md). We're going to be using a Kubernetes manifest adapted from their example manifest for a cluster using Role-based Access Control (RBAC), you can find the original manifest at [https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md#manifest-for-clusters-with-rbac-enabled](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md#manifest-for-clusters-with-rbac-enabled).
 
 The adapted manifest can be found at [external-dns.yaml](./external-dns.yaml). Ensure that you replace the Zone Filter domain list so that it matches the domain you will be hosting your Kubernetes cluster DNS entries under, then run the following to apply the changes: `kubectl apply -f external-dns.yaml`.
+
+### Zookeeper
+To deploy Zookeeper, which Kafka requires for conducting leadership elections, we're going to use the Helm package manager for Kubernetes. [Bitnami](https://bitnami.com/) provide a number of production ready packaged applications for a number of platforms, including Helm charts for Kubernetes. We'll configure Helm to include the Bitnami package repository, then deploy a Zookeeper stack using the Bitnami Helm chart.
+
+``` shell
+`helm repo add bitnami https://charts.bitnami.com/bitnami`
+helm install zk -f zookeeper-values.yaml bitnami/zookeeper
+```
