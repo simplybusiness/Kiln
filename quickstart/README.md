@@ -212,3 +212,40 @@ To deploy Zookeeper, which Kafka requires for conducting leadership elections, w
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm install zk -f zookeeper-values.yaml bitnami/zookeeper
 ```
+
+### Kafka
+Deploying Kafka involves 4 steps: Generating the TLS certificates used to secure connections, creating a kubernetes secrets for the TLS certificates, deploying the Kafka chart and finally creating the topics required for Kiln.
+
+This document assumes you do not have an existing PKI you want to use to generate the Kafka TLS certificates, so it will guide you through creating a small PKI. PKI configurations can be extremely varied, so thier usage is out of scope for this document. You should make sure the private key for the CA Certificate you will be generating is stored securely. We will be using a customised version of the Bitnami Kafka Helm Chart. The reason for the customisation is because Kiln currently does not support authenticating to a Kafka cluster (work to add support for this is being tracked in https://github.com/simplybusiness/Kiln/issues/169), and the upstream Helm Chart does not allow configuring TLS without also requiring authentication.
+
+* Generating Kakfa Certificate Authority and TLS certificate. Answer "yes" when prompted both times if you trust this certificate. This shell script creates the CA, generates a certificate request for the Kafka server certificate and builds the Java Keystore for the signed certificate and a separate Java Keystore for the CA certificate. Resulting files will be in the `tls` directory.
+``` shell
+./gen_certs.sh 
+```
+
+* Create the required Kubernetes secrets
+``` shell
+cd tls
+kubectl create secret generic kafka-certs --from-file=./kafka.truststore.jks --from-file=./kafka.keystore.jks
+kubectl create secret generic kafka-ca --from-file=./ca-cert
+```
+
+* Deploying Kafka
+``` shell
+cd kafka
+helm install kafka ./ -f kafka-values.yaml
+kubectl get pods -w -l app.kubernetes.io/name=kafka # Wait for pods to be ready
+```
+
+* Create the Kafka topics for Kiln. The last command in the following block will print the list of Kafka topics that exist in this cluster, it should now contain "ToolReports" and "DependencyEvents"
+``` shell
+export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=kafka,app.kubernetes.io/instance=kafka,app.kubernetes.io/component=kafka" -o jsonpath="{.items[0].metadata.name}")
+kubectl --namespace default exec -it $POD_NAME -- kafka-topics.sh --create --zookeeper zk-zookeeper-headless:2181 --replication-factor 3 --partitions 3 --topic ToolReports
+kubectl --namespace default exec -it $POD_NAME -- kafka-topics.sh --create --zookeeper zk-zookeeper-headless:2181 --replication-factor 3 --partitions 3 --topic DependencyEvents
+kubectl --namespace default exec -it $POD_NAME -- kafka-topics.sh --list --zookeeper zk-zookeeper-headless:2181
+```
+
+## Deploying Kiln
+### Mandatory components
+
+### Slack connector (optional)
