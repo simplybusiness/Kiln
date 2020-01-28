@@ -207,6 +207,6 @@ The adapted manifest can be found at [external-dns.yaml](./external-dns.yaml). E
 To deploy Zookeeper, which Kafka requires for conducting leadership elections, we're going to use the Helm package manager for Kubernetes. [Bitnami](https://bitnami.com/) provide a number of production ready packaged applications for a number of platforms, including Helm charts for Kubernetes. We'll configure Helm to include the Bitnami package repository, then deploy a Zookeeper stack using the Bitnami Helm chart.
 
 ``` shell
-`helm repo add bitnami https://charts.bitnami.com/bitnami`
+helm repo add bitnami https://charts.bitnami.com/bitnami
 helm install zk -f zookeeper-values.yaml bitnami/zookeeper
 ```
