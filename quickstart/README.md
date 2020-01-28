@@ -196,3 +196,9 @@ kops update cluster ${NAME} #Use this to preview the changes you're about to mak
 kops update cluster ${NAME} --yes #Run this once you're happy for the changes to be applied
 kops validate cluster ${NAME} --wait 30s #This will check the state of your cluster every 30 seconds and exit once the cluster is fully operational
 ```
+
+## Deploying Kiln supporting services
+### ExternalDNS
+ExternalDNS is a cluster add-on provided by the Kubernetes ExternalDNS Special Interest Group (SIG) and instructions for customising how this is deployed can be found at [https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md). We're going to be using a Kubernetes manifest adapted from their example manifest for a cluster using Role-based Access Control (RBAC), you can find the original manifest at [https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md#manifest-for-clusters-with-rbac-enabled](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md#manifest-for-clusters-with-rbac-enabled).
+
+The adapted manifest can be found at [external-dns.yaml](./external-dns.yaml). Ensure that you replace the Zone Filter domain list so that it matches the domain you will be hosting your Kubernetes cluster DNS entries under, then run the following to apply the changes: `kubectl apply -f external-dns.yaml`.
