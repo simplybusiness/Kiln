@@ -135,3 +135,64 @@ aws s3api create-bucket --bucket my-cluster-state-storage-bucket --region us-eas
 aws s3api put-bucket-versioning --bucket my-cluster-state-storage-bucket --versioning-configuration Status=Enabled
 aws s3api put-bucket-encryption --bucket my-cluster-state-storage-bucket --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
 ```
+
+## Bootstrapping the Kubernetes cluster
+
+Now we're ready to bootstrap the Kubernetes cluster that we'll be deploying Kiln into. The commands below will bootstrap a cluster with a Highly Available control plane, 3 worker nodes, using t3.medium EC2 instances in the eu-west-2 region. Additionally, they will setup CoreDNS for providing DNS for cluster nodes and attaching the required IAM policy for ExternalDNS to configure external DNS records in a lter step.
+
+``` shell
+export NAME=kiln.simplybusiness.community
+export KOPS_STATE_STORE=s3://kiln-simplybusiness-community-state-store
+export AWS_PROFILE=kops
+aws ec2 describe-availability-zones --region eu-west-1
+kops create cluster \
+    --node-count 3 \
+    --zones eu-west-2a,eu-west-2b,eu-west-2c \
+    --master-zones eu-west-2a,eu-west-2b,eu-west-2c \
+    --node-size t3.medium \
+    --master-size t3.medium \
+    --topology public \
+    --networking calico \
+    kiln.simplybusiness.community
+kops edit cluster ${NAME}
+```
+
+This will create the cluster configurations, but won't apply them just yet. The last command in the above block will open your configured terminal editor to make some changes before we stand up the cluster. Your editor should contain a YAML document, locate the `spec` key at the top level of the document and insert the following snippet (replacing the Hosted Zone ID in the IAM policy with the Hosted Zone ID you will be hosting cluster DNS records under and being careful to maintain proper indentation):
+
+``` YAML
+spec:
+  kubeDNS:
+    provider: CoreDNS
+
+  additionalPolicies:
+    node: |
+      [
+       {
+          "Effect": "Allow",
+          "Action": [
+            "route53:ChangeResourceRecordSets"
+          ],
+          "Resource": [
+            "arn:aws:route53:::hostedzone/MYHOSTEDZONEID"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "route53:ListHostedZones",
+            "route53:ListResourceRecordSets"
+          ],
+          "Resource": [
+            "*"
+          ]
+        }
+      ]
+```
+
+Save the updated cluster spec and exit your editor. Now it's time to bring your cluster up.
+
+``` shell
+kops update cluster ${NAME} #Use this to preview the changes you're about to make
+kops update cluster ${NAME} --yes #Run this once you're happy for the changes to be applied
+kops validate cluster ${NAME} --wait 30s #This will check the state of your cluster every 30 seconds and exit once the cluster is fully operational
+```
