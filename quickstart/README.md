@@ -125,3 +125,13 @@ aws route53 change-resource-record-sets --hosted-zone-id <parent-zone-id> --chan
 ``` shell
 dig ns mysubdomain.mydomain.tls
 ```
+
+## Kops Cluster state storage
+
+We're going to setup an AWS S3 bucket for `kops` to store the state of the cluster it provisions, so that it can keep track of resources it has created. We're also going to ensure that versioning is enabled as well as server-side encryption. It's important to remember that S3 bucket names must be globally unique, so bear this in mind when naming your cluster state storage bucket.
+
+``` shell
+aws s3api create-bucket --bucket my-cluster-state-storage-bucket --region us-east-1
+aws s3api put-bucket-versioning --bucket my-cluster-state-storage-bucket --versioning-configuration Status=Enabled
+aws s3api put-bucket-encryption --bucket my-cluster-state-storage-bucket --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+```
