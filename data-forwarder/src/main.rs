@@ -13,6 +13,8 @@ use git2::Repository;
 use uuid::Uuid;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
+    openssl_probe::init_ssl_cert_env_vars();
+
     let matches = App::new("Kiln data forwarder")
 			.arg(Arg::with_name("tool_name")
 				.help("Name of the security tool run")
