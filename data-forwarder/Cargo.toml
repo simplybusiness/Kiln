@@ -10,3 +10,4 @@ chrono = "0.4"
 reqwest = "0.9" 
 git2 = "0.10"
 uuid = { version = "0.8", features = ["v4"] }
+openssl-probe = "0.1.2"
