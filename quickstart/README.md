@@ -259,3 +259,23 @@ kubectl apply -f report-parser.yaml
 ```
 
 ### Slack connector (optional)
+If you want Kiln to send notifications to a Slack channel when issues are discovered, you will need to register a Slack developer application to obtain an OAuth2 token to authenticate to Slack, create a Kubernetes secret to securely deliver this token to the Slack-connector component, then deploy the Slack-connector component itself.
+
+* Create a Slack Developer App by following the first 3 sections of this Slack Developer documentation: [https://api.slack.com/authentication/basics](https://api.slack.com/authentication/basics). These instructions should get you as far as finding the OAuth2 token in the App Management page. A note on token scopes, when you are requesting scopes for your Slack OAuth2 token, be sure to select the `channels:read` and `chat:write:bot` scopes, to limit access to just what Kiln requires.
+
+* Once you have your OAuth2 token, write it to a `.env` file in the following format:
+```
+OAUTH2_TOKEN=mytokenhere
+```
+
+* Now you can create a Kubernetes secret to securely storeand deliver this token to the Slack-connector component as an environment variable
+``` shell
+kubectl create secret generic slack-oauth-token --from-env-file=path/to/.env
+```
+
+* Next you need to find the Channel ID of the channel you want to send notifications to. Currently, Kiln only supports sending messages to a single channel, but work to enhance this functionality and add support for conditional routing is being tracked in [https://github.com/simplybusiness/Kiln/issues/154](https://github.com/simplybusiness/Kiln/issues/154). The easiest way to do this is open the channel in the Slack web app and the Channel ID will be the last segment of the URL path, starting with a 'C'. Once you have the Channel ID, replace the Channel ID environment variable in `slack-connector.yaml`.
+
+* Finally, you can deploy the Slack-connector
+``` shell
+kubectl apply -f slack-connector.yaml
+```
