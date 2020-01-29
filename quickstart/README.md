@@ -1,6 +1,6 @@
 # Kiln Quickstart
 
-This document aims to get you up and running with a Kiln stack fairly quickly and assume you will be deploying it to an AWS environment using a Kubernetes cluster which this document will guide you through setting up.
+This document aims to get you up and running with a Kiln stack fairly quickly and assume you will be deploying it to an AWS environment using a Kubernetes cluster which this document will guide you through setting up. Although these instructions cover deploying Zookeeper and Kafka, it should be noted that administering these components in production is a complex, time consuming job. Unless you already have Zookeeper and Kafka administration experience, it is strongly suggested that you use a managed service such as [AWS Managed Streaming for Kafka](https://aws.amazon.com/msk/) or the [Confluent Platform](https://www.confluent.io/confluent-cloud).
 
 **Note: This configuration has not been production tested and does not make any guarantees about the safety or availability of the data it will host. Please think very carefully about the configuration choices made before deploying Kiln to production.**
 
