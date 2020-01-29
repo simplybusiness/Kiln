@@ -8,8 +8,6 @@ This document aims to get you up and running with a Kiln stack fairly quickly an
 * A Kubernetes cluster provisioned in AWS using the Kops tool, capable of hosting components in a HA configuration
 * Kubernetes nodes sized appropriately for the components they'll be hosting, plus a group of larger nodes for data analysis
 * A Kiln stack deployed to the Kubernetes cluster, with the following components: Data-collector, Report-parser, Kafka, Zookeeper & Slack-connector
-* A Jupyterhub stack configured for data analysis
-* Data generated from 3 open source ruby projects to practise analysis on (based on a talk given as BSides Leeds 2020 by Dan Murphy)
 
 ## Prerequisites
 * AWS CLI tools installed - Instructions can be found here: [https://docs.aws.amazon.com/cli/latest/userguide/install-cliv1.html](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv1.html)
