@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: report-parser
+  name: report-parser
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: report-parser
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: report-parser
+    spec:
+      containers:
+        - image: kiln/report-parser:master-latest
+          imagePullPolicy: "Always"
+          name: report-parser
+          env:
+            - name: KAFKA_BOOTSTRAP_TLS
+              value: "kafka-headless.default.svc.cluster.local:9093"
+            - name: DISABLE_KAFKA_DOMAIN_VALIDATION
+              value: "true"
+            - name: RUST_LOG
+              value: "info"
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - mountPath: /tls
+              name: kafka-ca-vol
+      volumes:
+        - name: kafka-ca-vol
+          secret:
+            secretName: kafka-ca

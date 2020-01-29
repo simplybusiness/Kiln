@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: data-collector
+  name: data-collector
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: data-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: data-collector
+    spec:
+      containers:
+        - image: kiln/data-collector:master-latest
+          imagePullPolicy: "Always"
+          name: data-collector
+          env:
+            - name: KAFKA_BOOTSTRAP_TLS
+              value: "kafka-headless.default.svc.cluster.local:9093"
+            - name: DISABLE_KAFKA_DOMAIN_VALIDATION
+              value: "true"
+            - name: SSL_CERT_FILE
+              value: "/tls/ca-cert"
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: kafka-ca-vol
+              mountPath: /tls/
+      volumes:
+        - name: kafka-ca-vol
+          secret:
+            secretName: kafka-ca
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-collector
+  labels:
+    app.kubernetes.io/name: data-collector
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:eu-west-2:123456789012:certificate/12345678-1234-1234-1234-123456789012
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+    service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+    external-dns.alpha.kubernetes.io/hostname: kiln-data-collector.mydomain.tld
+spec:
+  type: "LoadBalancer"
+  ports:
+    - name: kafka
+      port: 443
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: data-collector
