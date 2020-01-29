@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: slack-connector
+  name: slack-connector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: slack-connector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: slack-connector
+    spec:
+      containers:
+        - image: kiln/slack-connector:master-latest
+          imagePullPolicy: "Always"
+          name: slack-connector
+          env:
+            - name: KAFKA_BOOTSTRAP_TLS
+              value: "kafka-headless.default.svc.cluster.local:9093"
+            - name: DISABLE_KAFKA_DOMAIN_VALIDATION
+              value: "true"
+            - name: RUST_LOG
+              value: "info"
+            - name: OAUTH2_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: slack-oauth-token
+                  key: OAUTH2_TOKEN
+            - name: SLACK_CHANNEL_ID
+              value: "PLACEHOLDER CHANNEL ID"
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - mountPath: /tls
+              name: kafka-ca-vol
+      volumes:
+        - name: kafka-ca-vol
+          secret:
+            secretName: kafka-ca
