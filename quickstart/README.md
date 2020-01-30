@@ -82,7 +82,7 @@ ID=$(uuidgen) && aws route53 create-hosted-zone --name subdomain.example.com --c
 aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="mydomain.tld.") | .Id'
 ```
 
-* Create a configuration file with your **subdomain** nameservers, replacing the domains containing `awsdns` with the values you made a note of earlier
+* Create a configuration file with your **subdomain** nameservers, replacing the domains in the "ResourceRecords" list with the values you made a note of earlier
 
 ``` json
 {
@@ -123,7 +123,7 @@ aws route53 change-resource-record-sets --hosted-zone-id <parent-zone-id> --chan
 * Ensure your NS records have been configured correctly by running the following command. If the correct nameservers are not returned, do not proceed. Correct DNS configuration is critical to the following steps. This step is not required if you are using a bare domain for your cluster.
 
 ``` shell
-dig ns mysubdomain.mydomain.tls
+dig ns mysubdomain.mydomain.tld
 ```
 
 ## Kops Cluster state storage
@@ -141,19 +141,18 @@ aws s3api put-bucket-encryption --bucket my-cluster-state-storage-bucket --serve
 Now we're ready to bootstrap the Kubernetes cluster that we'll be deploying Kiln into. The commands below will bootstrap a cluster with a Highly Available control plane, 3 worker nodes, using t3.medium EC2 instances in the eu-west-2 region. Additionally, they will setup CoreDNS for providing DNS for cluster nodes and attaching the required IAM policy for ExternalDNS to configure external DNS records in a lter step.
 
 ``` shell
-export NAME=kiln.simplybusiness.community
-export KOPS_STATE_STORE=s3://kiln-simplybusiness-community-state-store
+export NAME=my-cluster-name
+export KOPS_STATE_STORE=s3://my-cluster-state-storage-bucket
 export AWS_PROFILE=kops
-aws ec2 describe-availability-zones --region eu-west-1
 kops create cluster \
     --node-count 3 \
     --zones eu-west-2a,eu-west-2b,eu-west-2c \
     --master-zones eu-west-2a,eu-west-2b,eu-west-2c \
-    --node-size t3.medium \
-    --master-size t3.medium \
+    --node-size t3a.medium \
+    --master-size t3a.medium \
     --topology public \
     --networking calico \
-    kiln.simplybusiness.community
+    ${NAME}
 kops edit cluster ${NAME}
 ```
 
