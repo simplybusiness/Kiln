@@ -193,7 +193,7 @@ Save the updated cluster spec and exit your editor. Now it's time to bring your 
 ``` shell
 kops update cluster ${NAME} #Use this to preview the changes you're about to make
 kops update cluster ${NAME} --yes #Run this once you're happy for the changes to be applied
-kops validate cluster ${NAME} --wait 30s #This will check the state of your cluster every 30 seconds and exit once the cluster is fully operational
+kops validate cluster ${NAME} --wait 30s #This will check the state of your cluster every 30 seconds and exit once the cluster is fully operational. Cluster creation involves creating DNS records, so this might take a while.
 ```
 
 ## Deploying Kiln supporting services
