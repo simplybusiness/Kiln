@@ -258,7 +258,7 @@ kubectl apply -f report-parser.yaml
 ### Slack connector (optional)
 If you want Kiln to send notifications to a Slack channel when issues are discovered, you will need to register a Slack developer application to obtain an OAuth2 token to authenticate to Slack, create a Kubernetes secret to securely deliver this token to the Slack-connector component, then deploy the Slack-connector component itself.
 
-* Create a Slack Developer App by following the first 3 sections of this Slack Developer documentation: [https://api.slack.com/authentication/basics](https://api.slack.com/authentication/basics). These instructions should get you as far as finding the OAuth2 token in the App Management page. A note on token scopes, when you are requesting scopes for your Slack OAuth2 token, be sure to select the `channels:read` and `chat:write:bot` scopes, to limit access to just what Kiln requires.
+* Create a Slack Developer App by following the first 3 sections of this Slack Developer documentation: [https://api.slack.com/authentication/basics](https://api.slack.com/authentication/basics). These instructions should get you as far as finding the OAuth2 token in the App Management page. A note on token scopes, when you are requesting scopes for your Slack OAuth2 token, be sure to select the `channels:read` and `chat:write` scopes to the Bot Token (not the User Token!), to limit access to just what Kiln requires.
 
 * Once you have your OAuth2 token, write it to a `.env` file in the following format:
 ```
