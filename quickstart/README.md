@@ -120,7 +120,7 @@ aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="mydomain.tld
 aws route53 change-resource-record-sets --hosted-zone-id <parent-zone-id> --change-batch file://<path to subdomain config file from previous step>.json
 ```
 
-* Ensure your NS records have been configured correctly by running the following command. If the correct nameservers are not returned, do not proceed. Correct DNS configuration is critical to the following steps. This step is not required if you are using a bare domain for your cluster.
+* Ensure your NS records have been configured correctly by running the following command, but bear in mind that DNS record propogation means this could take some time to return the correct answer. If the correct nameservers are not returned, do not proceed. Correct DNS configuration is critical to the following steps. This step is not required if you are using a bare domain for your cluster.
 
 ``` shell
 dig ns mysubdomain.mydomain.tld
@@ -275,4 +275,19 @@ kubectl create secret generic slack-oauth-token --from-env-file=path/to/.env
 * Finally, you can deploy the Slack-connector
 ``` shell
 kubectl apply -f slack-connector.yaml
+```
+
+## Cleanup
+
+Once you're finished experimenting with Kiln, you should clean up the resources you created in this quickstart to ensure you aren't charged for resources you aren't using.
+
+AUTHOR NOTE:
+* Cluster
+* Route53 entries
+* ACM certificates
+* EBS volumes
+* S3 state bucket
+
+``` shell
+
 ```
