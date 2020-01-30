@@ -64,9 +64,7 @@ Now, the `kops` user can be used for our subsequent steps by exporting the follo
 
 ### Configuring DNS
 
-Now we have an IAM user created with the necessary permissions to use `kops`, we need to setup the DNS domain that will be used for our Kubernetes cluster, which we assume is already hosted in Route53. The simplest approach is to add records to the root of a domain, where all subdomains related to the cluster will be in the form `something.clustername.mydomain.tld`. If this is appropriate for your environment, then you don't need to do anything else here.
-
-If you want to create all cluster subdomains under a specific subdomain under your domain name (taking the form `something.clustername.subdomain.mydomain.tld`), then you will need to create a new hosted zone in Route53 and setup an NS record for this subdomain in the parent domain.
+Now we have an IAM user created with the necessary permissions to use `kops`, we need to setup the DNS domain that will be used for our Kubernetes cluster, which we assume is already hosted in Route53. In order to keep cluster resources relatively self-contained, we will create a subdomain to contain all of our cluster DNS records, taking the form `something.clustername.subdomain.mydomain.tld`). To do this, you will need to create a new hosted zone in Route53 and setup an NS record for this subdomain in the parent domain.
 
 Note: these instructions assume you have [jq](https://stedolan.github.io/jq/) installed.
 
@@ -120,7 +118,7 @@ aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="mydomain.tld
 aws route53 change-resource-record-sets --hosted-zone-id <parent-zone-id> --change-batch file://<path to subdomain config file from previous step>.json
 ```
 
-* Ensure your NS records have been configured correctly by running the following command, but bear in mind that DNS record propogation means this could take some time to return the correct answer. If the correct nameservers are not returned, do not proceed. Correct DNS configuration is critical to the following steps. This step is not required if you are using a bare domain for your cluster.
+* Ensure your NS records have been configured correctly by running the following command, but bear in mind that DNS record propogation means this could take some time to return the correct answer. If the correct nameservers are not returned, do not proceed. Correct DNS configuration is critical to the following steps.
 
 ``` shell
 dig ns mysubdomain.mydomain.tld
