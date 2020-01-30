@@ -287,5 +287,6 @@ AUTHOR NOTE:
 * S3 state bucket
 
 ``` shell
-
+kops delete cluster --name ${NAME} #Check that you're deleting the correct cluster
+kops delete cluster --name ${NAME} --yes
 ```
