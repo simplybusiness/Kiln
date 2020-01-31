@@ -327,3 +327,7 @@ while read -r resourcerecordset; do
       --output text --query 'ChangeInfo.Id'
 done
 ```
+
+### ACM certificate
+
+The certifcate created in the AWS console also needs cleaning up manually. Follow the instructions that AWS provide, which can be found here: [https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-delete.html](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-delete.html).
