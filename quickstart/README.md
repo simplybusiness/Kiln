@@ -279,13 +279,6 @@ kubectl apply -f slack-connector.yaml
 
 Once you're finished experimenting with Kiln, you should clean up the resources you created in this quickstart to ensure you aren't charged for resources you aren't using.
 
-AUTHOR NOTE:
-* Cluster
-* Route53 entries
-* ACM certificates
-* EBS volumes
-* S3 state bucket
-
 ``` shell
 kops delete cluster --name ${NAME} #Check that you're deleting the correct cluster
 kops delete cluster --name ${NAME} --yes
