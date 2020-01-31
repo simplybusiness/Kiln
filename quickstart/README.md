@@ -351,3 +351,24 @@ aws s3api delete-objects \
 
 aws s3api delete-bucket --bucket my-cluster-state-bucket
 ```
+
+### IAM user and group
+
+The last artifact that needs to be cleaned up is the `kops` IAM group and user. To do this, you will first need to switch your AWS profile to the profile that gives you IAM permissions in the AWS account you have been using, because the `kops` user will not be able to delete itself. You'll need the Access Key ID you added to `~/.aws/credentials` earlier.
+
+``` shell
+aws iam delete-access-key --user-name kops --access-key-id AKIAIOSFODNN7EXAMPLE
+aws iam remove-user-from-group --username kops --group-name kops
+aws iam delete-user --user-name kops
+aws iam detach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess --group-name kops
+aws iam detach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53FullAccess --group-name kops
+aws iam detach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops
+aws iam detach-group-policy --policy-arn arn:aws:iam::aws:policy/IAMFullAccess --group-name kops
+aws iam detach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonVPCFullAccess --group-name kops
+aws iam delete-group --group-name kops
+```
+
+You can now remove the `kops` sections from `~/.aws/config` and `~/.aws/credentials`.
+
+
+Thank you for trying Kiln!
