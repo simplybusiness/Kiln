@@ -313,4 +313,17 @@ while read -r resourcerecordset; do
 done
 ```
 
-Finally, once we've deleted the contents of the hosted zone, we can delete it by running: `aws route53 delete-hosted-zone --id "/hostedzone/MYHOSTEDZONEID`
+Once we've deleted the contents of the hosted zone, we can delete the hosted zone itself by running: `aws route53 delete-hosted-zone --id "/hostedzone/MYHOSTEDZONEID`
+
+Lastly, we need to cleanup the NS records we created in the parent hosted zone. Substitute in the parent hosted zone id and the subdomain we created earlier in the below command to clean up the last trace of your testing cluster in Route53.
+``` shell
+aws route53 list-resource-record-sets --hosted-zone-id "/hostedzone/MYPARENTHOSTEDZONEID" | jq -c '.ResourceRecordSets[] | select(."Name" == "subdomain.mydomain.tld")' |
+while read -r resourcerecordset; do
+    aws route53 change-resource-record-sets \
+      --hosted-zone-id "/hostedzone/MYPARENTHOSTEDZONEID" \
+      --change-batch '{"Changes":[{"Action":"DELETE","ResourceRecordSet":
+          '"$resourcerecordset"'
+        }]}' \
+      --output text --query 'ChangeInfo.Id'
+done
+```
