@@ -331,3 +331,23 @@ done
 ### ACM certificate
 
 The certifcate created in the AWS console also needs cleaning up manually. Follow the instructions that AWS provide, which can be found here: [https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-delete.html](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-delete.html).
+
+### S3 state bucket
+
+Because we created an S3 bucket with versioning enabled, we can't delete the bucket and all objects inside it in a single S3 API call. Instead, we need to delete all object versions, then all of the version delete markers, then finally the bucket itself. The commands below will cleanup the S3 bucket we created earlier, make sure you substitute the correct bucket name in place of "my-cluster-state-bucket".
+
+``` shell
+aws s3api delete-objects \
+      --bucket my-cluster-state-bucket \
+      --delete "$(aws s3api list-object-versions \
+      --bucket my-cluster-state-bucket | \
+      jq -M '{Objects: [.["Versions"][] | {Key:.Key, VersionId : .VersionId}], Quiet: false}')"
+
+aws s3api delete-objects \
+      --bucket my-cluster-state-bucket \
+      --delete "$(aws s3api list-object-versions \
+      --bucket my-cluster-state-bucket | \
+      jq -M '{Objects: [.["DeleteMarkers"][] | {Key:.Key, VersionId : .VersionId}], Quiet: false}')"
+
+aws s3api delete-bucket --bucket my-cluster-state-bucket
+```
