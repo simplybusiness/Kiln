@@ -290,3 +290,27 @@ AUTHOR NOTE:
 kops delete cluster --name ${NAME} #Check that you're deleting the correct cluster
 kops delete cluster --name ${NAME} --yes
 ```
+
+There are a few artifacts that will be left over after deleting the cluster itself: Route53 entries & Hosted Zone, an ACM certificate and the S3 state bucket. These will need to be cleaned up manually.
+
+### Route53
+First we need to identify the Hosted Zone ID of the subdomain we created earlier: `aws route53 list-hosted-zones | jq '."HostedZones"[] | select(."Name" == "mysubdomain.mydomain.tld.") |.Id'`.
+
+Next we need to delete all records from the hosted zone, except for the NS and SOA records. The command below will fetch all of the resource records in the hosted zone, filter out NS and SOA records, then delete each record.
+``` shell
+aws route53 list-resource-record-sets --hosted-zone-id "/hostedzone/MYHOSTEDZONEID" |
+jq -c '.ResourceRecordSets[]' |
+while read -r resourcerecordset; do
+  read -r name type <<<$(echo $(jq -r '.Name,.Type' <<<"$resourcerecordset"))
+  if [ $type != "NS" -a $type != "SOA" ]; then
+    aws route53 change-resource-record-sets \
+      --hosted-zone-id "/hostedzone/MYHOSTEDZONEID" \
+      --change-batch '{"Changes":[{"Action":"DELETE","ResourceRecordSet":
+          '"$resourcerecordset"'
+        }]}' \
+      --output text --query 'ChangeInfo.Id'
+  fi
+done
+```
+
+Finally, once we've deleted the contents of the hosted zone, we can delete it by running: `aws route53 delete-hosted-zone --id "/hostedzone/MYHOSTEDZONEID`
