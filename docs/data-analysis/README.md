@@ -6,6 +6,6 @@ Jupyterhub is a browser-based, multi-user interactive computing environment that
 
 ## Prerequisites
 
-* A Kiln stack - A dedicated stack is recommended, follow instructions at [docs/quickstart/README.md](docs/quickstart/README.md) to setup a dedicated cluster for testing, but do not deploy the Slack-connector.
+* A Kiln stack - A dedicated stack is recommended, follow instructions at [docs/quickstart/README.md](docs/quickstart/README.md) to setup a dedicated cluster for testing, but do not deploy the Slack-connector. This document assumes you have followed those instructions and have the listed prerequisites installed.
 * Git
 * Python 3 - Instructions for setup can be found here: [https://wiki.python.org/moin/BeginnersGuide/Download](https://wiki.python.org/moin/BeginnersGuide/Download)
