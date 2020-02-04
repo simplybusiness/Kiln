@@ -227,7 +227,7 @@ kubectl create secret generic kafka-ca --from-file=./ca-cert
 
 * Deploying Kafka
 ``` shell
-cd kafka
+cd ../kafka
 helm install kafka ./ -f kafka-values.yaml
 kubectl get pods -w -l app.kubernetes.io/name=kafka # Wait for pods to be ready
 ```
