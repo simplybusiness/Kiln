@@ -154,7 +154,7 @@ kops create cluster \
 kops edit cluster ${NAME}
 ```
 
-This will create the cluster configurations, but won't apply them just yet. The last command in the above block will open your configured terminal editor to make some changes before we stand up the cluster. Your editor should contain a YAML document, locate the `spec` key at the top level of the document and insert the following snippet (replacing the Hosted Zone ID in the IAM policy with the Hosted Zone ID you will be hosting cluster DNS records under and being careful to maintain proper indentation):
+This will create the cluster configurations, but won't apply them just yet. The last command in the above block will open your configured terminal editor to make some changes before we stand up the cluster. Your editor should contain a YAML document, locate the `spec` key at the top level of the document and insert the following snippet (replacing the Hosted Zone ID in the IAM policy with the Hosted Zone ID of the subdomain you created previously and being careful to maintain proper indentation):
 
 ``` YAML
 spec:
