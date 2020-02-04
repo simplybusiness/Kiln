@@ -16,12 +16,13 @@ Because the test data we will be generating will result in around 1 million even
 
 **WARNING: The instance type provisioned below has a significantly higher cost per hour than the t3.medium instances suggested for the rest of the cluster. When you aren't using them, be sure to follow the instructions to scale this group down to zero instances to avoid being charged for resources you aren't using.** As an illustration of the cost involved, the 6 `t3.medium` on-demand instances used for the rest of the cluster cost $6.79 per day to run in eu-west-2. The single `t3a.2xlarge` on-demand instance used for analysis costs $8.16 per day to run in eu-west-2.
 
+
 Creating the instance group:
 ``` shell
 kops create ig himemnodes --subnet eu-west-2a
 ```
 
-This will open your console editor, add the following lines then save and quit. If you want additional analysis nodes, you can change the minSize and maxSize values accordingly.
+This will open your console editor, add the following lines then save and quit. If you want additional analysis nodes, you can change the `minSize` and `maxSize` values accordingly.
 
 ``` yaml
 maxSize: 1
@@ -44,7 +45,7 @@ When you aren't using the analysis instances, you can scale them down to zero (w
 kops edit ig himemnodes
 ```
 
-This will open an editor containing the YAML definition for the instance group. Change the minSize and maxSize values to 0, save and quit. Then apply the changes by running the following:
+This will open an editor containing the YAML definition for the instance group. Change the `minSize` and `maxSize` values to 0, save and quit. Then apply the changes by running the following:
 
 ``` shell
 kops update cluster ${NAME} #This will show a preview of the changes to be applied
