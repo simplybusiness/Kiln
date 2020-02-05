@@ -275,6 +275,58 @@ kubectl create secret generic slack-oauth-token --from-env-file=path/to/.env
 kubectl apply -f slack-connector.yaml
 ```
 
+
+## Troubleshooting
+
+### I deployed the Data-collector, but I don't see a DNS record in Route53
+Possible causes:
+* Service is stuck trying to create Load Balancer  
+  
+  To check this, run `kubectl get svc`. The output should include a line with the name "data-collector". If this line has the value `<pending>` in the external IP column and the service was created more than 5 minutes ago, this can indicate a problem creating the Load Balancer that the service depends on.  
+  
+  One possible cause for this is that the ACM certificate assigned to the Service was created in a different region to the Kubernetes cluster. Recreate the ACM certificate in the correct region, update the certificate ARN in `data-collector.yaml`, delete the service by running `kubectl delete -f data-collector.yaml` and redeploy by running `kubectl apply -f data-collector.yaml`.
+
+* ExternalDNS pod domain filter is incorrect
+  
+  To check this, run `kubectl describe pods -l app=external-dns`. In the output, look for the Container Args and find ther line starting with `--domain-filter`. Ensure that the value matches the subdomin you created for hosting cluster DNS records under. If it does not, update the value in `external-dns.yaml` and redeploy by running `kubectl replace -f external-dns.yaml`.
+
+* IAM policy applied to Instance Role used by nodes is incorrect
+
+  To check this, run `kubectl logs -l app=external-dns`. If you see something similar to the following in the logs, there is an issue with the IAM policy that ExternalDNS is trying to use to edit records in Route53:
+  ```
+  time="2020-02-04T15:18:02Z" level=error msg="AccessDenied: User: arn:aws:sts::0123456789012:assumed-role/nodes.my-cluster-name.my-subdomain.mydomain.tld/i-0123456789abcdef01 is not authorized to perform: route53:ChangeResourceRecordSets on resource: arn:aws:route53:::hostedzone/MYHOSTEDZONEID
+  status code: 403, request id: a573650a-43d4-4731-8f15-2c6830b5d9be"
+  ```
+  If you see this, the likely cause is the Zone ID in the IAM policy we added while creating the cluster is incorrect. Run `kops edit cluster ${NAME}` to open an editor with the cluster definition. Find the additional policies key, then under "nodes" find the JSON object where the `Action` is `route53:ChangeResourceRecordSets` and ensure the `Resource` key contains the Hosted Zone ID for the subdomain we created earlier. Save the contents of the editor and quit. Then run `kops update cluster ${NAME}` and ensure the change is limited to just the IAM policy we just updated. Once you're happy that the correct change will be applied, run `kops update cluster ${NAME} --yes` followed by `kops rolling-update cluster ${NAME}` to finish applying the changes.
+
+### I deployed the Slack-connector, but messages aren't appearing in Slack when I run the Kiln CLI
+Possible causes:
+* Incorrect Channel ID
+  
+  To check this, run `kubectl get secret/slack-oauth-token -o json | jq '.["data"]["SLACK_CHANNEL_ID"] | @base64d'`. Open Slack in a web browser and navigate to the channel you want messages to appear in and compare the last URL segment to the value returned by `kubectl`.
+  
+  To update the Channel ID, run `kubectl edit secrets/slack-oauth-token` and replace the value for `SLACK_CHANNEL_ID` with the Base64 encoded Channel ID of the correct channel.
+
+* Incorrect OAuth2 Token for Slack API
+  
+  To check this, run `kubectl get secret/slack-oauth-token -o json | jq '.["data"]["OAUTH2_TOKEN"] | @base64d'`. Open [https://api.slack.com/apps](https://api.slack.com/apps) and navigate to your Kiln Slack Connector app. Then under "Settings" click "Install App". You should now be able to see the OAuth 2 token you generated previously. Compare this to the value returned from `kubectl`.
+  
+  To update the Channel ID, run `kubectl edit secrets/slack-oauth-token` and replace the value for `OAUTH2_TOKEN` with the Base64 encoded OAuth2 token Slack provided.
+  
+* Incorrect Scopes on OAuth2 Token for Slack API
+  
+  To check this, open [https://api.slack.com/apps](https://api.slack.com/apps) and navigate to your Kiln Slack Connector app. Then under "Features" click "OAuth & Permissions". Under the Scopes section of the page, check that the following scopes have been abled on the Bot Token: `channels:read` and `chat:write`. If either of these is missing, add them by clicking the "Add an OAuth Scope" button and regenerate the Bot OAuth 2 token. Follow the instructions above to replace the old token with the new token.
+
+### I try to run the Kiln CLI, but an error occurs when trying to send data to the Data-collector
+Possible causes:
+* Incorrect data-collector URL in kiln.toml, which will appear as a name resolution error or a connection refused error.
+* Version mis-match between components, will appear as a Validation Error. Ensure that you are running the same version of all components, including the CLI.
+* Issue with Data-collector
+  
+  To check this, first run `kubectl logs -f -l app.kubernetes.io/name=data-collector` and run the Kiln CLI again. You should see a log entry appear that indicates the request was received by the Data-collector as well as an error message if one occured.
+  
+If you have tried the above steps and have been unable to resolve your issue, please raise an issue with Kiln for further troubleshooting support.
+
 ## Cleanup
 
 Once you're finished experimenting with Kiln, you should clean up the resources you created in this quickstart to ensure you aren't charged for resources you aren't using.
