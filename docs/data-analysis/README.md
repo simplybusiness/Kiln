@@ -59,6 +59,10 @@ We will be deploying JupyterHub using their official Helm chart, using a values 
 
 ### Requesting an AWS ACM certificate
 
+We're going to be using kiln-jupyterhub.mysubdomain.mydomain.tld (replacing placeholders as appropriate) as the DNS name for hosting JupyterHub and will be serving it over TLS. AWS ACM provides free, auto-renewing TLS certificates that are publically trusted, follow the documentation that AWS provide, which can be found at: [https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html). Be sure to create the ACM certificate in the same region that the cluster is deployed to (in this instance, eu-west-2). When prompted for a domain, use "kiln-jupyterhub.my-subdomain.mydomain.tld", replacing the subdomain and domain with the appropriate values for your deployment.
+
+Once your ACM certificate has been issued, take a note of it's ARN and then replace the example ARN in jupyterhub-values.yaml with the ARN for your new certificate. The key for this value is `proxy->service->snnotations->service.beta.kubernetes.io/aws-load-balancer-ssl-cert`. In the same set of annotations, you will also need to fill in the correct value for the external DNS record you want to be created for Jupyterhub.
+
 ### Generating a random token to secure proxy and hub communications
 
 ### Configuring OAuth authentication
