@@ -65,6 +65,8 @@ Once your ACM certificate has been issued, take a note of it's ARN and then repl
 
 ### Generating a random token to secure proxy and hub communications
 
+The JupyterHub Proxy and Hub components secure their communications using a 32 byte random token. You can generate this securely using OpenSSL: `openssl rand -hex 32`. The 32 byte hex string that is produced should be copied into the jupyterhub-values.yml file as the value for the key `proxy->secretToken`.
+
 ### Configuring OAuth authentication
 
 ### Deploying JupyterHub
