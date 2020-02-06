@@ -69,6 +69,8 @@ The JupyterHub Proxy and Hub components secure their communications using a 32 b
 
 ### Configuring OAuth authentication
 
+By default, JupyterHub deploys with a dummy authentication module active, which will accept any username and password. As this service will be public facing, we want to ensure only authorized users can login and use the JupyterHub cluster. JupyterHub can be configured to use OAuth 2 delegated authentication using a number of providers, including GitHub and Google. The jupyterhub-values.yml file has the configuration stub required for GitHub authentication, but this could be replaced with another service if you do not use GitHub. Follow the JupyterHub Authentication guide to configure your authentication service of choice, which can be found here: [https://zero-to-jupyterhub.readthedocs.io/en/latest/administrator/authentication.html](https://zero-to-jupyterhub.readthedocs.io/en/latest/administrator/authentication.html).
+
 ### Deploying JupyterHub
 
 ## Generating Test Data
