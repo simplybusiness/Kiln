@@ -73,6 +73,26 @@ By default, JupyterHub deploys with a dummy authentication module active, which 
 
 ### Deploying JupyterHub
 
+Now that you have configured a TLS certificate, a shared secret to secure communications between the Hub and Proxy components and an authentication provider, we can deploy JuptyerHub to our Kubernetes cluster.
+
+First, we need to configure Helm to add the JupyterHub repository:
+
+```shell
+helm repo add jupyterhub https://jupyterhub.github.io/helm-chart/
+helm repo update
+```
+
+Next, we use Helm to deploy JupyterHub. This will also pull the single user environment Docker image for running analysis as part of the deployment, so that there isn't the delay of pulling this image when a user logs in.
+
+```shell
+helm upgrade --install jupyterhub jupyterhub/jupyterhub \
+  --namespace default \
+  --version=0.8.2 \
+  --values jupyterhub-values.yml
+```
+
+After a few minutes, you should now be able to visit https://kiln-jupyterhub.my-subdomain.mydomain.tld and login using the authentication mechanism you configured earlier.
+
 ## Generating Test Data
 
 ## Performing Data Analysis
