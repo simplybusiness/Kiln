@@ -52,3 +52,19 @@ kops update cluster ${NAME} #This will show a preview of the changes to be appli
 kops update cluster ${NAME} --yes #This will apply the changes
 kops rolling-update cluster ${NAME} #This will trigger the instance group scale down
 ```
+
+## Deploying JupyterHub
+
+We will be deploying JupyterHub using their official Helm chart, using a values YAML file to customise the deployment to configure the docker image to use for user environments, an authentication mechanism etc.
+
+### Requesting an AWS ACM certificate
+
+### Generating a random token to secure proxy and hub communications
+
+### Configuring OAuth authentication
+
+### Deploying JupyterHub
+
+## Generating Test Data
+
+## Performing Data Analysis
