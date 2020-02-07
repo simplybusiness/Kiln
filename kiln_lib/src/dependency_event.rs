@@ -16,9 +16,11 @@ use std::convert::TryFrom;
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Serializer};
 use url::Url;
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 #[allow(dead_code)]
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct DependencyEvent{
     pub event_version: EventVersion,
     pub event_id: EventID,
@@ -32,8 +34,42 @@ pub struct DependencyEvent{
     pub advisory_id: AdvisoryId,
     pub advisory_url: AdvisoryUrl,
     pub advisory_description: AdvisoryDescription,
-    pub cvss: Cvss
+    pub cvss: Cvss,
 }
+
+impl Hash for DependencyEvent {
+    fn hash<H: Hasher>(&self, into: &mut H) {
+        (&self.application_name, 
+         &self.git_branch, 
+         &self.affected_package, 
+         &self.installed_version, 
+         &self.advisory_id, 
+         ).hash(into); 
+    }
+}
+
+impl PartialEq for DependencyEvent {
+    #[inline]
+    fn eq(&self, other: &DependencyEvent) -> bool {
+        self.application_name == other.application_name &&
+        self.git_branch == other.git_branch &&
+        self.affected_package == other.affected_package &&
+        self.installed_version == other.installed_version && 
+        self.advisory_id == other.advisory_id
+    }
+}
+
+pub trait FingerPrint { 
+    fn get_fingerprint(&self) -> u64;
+}
+ 
+impl FingerPrint for DependencyEvent { 
+    fn get_fingerprint(&self) -> u64{ 
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        return hasher.finish();
+    } 
+} 
 
 #[cfg(feature = "avro")]
 impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
@@ -135,6 +171,7 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
             )
             .map_err(|err| err_msg(err.error_message))?;
 
+
             Ok(DependencyEvent {
                 event_version,
                 event_id,
@@ -193,7 +230,7 @@ impl TryFrom<avro_rs::types::Value> for Timestamp {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Hash)]
 pub struct AffectedPackage(String);
 
 impl TryFrom<String> for AffectedPackage {
@@ -227,7 +264,7 @@ impl std::fmt::Display for AffectedPackage {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Hash)]
 pub struct InstalledVersion(String);
 
 impl TryFrom<String> for InstalledVersion {
@@ -261,7 +298,7 @@ impl std::fmt::Display for InstalledVersion {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Hash)]
 pub struct AdvisoryId(String);
 
 impl TryFrom<String> for AdvisoryId {

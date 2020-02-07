@@ -80,7 +80,7 @@ impl std::fmt::Display for EventID {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Hash)]
 pub struct ApplicationName(String);
 
 impl TryFrom<String> for ApplicationName {
@@ -101,7 +101,7 @@ impl std::fmt::Display for ApplicationName {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Hash)]
 pub struct GitBranch(Option<String>);
 
 impl TryFrom<Option<String>> for GitBranch {

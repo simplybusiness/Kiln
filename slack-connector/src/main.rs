@@ -1,7 +1,7 @@
 use avro_rs::Reader;
 use failure::err_msg;
 use kiln_lib::kafka::*;
-use kiln_lib::dependency_event::DependencyEvent;
+use kiln_lib::dependency_event::{DependencyEvent, FingerPrint};
 use reqwest::blocking::Client;
 use reqwest::Method;
 use serde_json::{json, Value};
@@ -9,6 +9,8 @@ use std::boxed::Box;
 use std::env;
 use std::error::Error;
 use std::convert::TryFrom;
+use std::collections::hash_map::DefaultHasher;
+//use std::hash::{Hash, Hasher};
 
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
@@ -71,7 +73,10 @@ trait ToSlackMessage {
 
 impl ToSlackMessage for DependencyEvent {
     fn to_slack_message(&self) -> String {
-        format!("Vulnerable package found in: {}\nWhat package is affected? {} {}\nWhere was this found? Commit {} on branch {}\nWhat is the problem? {}\nHow serious is it? CVSS {}\nWhere can I find out more? {}",
+        //let mut s = DefaultHasher::new();
+        //self.hash(&mut s);
+        
+        format!("Vulnerable package found in: {}\nWhat package is affected? {} {}\nWhere was this found? Commit {} on branch {}\nWhat is the problem? {}\nHow serious is it? CVSS {}\nWhere can I find out more? {}, Fingerprint for future suppression {}",
             self.application_name.to_string(),
             self.affected_package.to_string(),
             self.installed_version.to_string(),
@@ -79,7 +84,9 @@ impl ToSlackMessage for DependencyEvent {
             self.git_branch.to_string(),
             self.advisory_description.to_string(),
             self.cvss.to_string(),
-            self.advisory_url.to_string()
+            self.advisory_url.to_string(), 
+            self.get_fingerprint()
+            //s.finish()
         )
     }
 }
