@@ -120,3 +120,11 @@ pipenv run python3 repo-analyser.py ./gitlab gitlab https://kiln-data-collector.
 These could take quite a while to run and you will see the occasional error message about there not being a Gemfile.lock to analyse. This is caused by the Gemfile.lock either not existing in that commit, or sometimes being broken by a bad merge. Additionally, you may experience occasional network problems, but these will not significantly affect the data generated.
 
 ## Performing Data Analysis
+
+There are to Jupyter notebooks in this directory, one called "Data Analysis Setup.ipynb" which will download the NIST NVD data files and clone the project repos that are needed for the analysis notebook, and the analysis notebook itself, called "Data Science with Kiln.ipynb".
+
+Assuming you scaled down your analysis nodes to save costs while generating test data, you should now scale them up, using the instructions given above. Once your analysis node has joined the cluster, open the URL you deployed JupyterHub to in a web browser and login using the OAuth 2 mechanism you configured previously. Once you are logged in, click the "Upload" button and upload both notebook files. Once they have uploaded, start by opening the "Data Analysis Setup.ipynb" notebook and run each cell it contains. All of these cells are downloading data, so some might take a minute or two to complete.
+
+Once the first notebook has finished running, you should see in the file browser for your JupyterHub environment that there are now three git repositories and a "vulndata" folder in your home folder. Now you can open the second notebook, "Data Science with Kiln.ipynb" and follow the instructions it contains.
+
+Happy data science!
