@@ -96,4 +96,25 @@ After a few minutes, you should now be able to visit https://kiln-jupyterhub.my-
 
 ## Generating Test Data
 
+In order to generate test data for analysis, we need to run Kiln over every commit on the master branch of several git repositories. To automate this process, the repo-analyser.py python script is provided. This script will checkout each commit to master in reverse chronological order, write the required kiln.toml file to the repo, then use the Kiln CLI to run bundler-audit over the project and send the results to your Kiln stack.
+
+Before you can run the script, you will need to install it's dependencies by running: `pipenv sync`. Then you will need to run the script three times, once each for RailsGoat, Mastodon and GitLab.
+
+```shell
+git clone https://github.com/OWASP/railsgoat.git
+pipenv run python3 repo-analyser.py ./railsgoat railsgoat https://kiln-data-collector.my-subdomain.mydomain.tld
+```
+
+```shell
+git clone https://github.com/tootsuite/mastodon.git
+pipenv run python3 repo-analyser.py ./mastodon mastodon https://kiln-data-collector.my-subdomain.mydomain.tld
+```
+
+```shell
+git clone https://gitlab.com/gitlab-org/gitlab.git
+pipenv run python3 repo-analyser.py ./gitlab gitlab https://kiln-data-collector.my-subdomain.mydomain.tld
+```
+
+These could take quite a while to run and you will see the occasional error message about there not being a Gemfile.lock to analyse. This is caused by the Gemfile.lock either not existing in that commit, or sometimes being broken by a bad merge. Additionally, you may experience occasional network problems, but these will not significantly affect the data generated.
+
 ## Performing Data Analysis
