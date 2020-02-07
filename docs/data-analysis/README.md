@@ -54,6 +54,8 @@ kops update cluster ${NAME} --yes #This will apply the changes
 kops rolling-update cluster ${NAME} #This will trigger the instance group scale down
 ```
 
+Because test data generation can take a while, it is suggested you scale down the analysis nodes now, then scale the analysis instances back up when you are ready to use them
+
 ## Deploying JupyterHub
 
 We will be deploying JupyterHub using their official Helm chart, using a values YAML file to customise the deployment to configure the docker image to use for user environments, an authentication mechanism etc.
