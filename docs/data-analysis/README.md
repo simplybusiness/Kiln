@@ -98,7 +98,7 @@ After a few minutes, you should now be able to visit https://kiln-jupyterhub.my-
 
 ## Generating Test Data
 
-In order to generate test data for analysis, we need to run Kiln over every commit on the master branch of several git repositories. To automate this process, the repo-analyser.py python script is provided. This script will checkout each commit to master in reverse chronological order, write the required kiln.toml file to the repo, then use the Kiln CLI to run bundler-audit over the project and send the results to your Kiln stack.
+In order to generate test data for analysis, we need to run Kiln over every commit on the master branch of several git repositories. To automate this process, the repo-analyser.py python script is provided. This script will checkout each commit to master in reverse chronological order, write the required kiln.toml file to the repo, then use the Kiln CLI to run bundler-audit over the project and send the results to your Kiln stack. The script assumes you have the Kiln CLI in your PATH.
 
 Before you can run the script, you will need to install it's dependencies by running: `pipenv sync`. Then you will need to run the script three times, once each for RailsGoat, Mastodon and GitLab.
 
