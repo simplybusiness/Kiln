@@ -71,35 +71,31 @@ where
 pub fn build_kafka_producer(
     config: KafkaBootstrapTlsConfig,
 ) -> Result<FutureProducer, KafkaError> {
-    let config = ClientConfig::new()
-        .set("metadata.broker.list", config.0)
+    ClientConfig::new()
+        .set("metadata.broker.list", &config.0.join(","))
         .set("compression.type", "gzip")
         .set("security.protocol", "SSL")
         .set("ssl.ca.location", "/usr/share/ca-certificates/")
         .set("ssl.protocol", "TLSv1.2")
         .set("ssl.enabled.protocols", "TLSv1.2")
         .set("ssl.cipher.suites", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
-        .create()?;
-
-    FutureProducer::from_config(config)
+        .create()
 }
 
 pub fn build_kafka_consumer(
     config: KafkaBootstrapTlsConfig,
     consumer_group_name: String,
 ) -> Result<StreamConsumer, KafkaError> {
-    let config = ClientConfig::new()
-        .set("metadata.broker.list", config.0)
-        .set("group.id", consumer_group_name)
+    ClientConfig::new()
+        .set("metadata.broker.list", &config.0.join(","))
+        .set("group.id", &consumer_group_name)
         .set("compression.type", "gzip")
         .set("security.protocol", "SSL")
         .set("ssl.ca.location", "/usr/share/ca-certificates/")
         .set("ssl.protocol", "TLSv1.2")
         .set("ssl.enabled.protocols", "TLSv1.2")
         .set("ssl.cipher.suites", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
-        .create()?;
-
-    StreamConsumer::from_config(config)
+        .create()
 }
 
 #[cfg(test)]
