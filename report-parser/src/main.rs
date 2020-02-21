@@ -7,11 +7,15 @@ use chrono::Duration;
 use data_encoding::HEXUPPER;
 use failure::err_msg;
 use flate2::read::GzDecoder;
+use futures_util::stream::StreamExt;
 use iter_read::IterRead;
 use kiln_lib::avro_schema::DEPENDENCY_EVENT_SCHEMA;
 use kiln_lib::kafka::*;
 use kiln_lib::dependency_event::{DependencyEvent, Timestamp, AdvisoryDescription, AdvisoryId, AdvisoryUrl, InstalledVersion, AffectedPackage, Cvss, CvssVersion};
 use kiln_lib::tool_report::{ToolReport, EventVersion, EventID};
+use rdkafka::consumer::{CommitMode, Consumer};
+use rdkafka::message::Message;
+use rdkafka::producer::future_producer::FutureRecord;
 use regex::Regex;
 use ring::digest;
 use serde_json::Value;
@@ -25,31 +29,22 @@ use std::str::FromStr;
 use url::Url;
 use uuid::Uuid;
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
-    openssl_probe::init_ssl_cert_env_vars();
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
-    let ssl_connector = build_ssl_connector().map_err(|err| {
-        failure::err_msg(format!(
-            "OpenSSL Error {}: {}",
-            err.errors()[0].code(),
-            err.errors()[0].reason().unwrap()
-        ))
-    })?;
-
-    let mut consumer = build_kafka_consumer(
+    let consumer = build_kafka_consumer(
         config.clone(),
-        "ToolReports".to_string(),
         "report-parser".to_string(),
-        ssl_connector.clone(),
     )
         .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.description())))?;
 
-    let mut producer = build_kafka_producer(
+    consumer.subscribe(&vec!["ToolReports"])?;
+
+    let producer = build_kafka_producer(
         config.clone(),
-        ssl_connector.clone(),
     )
         .map_err(|err| err_msg(format!("Kafka Producer Error: {}", err.description())))?;
 
@@ -97,6 +92,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     last_updated_time = Some(Utc::now());
 
+    let mut messages = consumer.start_with(std::time::Duration::from_secs(1), false);
+
     loop {
         if last_updated_time.unwrap().lt(&(Utc::now() - Duration::hours(2))) {
             let modified_vulns = download_and_parse_vulns("modified".to_string(), last_updated_time, &base_url);
@@ -113,25 +110,24 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        for ms in consumer.poll().unwrap().iter() {
-            for m in ms.messages() {
-                let reader = Reader::new(m.value)?;
+        if let Some(Ok(message)) = messages.next().await {
+            if let Some(body) = message.payload() {
+                let reader = Reader::new(body)?;
                 for value in reader {
                     let report = ToolReport::try_from(value?)?;
+                    let app_name = report.application_name.to_string();
                     let records = parse_tool_report(&report, &vulns)?;
                     for record in records.into_iter() {
-                        producer
-                            .send(&kafka::producer::Record::from_value(
-                                "DependencyEvents",
-                                record,
-                            ))
-                            .map_err(|err| err_msg(format!("Error publishing to Kafka: {}", err.to_string())))?;
+                        let kafka_payload = FutureRecord::to("DependencyEvents")
+                            .payload(&record)
+                            .key(&app_name);
+                        producer.send(kafka_payload, 5000).await?
+                            .map_err(|err| err_msg(format!("Error publishing to Kafka: {}", err.0.to_string())))?;
                     }
                 }
             }
-            consumer.consume_messageset(ms)?;
+            consumer.commit_message(&message, CommitMode::Async)?;
         }
-        consumer.commit_consumed()?;
     }
 }
 
