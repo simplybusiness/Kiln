@@ -6,12 +6,13 @@ edition = "2018"
 [dependencies]
 avro-rs = "0.6"
 failure = "0.1"
-kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "master", features = ["avro", "streaming"] }
-kafka = "0.8"
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "replace-kafka-crate", features = ["avro", "streaming"] }
 serde = "1"
 serde_json = "1"
 reqwest = { version = "0.10", features = ["blocking", "json"] }
 url = "2"
 log = "0.4"
 env_logger = "0.7"
-openssl-probe = "0.1"
+tokio = { version = "0.2", features = ["full"] }
+rdkafka = { version = "0.23", features = ["cmake-build", "ssl-vendored"] }
+futures-util = "0.3"
