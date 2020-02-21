@@ -1,83 +1,79 @@
-use actix_web::{web, App, Error, HttpResponse, HttpServer};
 use actix_web::middleware::Logger;
+use actix_web::{web, App, HttpResponse, HttpServer};
+use actix_web::Error as ActixError;
 use avro_rs::{Schema, Writer};
 use failure::err_msg;
-use futures::{Future, Stream};
-use kafka::producer::Producer;
+use rdkafka::producer::future_producer::{FutureProducer, FutureRecord};
+use std::boxed::Box;
 use std::convert::TryFrom;
 use std::env;
+use std::error::Error;
 use std::str;
-use std::sync::Mutex;
 
 use log::warn;
 
 use kiln_lib::avro_schema::TOOL_REPORT_SCHEMA;
+use kiln_lib::kafka::*;
 use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
-use kiln_lib::kafka::*;
 
-fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
-    let ssl_connector = build_ssl_connector().map_err(|err| {
-        failure::err_msg(format!(
-            "OpenSSL Error {}: {}",
-            err.errors()[0].code(),
-            err.errors()[0].reason().unwrap()
-        ))
-    })?;
-
-    let producer = build_kafka_producer(config, ssl_connector)
+    let producer = build_kafka_producer(config)
         .map_err(|err| err_msg(format!("Kafka Error: {}", err.description())))?;
-
-    let shared_producer = web::Data::new(Mutex::new(producer));
 
     HttpServer::new(move || {
         App::new()
-            .register_data(shared_producer.clone())
-            .service(web::resource("/").route(web::post().to_async(handler)))
+            .data(producer.clone())
+            .route("/", web::post().to(handler))
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
     })
     .bind("0.0.0.0:8080")?
     .run()
+    .await
     .map_err(|err| err.into())
 }
 
-fn handler(
-    payload: web::Payload,
-    producer: web::Data<Mutex<Producer>>,
-) -> impl Future<Item = HttpResponse, Error = Error> {
-    payload.from_err().concat2().and_then(move |body| {
-        let report_result = parse_payload(&body);
+async fn handler(
+    body: web::Bytes,
+    producer: web::Data<FutureProducer>
+) -> Result<HttpResponse, ActixError> {
+    let report_result = parse_payload(&body);
 
-        if let Err(err) = report_result {
-            if let Some(field_name) = &err.json_field_name {
-                warn!("Request did not pass validation. Error message: {}. JSON field name: {}. Request body: {}\n", err.error_message, field_name, str::from_utf8(&body).unwrap());
-            } else {
-                warn!("Request did not pass validation. Error message: {}. Request body: {}\n", err.error_message, str::from_utf8(&body).unwrap());
-            }
-            return Ok(err.into());
+    if let Err(err) = report_result {
+        if let Some(field_name) = &err.json_field_name {
+            warn!("Request did not pass validation. Error message: {}. JSON field name: {}. Request body: {}\n", err.error_message, field_name, str::from_utf8(&body).unwrap());
+        } else {
+            warn!("Request did not pass validation. Error message: {}. Request body: {}\n", err.error_message, str::from_utf8(&body).unwrap());
         }
+        return Ok(err.into());
+    }
 
-        let report = report_result.unwrap();
+    let report = report_result.unwrap();
+    let app_name = report.application_name.to_string();
 
-        let serialised_record = serialise_to_avro(report)?;
+    let serialised_record = serialise_to_avro(report)?;
 
-        producer
-            .lock()
-            .unwrap()
-            .send(&kafka::producer::Record::from_value(
-                "ToolReports",
-                serialised_record,
-            ))
-            .map_err(|err| err_msg(format!("Error publishing to Kafka: {}", err.to_string())))?;
+    let kafka_payload = FutureRecord::to("ToolReports")
+        .payload(&serialised_record)
+        .key(&app_name);
 
-        Ok(HttpResponse::Ok().finish())
-    })
+    let delivery_result = producer
+        .send(kafka_payload, 5000)
+        .await?;
+
+    match delivery_result {
+        Ok(_) => Ok(HttpResponse::Ok().finish()),
+        Err(err) => Err(err_msg(format!("Error publishing to Kafka: {}", err.0)).into())
+
+    }
+
 }
 
 pub fn parse_payload(body: &web::Bytes) -> Result<ToolReport, ValidationError> {
