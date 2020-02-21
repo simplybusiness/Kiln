@@ -5,18 +5,19 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4"
-actix-web = { version = "1.0", features = ["fail"] }
+actix-web = "2.0"
 bytes = "0.4"
-futures = "0.1"
+futures = "0.3"
 http = "0.1"
-kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "master", features = ["web", "avro", "streaming"] }
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "replace-kafka-crate", features = ["web", "avro", "streaming"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-kafka = "0.8"
 failure = "0.1"
 avro-rs = "0.6"
 env_logger = "0.7"
 log = "0.4"
+tokio = { version = "0.2", features = ["full"] }
+rdkafka = { version = "0.23", features = ["cmake-build", "ssl-vendored"] }
 
 [dev-dependencies]
 serial_test = "0.1"
