@@ -70,37 +70,48 @@ where
 
 pub fn build_kafka_producer(
     config: KafkaBootstrapTlsConfig,
+    ca_cert_location: &std::path::Path,
 ) -> Result<FutureProducer, KafkaError> {
     ClientConfig::new()
         .set("metadata.broker.list", &config.0.join(","))
         .set("compression.type", "gzip")
         .set("security.protocol", "SSL")
-        .set("ssl.ca.location", "/usr/share/ca-certificates/")
-        .set("ssl.protocol", "TLSv1.2")
-        .set("ssl.enabled.protocols", "TLSv1.2")
-        .set("ssl.cipher.suites", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
+        .set("ssl.ca.location", ca_cert_location.to_str().unwrap())
+        .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
         .create()
 }
 
 pub fn build_kafka_consumer(
     config: KafkaBootstrapTlsConfig,
     consumer_group_name: String,
+    ca_cert_location: &std::path::Path,
 ) -> Result<StreamConsumer, KafkaError> {
     ClientConfig::new()
         .set("metadata.broker.list", &config.0.join(","))
         .set("group.id", &consumer_group_name)
         .set("compression.type", "gzip")
         .set("security.protocol", "SSL")
-        .set("ssl.ca.location", "/usr/share/ca-certificates/")
-        .set("ssl.protocol", "TLSv1.2")
-        .set("ssl.enabled.protocols", "TLSv1.2")
-        .set("ssl.cipher.suites", "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
+        .set("ssl.ca.location", ca_cert_location.to_str().unwrap())
+        .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
         .create()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn creating_kafka_producer_does_not_return_a_client_config_error() {
+        let config = KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(),"host2:1234".to_string()]);
+        build_kafka_producer(config, &std::path::PathBuf::from_str("../tls/ca-cert").unwrap()).unwrap();
+    }
+
+    #[test]
+    fn creating_kafka_consumer_does_not_return_a_client_config_error() {
+        let config = KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(),"host2:1234".to_string()]);
+        build_kafka_consumer(config, "TestConsumerGroup".to_string(), &std::path::PathBuf::from_str("../tls/ca-cert").unwrap()).unwrap();
+    }
 
     #[test]
     fn get_bootstrap_config_returns_config_when_environment_vars_present_and_valid() {
