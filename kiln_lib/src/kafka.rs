@@ -99,18 +99,21 @@ pub fn build_kafka_consumer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::str::FromStr;
 
+    #[allow(unused_must_use)]
     #[test]
     fn creating_kafka_producer_does_not_return_a_client_config_error() {
         let config = KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(),"host2:1234".to_string()]);
-        build_kafka_producer(config, &std::path::PathBuf::from_str("../tls/ca-cert").unwrap()).unwrap();
+        let path = std::path::Path::new(&std::env::current_dir().unwrap()).join("ca-cert");
+        build_kafka_producer(config, &path).unwrap();
     }
 
+    #[allow(unused_must_use)]
     #[test]
     fn creating_kafka_consumer_does_not_return_a_client_config_error() {
         let config = KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(),"host2:1234".to_string()]);
-        build_kafka_consumer(config, "TestConsumerGroup".to_string(), &std::path::PathBuf::from_str("../tls/ca-cert").unwrap()).unwrap();
+        let path = std::path::Path::new(&std::env::current_dir().unwrap()).join("ca-cert");
+        build_kafka_consumer(config, "TestConsumerGroup".to_string(), &path).unwrap();
     }
 
     #[test]
