@@ -534,7 +534,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.1.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=replace-kafka-crate#a8d71bf176ff7c0bd8be85e154543b0fcdff3406"
+source = "git+https://github.com/simplybusiness/Kiln#a59ff5ec410fb73e25fe733b5f17c8f6a464c68e"
 dependencies = [
  "addr 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "avro-rs 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1242,7 +1242,7 @@ dependencies = [
  "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "kiln_lib 0.1.0 (git+https://github.com/simplybusiness/Kiln?branch=replace-kafka-crate)",
+ "kiln_lib 0.1.0 (git+https://github.com/simplybusiness/Kiln)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rdkafka 0.23.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1753,7 +1753,7 @@ dependencies = [
 "checksum itoa 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "b8b7a7c0c47db5545ed3fef7468ee7bb5b74691498139e4b3f6a20685dc6dd8e"
 "checksum js-sys 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)" = "7889c7c36282151f6bf465be4700359318aef36baa951462382eae49e9577cf9"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
-"checksum kiln_lib 0.1.0 (git+https://github.com/simplybusiness/Kiln?branch=replace-kafka-crate)" = "<none>"
+"checksum kiln_lib 0.1.0 (git+https://github.com/simplybusiness/Kiln)" = "<none>"
 "checksum lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 "checksum libc 0.2.67 (registry+https://github.com/rust-lang/crates.io-index)" = "eb147597cdf94ed43ab7a9038716637d2d1bf2bc571da995d0028dec06bd3018"
 "checksum libflate 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)" = "d9135df43b1f5d0e333385cb6e7897ecd1a43d7d11b91ac003f4d2c2d2401fdd"
