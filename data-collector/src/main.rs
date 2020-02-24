@@ -108,6 +108,8 @@ pub struct Config {
 mod tests {
     use super::*;
 
+    use std::iter::FromIterator;
+
     use actix_web::web::Bytes;
 
     use chrono::{DateTime, Utc};
@@ -127,9 +129,8 @@ mod tests {
     #[test]
     fn parse_payload_returns_error_when_body_empty() {
         let p = "".to_owned();
-        let payload = p.as_bytes();
-        let mut body = Bytes::new();
-        body.extend_from_slice(payload);
+        let payload = p.as_bytes().into_iter().cloned().collect::<Vec<u8>>();
+        let body: Bytes = Bytes::from_iter(payload);
         let expected = ValidationError::body_empty();
         let actual = parse_payload(&body).expect_err("expected Err(_) value");
 
@@ -139,9 +140,8 @@ mod tests {
     #[test]
     fn parse_payload_returns_error_when_body_contains_bytes() {
         let p = "\u{0000}".to_string();
-        let payload = p.as_bytes();
-        let mut body = Bytes::new();
-        body.extend_from_slice(payload);
+        let payload = p.as_bytes().into_iter().cloned().collect::<Vec<u8>>();
+        let body: Bytes = Bytes::from_iter(payload);
         let expected = ValidationError::body_media_type_incorrect();
 
         let actual = parse_payload(&body).expect_err("expected Ok(_) value");
@@ -152,9 +152,8 @@ mod tests {
     #[test]
     fn parse_payload_returns_error_when_body_is_not_json() {
         let p = "<report><title>Not a valid report</title></report>".to_owned();
-        let payload = p.as_bytes();
-        let mut body = Bytes::new();
-        body.extend_from_slice(payload);
+        let payload = p.as_bytes().into_iter().cloned().collect::<Vec<u8>>();
+        let body: Bytes = Bytes::from_iter(payload);
         let expected = ValidationError::body_media_type_incorrect();
         let response = parse_payload(&body).expect_err("expected Err(_) value");
 
@@ -178,9 +177,8 @@ mod tests {
                     "tool_version": "1.0"
                 }"#
         .to_owned();
-        let payload = p.as_bytes();
-        let mut body = Bytes::new();
-        body.extend_from_slice(payload);
+        let payload = p.as_bytes().into_iter().cloned().collect::<Vec<u8>>();
+        let body: Bytes = Bytes::from_iter(payload);
 
         let expected = ToolReport {
             event_version: EventVersion::try_from("1".to_owned()).unwrap(),
