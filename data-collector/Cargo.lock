@@ -897,7 +897,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.1.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=replace-kafka-crate#8fa80506b8a2c6b7ceba909d9a9a2d40a1a6df88"
+source = "git+https://github.com/simplybusiness/Kiln?branch=replace-kafka-crate#a8d71bf176ff7c0bd8be85e154543b0fcdff3406"
 dependencies = [
  "actix-web 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "addr 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
