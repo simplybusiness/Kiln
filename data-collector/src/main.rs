@@ -17,7 +17,7 @@ use kiln_lib::kafka::*;
 use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
 
-#[tokio::main]
+#[actix_rt::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
