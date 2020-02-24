@@ -25,6 +25,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::error::Error;
 use std::io::Read;
+use std::path::PathBuf;
 use std::str::FromStr;
 use url::Url;
 use uuid::Uuid;
@@ -35,9 +36,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
+    let tls_cert_path = PathBuf::from_str("/etc/ssl/certs/ca-certificates.crt").unwrap();
+
     let consumer = build_kafka_consumer(
         config.clone(),
         "report-parser".to_string(),
+        &tls_cert_path
     )
         .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.description())))?;
 
@@ -45,6 +49,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let producer = build_kafka_producer(
         config.clone(),
+        &tls_cert_path
     )
         .map_err(|err| err_msg(format!("Kafka Producer Error: {}", err.description())))?;
 
