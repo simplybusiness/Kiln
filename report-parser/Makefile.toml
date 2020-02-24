@@ -17,6 +17,7 @@ dependencies = [
 
 [tasks.musl-build]
 script = [
+	"mkdir target &> /dev/null || true",
 	"docker run --rm -v $PWD:/home/rust/src -v cargo-git:/home/rust/.cargo/git -v cargo-registry:/home/rust/.cargo/registry ekidd/rust-musl-builder:stable-openssl11 sudo chown -R rust:rust /home/rust/.cargo/git /home/rust/.cargo/registry /home/rust/src/target",
 	"docker run --rm -v $PWD:/home/rust/src -v cargo-git:/home/rust/.cargo/git -v cargo-registry:/home/rust/.cargo/registry ekidd/rust-musl-builder:stable-openssl11 cargo build --release"
 ]
