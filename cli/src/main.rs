@@ -18,13 +18,13 @@ use std::collections::HashMap;
 use reqwest::blocking::Client;
 use reqwest::Method;
 use std::collections::HashSet;
-
+use regex::Regex;
 
 #[derive(Debug)]
 #[derive(Deserialize)]
 enum ScanEnv { 
     Local, 
-        CI,
+    CI,
 } 
 
 impl fmt::Display for ScanEnv {
@@ -33,12 +33,12 @@ impl fmt::Display for ScanEnv {
     }
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct CliConfigOptions{ 
     data_collector_url: Option<String>, 
     app_name: Option<String>, 
     scan_env: Option<ScanEnv>,
+    tool_image_name: Option<String>,
 } 
 
 #[derive(Debug)]
@@ -88,6 +88,10 @@ fn main() {
         .arg(Arg::with_name("use-local-image")
             .long("use-local-image")
             .help("Do not try and pull the latest version of a tool image. Useful for development and scanning without network access"))
+        .arg(Arg::with_name("tool-image-name")
+            .long("tool-image-name")
+            .takes_value(true)
+            .help("Override the default docker image and tag for a tool."))
         .subcommand(SubCommand::with_name("ruby")
             .about("perform security testing of Ruby based projects")
             .setting(AppSettings::SubcommandRequired)
@@ -97,9 +101,6 @@ fn main() {
         ).get_matches();
 
     let use_local_image = matches.is_present("use-local-image");
-    let test_tool_image_name = "kiln/bundler-audit"; 
-    let tool_image_tag = "master-latest";
-    let test_tool_name = String::from("bundler-audit-kiln-container"); 
 
     let mut env_vec = Vec::new(); 
     let mut env_app_name = "APP_NAME=".to_string();
@@ -133,8 +134,25 @@ fn main() {
         ("ruby", Some(sub_m)) => {
             match sub_m.subcommand_name() {
                 Some("dependencies") => {
+                    let tool_image = matches.value_of("tool-image-name").unwrap_or_else(|| "kiln/bundler-audit:master-latest");
+                    let image_name_regex = Regex::new(r#"(?:(?P<r>[a-zA-Z0-9_-]+)/)?(?P<i>[a-zA-Z0-9_-]+)(?::(?P<t>[a-zA-Z0-9_-]+))?"#).unwrap();
+                    let image_name_matches = image_name_regex.captures(tool_image).expect("Error parsing tool image name, ensure name is in format REPO/IMAGE:TAG");
+                    let tool_image_repo = image_name_matches
+                        .name("r")
+                        .and_then(|capture| Some(capture.as_str()))
+                        .unwrap_or_else(|| "kiln");
+                    let tool_image_name = image_name_matches
+                        .name("i")
+                        .and_then(|capture| Some(capture.as_str()))
+                        .unwrap_or_else(|| "bundler-audit");
+                    let tool_image_tag = image_name_matches
+                        .name("t")
+                        .and_then(|capture| Some(capture.as_str()))
+                        .unwrap_or_else(|| "master-latest");
 
-                    let prep_fut = prepare_tool_image(test_tool_image_name.to_owned(), tool_image_tag.to_owned(),use_local_image);
+                    let test_tool_name = String::from("bundler-audit-kiln-container"); 
+
+                    let prep_fut = prepare_tool_image(tool_image_repo.to_owned(), tool_image_name.to_owned(), tool_image_tag.to_owned(), use_local_image);
                     tokio::run(prep_fut);
 
                     let path = std::env::current_dir().unwrap().to_str().unwrap().to_string() + ":" + "/code";
@@ -142,7 +160,7 @@ fn main() {
                     path_vec.push(path.as_ref());
 
                     let docker = Docker::new();
-                    let tool_image_name_full =format!("{}:{}",test_tool_image_name, tool_image_tag); 
+                    let tool_image_name_full =format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag); 
                     let tool_container_future = docker
                         .containers()
                         .create(
@@ -241,17 +259,17 @@ static DOCKER_AUTH_URL: &'static str=
 static DOCKER_REGISTRY_URL: &'static str=
 "https://registry.hub.docker.com"; 
 
-pub fn get_fs_layers_for_docker_image(repo_name: String, tag: String) -> Result<HashSet<String>, reqwest::Error>{
+pub fn get_fs_layers_for_docker_image(repo_name: String, image_name: String, tag: String) -> Result<HashSet<String>, reqwest::Error>{
     let client = Client::new();
 
-    let docker_auth_url = format!("{}:{}:pull",DOCKER_AUTH_URL, repo_name);
+    let docker_auth_url = format!("{}:{}/{}:pull", DOCKER_AUTH_URL, repo_name, image_name);
     let req = client.request(Method::GET, &docker_auth_url)
         .build()?;
     let resp = client.execute(req)?;
     let resp_body: Value = resp.json()?;
     let token = resp_body["token"].as_str().unwrap();  
 
-    let docker_manifest_url = format!("{}/v2/{}/manifests/{}",DOCKER_REGISTRY_URL,repo_name, tag);
+    let docker_manifest_url = format!("{}/v2/{}/{}/manifests/{}", DOCKER_REGISTRY_URL, repo_name, image_name, tag);
     let manifest_req = client.request(Method::GET, &docker_manifest_url)
         .bearer_auth(token)
         .build()?;
@@ -388,9 +406,9 @@ impl ProgressBarDisplay {
     } 
 } 
 
-fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> {
+fn prepare_tool_image(tool_image_repo: String, tool_image_name: String, tool_image_tag: String, use_local_image: bool) -> Box<dyn Future<Item=(), Error=()> + Send + 'static> {
     let docker = Docker::new();
-    let tool_image_name_full = format!("{}:{}", tool_image_name, tool_image_tag); 
+    let tool_image_name_full = format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag); 
     if use_local_image {
         return Box::new(
             docker.images()
@@ -414,7 +432,7 @@ fn prepare_tool_image(tool_image_name: String, tool_image_tag: String, use_local
             .image(&tool_image_name_full)
             .build();
 
-        let layers = get_fs_layers_for_docker_image(tool_image_name, tool_image_tag);
+        let layers = get_fs_layers_for_docker_image(tool_image_repo, tool_image_name, tool_image_tag);
         let mut prog_bar_disp: Option<ProgressBarDisplay> =  match layers { 
             Ok(fslayers) => {  
                 let mut p = ProgressBarDisplay::new(); 
