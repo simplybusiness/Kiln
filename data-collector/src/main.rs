@@ -11,6 +11,7 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::str;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use log::warn;
 
@@ -32,9 +33,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let producer = build_kafka_producer(config, &tls_cert_path)
         .map_err(|err| err_msg(format!("Kafka Error: {}", err.description())))?;
 
+    let shared_producer = Arc::from(producer);
+
     HttpServer::new(move || {
         App::new()
-            .data(producer.clone())
+            .data(shared_producer.clone())
             .route("/", web::post().to(handler))
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
@@ -47,7 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 async fn handler(
     body: web::Bytes,
-    producer: web::Data<FutureProducer>
+    producer: web::Data<Arc<FutureProducer>>
 ) -> Result<HttpResponse, ActixError> {
     let report_result = parse_payload(&body);
 
