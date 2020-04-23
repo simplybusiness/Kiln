@@ -23,10 +23,19 @@ This document aims to get you up and running with a Kiln stack fairly quickly an
 
 ### IAM user
 
-We need to create an IAM user that we can use to run the Kops tool to provision our Kubernetes cluster. If you have an existing AWS environment, you could also achieve this by attaching the appropriate managed policies (documented below) to an existing User, Group of Users or Role and use that instead of creating a new IAM user.
+Before we can begin provisioning infrastructure in AWS, we need to create an IAM user with the permissions needed for the rest of this document. If you have an existing User, Group and Role that you want to use instead of creating a new user, ensure it has the following managed policies attached to it:
 
-We're going to create a group named `kops`, attach permissions for managing EC2, Route53, S3, IAM and VPCs to the group, create a new user named `kops` and add them to the group we just created and create a set of API keys for this user.
+* AmazonEC2FullAccess
+* AmazonRoute53FullAccess
+* AmazonS3FullAccess
+* IAMFullAccess
+* AmazonVPCFullAccess
 
+We're going to create a group named `kops`, attach the required permissions to the group, then create a new user using the convention `firstname.lastname` and add them to the group we just created and finally create a set of API keys for this user.
+
+#### Creating the `kops` group
+
+Create the group and attach the required IAM managed policies using the following commands: 
 ``` shell
 aws iam create-group --group-name kops
 
@@ -35,52 +44,67 @@ aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53Fu
 aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops
 aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/IAMFullAccess --group-name kops
 aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonVPCFullAccess --group-name kops
-
-aws iam create-user --user-name kops
-
-aws iam add-user-to-group --user-name kops --group-name kops
-
-aws iam create-access-key --user-name kops
 ```
 
-Make a note of the output from the final command that creates the API access keys for the `kops` user, particularly `SecretAccessKey` and `AccessKeyId` and be sure to store these securely, exposing them would grant an attacker access to your AWS account.
+Use the following command to verify that the IAM policies have been successfully added to the group: `aws iam list-attached-group-policies --group-name kops`.
 
-Next, we'll setup the `kops` user in the AWS CLI credentials and configuration files, so that it can easily be used in subsequent steps.
+#### Creating your IAM user
+
+Create your IAM user and a set of API access keys, then add it to the `kops` group using the following commands:
+
+```
+aws iam create-user --user-name firstname.lastname
+aws iam create-access-key --user-name firstname.lastname
+aws iam add-user-to-group --user-name firstname.lastname --group-name kops
+```
+
+Make a note of the `SecretAccessKey` and `AccessKeyId` that were created for your IAM user and be sure to store these securely, exposing them would grant an attacker access to your AWS account.
+
+#### Configuring the AWS CLI to use your IAM user's credentials
 
 In `~/.aws/config`, add the following block of text, replacing the region ID with the region you wish to build your cluster in:
 ```
-[profile kops]
+[profile firstname.lastname]
 region = eu-west-2
+output = json
 ```
 
 In `~/.aws/credentials`, add the following block of text, replacing the Access Key ID and Secret Access Key with the values you noted earlier.
 ```
-[kops]
+[firstname.lastname]
 aws_access_key_id     = AKIAIOSFODNN7EXAMPLE
 aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY
 ```
 
-Now, the `kops` user can be used for our subsequent steps by exporting the following environment variable: `export AWS_PROFILE=kops`.
+Finally, export the following environment variable to use these credentials in subsequent AWS CLI commands: `export AWS_PROFILE=firstname.lastname`.
 
 ### Configuring DNS
 
-Now we have an IAM user created with the necessary permissions to use `kops`, we need to setup the DNS domain that will be used for our Kubernetes cluster, which we assume is already hosted in Route53. In order to keep cluster resources relatively self-contained, we will create a subdomain to contain all of our cluster DNS records, taking the form `something.clustername.subdomain.mydomain.tld`). To do this, you will need to create a new hosted zone in Route53 and setup an NS record for this subdomain in the parent domain.
+Now we have an IAM user created with the necessary permissions to use `kops`, we need to setup the DNS domain that will be used for our Kubernetes cluster, which we assume is already hosted in Route53.
 
-Note: these instructions assume you have [jq](https://stedolan.github.io/jq/) installed.
+In order to keep cluster resources relatively self-contained, we will create a subdomain to contain all of our cluster DNS records, taking the form `your-clustername.your-subdomain.your-domain.tld`).
 
-* Create the subdomain hosted zone in Route53, make a note of the output of this command. It is the Nameservers for the subdomain, which you will need later.
+#### Creating the subdomain
 
-``` shell
-ID=$(uuidgen) && aws route53 create-hosted-zone --name subdomain.example.com --caller-reference $ID | jq .DelegationSet.NameServers
-```
-
-* Find your parent hosted zone ID
+First we need to create the subdomain hosted zone in Route53 and get the nameserver records for it. These instructions assume you have [jq](https://stedolan.github.io/jq/) installed and will be using the convention of `your-subdomain.your-domain.tld`.
 
 ``` shell
-aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="mydomain.tld.") | .Id'
+ID=$(uuidgen) && aws route53 create-hosted-zone --name your-subdomain.your-domain.tld --caller-reference $ID | jq .DelegationSet.NameServers
 ```
 
-* Create a configuration file with your **subdomain** nameservers, replacing the domains in the "ResourceRecords" list with the values you made a note of earlier
+You should be shown output similar to the following (don't worry if your nameservers are different to these):
+``` json
+[
+  "ns-98.awsdns-11.com",
+  "ns-897.awsdns-30.net",
+  "ns-1815.awsdns-19.co.uk",
+  "ns-1363.awsdns-87.org"
+]
+```
+
+#### Configuring the subdomain in the parent domain hosted zone
+
+Now we need to create a configuration file containing the nameservers you just retrieved in the previous commands for `your-subdomain.your-domain.tld`. Use the following JSON as a template, replacing the nameservers listed in the `ResourceRecords` list with the nameservers from the previous command, as well as replacing the domain name in `ResourceRecordSet` with the full subdomain you created previously.
 
 ``` json
 {
@@ -89,7 +113,7 @@ aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="mydomain.tld
     {
       "Action": "CREATE",
       "ResourceRecordSet": {
-        "Name": "subdomain.mydomain.tld",
+        "Name": "your-subdomain.your-domain.tld",
         "Type": "NS",
         "TTL": 300,
         "ResourceRecords": [
@@ -112,16 +136,30 @@ aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="mydomain.tld
 }
 ```
 
-* Create an NS record in the parent hosted zone, delegating name resolution for the subdomain to the correct name servers
-
+Next we need to find the ID of the parent domain's hosted zone:
 ``` shell
-aws route53 change-resource-record-sets --hosted-zone-id <parent-zone-id> --change-batch file://<path to subdomain config file from previous step>.json
+aws route53 list-hosted-zones | jq '.HostedZones[] | select(.Name=="your-domain.tld.") | .Id'
 ```
 
-* Ensure your NS records have been configured correctly by running the following command, but bear in mind that DNS record propogation means this could take some time to return the correct answer. If the correct nameservers are not returned, do not proceed. Correct DNS configuration is critical to the following steps.
+Now we will create an NS record in the parent hosted zone in order to delegate name resolution for the subdomain to the correct name servers
 
 ``` shell
-dig ns mysubdomain.mydomain.tld
+aws route53 change-resource-record-sets --hosted-zone-id <parent-domain-hosted-zone-id> --change-batch file://<path to subdomain config file from previous step>.json
+```
+
+#### Validating DNS configuration
+
+Correct DNS configuration is critical for subsequent steps to work, *do not* proceed until your configuration is correct and has propagated. You can varify this by periodically running `dig ns your-subdomain.your-domain.tld` until you see the nameservers you configured earlier. An example output from `dig` for a successful DNS configuration is included below:
+
+```
+;; QUESTION SECTION:
+;your-subdomain.your-domain.tld. IN	NS
+ 
+;; ANSWER SECTION:
+your-subdomain.your-domain.tld. 172800 IN NS ns-1.awsdns-1.co.uk.
+your-subdomain.your-domain.tld. 172800 IN NS ns-2.awsdns-2.org
+your-subdomain.your-domain.tld. 172800 IN NS ns-3.awsdns-3.com
+your-subdomain.your-domain.tld.172800 IN NS ns-4.awsdns-4.net
 ```
 
 ## Kops Cluster state storage
