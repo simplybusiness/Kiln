@@ -280,7 +280,7 @@ kubectl --namespace default exec -it $POD_NAME -- kafka-topics.sh --list --zooke
 
 ## Deploying Kiln
 ### Mandatory components
-The mandatory for components for a Kiln deployment are the Data-collector and Report-parser. Before you can deploy these components, you will need to request a TLS certificate for the Data-collector. AWS ACM provides free, auto-renewing TLS certificates that are publically trusted, so for this quickstart, follow the documentation that AWS provide, which can be found at: [https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html). Be sure to create the ACM certificate in the same region that the cluster is deployed to (in this instance, eu-west-2). When prompted for a domain, use "kiln-data-collector.my-subdomain.mydomain.tld", replacing the subdomain and domain with the appropriate values for your deployment.
+The mandatory for components for a Kiln deployment are the Data-collector and Report-parser. Before you can deploy these components, you will need to request a TLS certificate for the Data-collector. AWS ACM provides free, auto-renewing TLS certificates that are publically trusted, so for this quickstart, follow the documentation that AWS provide, which can be found at: [https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html). Be sure to create the ACM certificate in the same region that the cluster is deployed to (in this instance, eu-west-2). When prompted for a domain, use "kiln-data-collector.your-subdomain.your-domain.tld", replacing the subdomain and domain with the appropriate values for your deployment.
 
 Once your ACM certificate has been issued, take a note of it's ARN and then replace the example ARN in data-collector.yaml with the ARN for your new certificate. The key for this value is `Metadata->Annotations->service.beta.kubernetes.io/aws-load-balancer-ssl-cert` in the YAML block for the Service. In the same set of annotations, you will also need to fill in the correct value for the external DNS record you want to be created for the Data-collector.
 
@@ -332,7 +332,7 @@ Possible causes:
 
   To check this, run `kubectl logs -l app=external-dns`. If you see something similar to the following in the logs, there is an issue with the IAM policy that ExternalDNS is trying to use to edit records in Route53:
   ```
-  time="2020-02-04T15:18:02Z" level=error msg="AccessDenied: User: arn:aws:sts::0123456789012:assumed-role/nodes.my-cluster-name.my-subdomain.mydomain.tld/i-0123456789abcdef01 is not authorized to perform: route53:ChangeResourceRecordSets on resource: arn:aws:route53:::hostedzone/MYHOSTEDZONEID
+  time="2020-02-04T15:18:02Z" level=error msg="AccessDenied: User: arn:aws:sts::0123456789012:assumed-role/nodes.your-cluster-name.your-subdomain.your-domain.tld/i-0123456789abcdef01 is not authorized to perform: route53:ChangeResourceRecordSets on resource: arn:aws:route53:::hostedzone/MYHOSTEDZONEID
   status code: 403, request id: a573650a-43d4-4731-8f15-2c6830b5d9be"
   ```
   If you see this, the likely cause is the Zone ID in the IAM policy we added while creating the cluster is incorrect. Run `kops edit cluster ${NAME}` to open an editor with the cluster definition. Find the additional policies key, then under "nodes" find the JSON object where the `Action` is `route53:ChangeResourceRecordSets` and ensure the `Resource` key contains the Hosted Zone ID for the subdomain we created earlier. Save the contents of the editor and quit. Then run `kops update cluster ${NAME}` and ensure the change is limited to just the IAM policy we just updated. Once you're happy that the correct change will be applied, run `kops update cluster ${NAME} --yes` followed by `kops rolling-update cluster ${NAME}` to finish applying the changes.
@@ -377,7 +377,7 @@ kops delete cluster --name ${NAME} --yes
 There are a few artifacts that will be left over after deleting the cluster itself: Route53 entries & Hosted Zone, an ACM certificate and the S3 state bucket. These will need to be cleaned up manually.
 
 ### Route53
-First we need to identify the Hosted Zone ID of the subdomain we created earlier: `aws route53 list-hosted-zones | jq '."HostedZones"[] | select(."Name" == "mysubdomain.mydomain.tld.") |.Id'`.
+First we need to identify the Hosted Zone ID of the subdomain we created earlier: `aws route53 list-hosted-zones | jq '."HostedZones"[] | select(."Name" == "your-subdomain.your-domain.tld.") |.Id'`.
 
 Next we need to delete all records from the hosted zone, except for the NS and SOA records. The command below will fetch all of the resource records in the hosted zone, filter out NS and SOA records, then delete each record.
 ``` shell
@@ -400,7 +400,7 @@ Once we've deleted the contents of the hosted zone, we can delete the hosted zon
 
 Lastly, we need to cleanup the NS records we created in the parent hosted zone. Substitute in the parent hosted zone id and the subdomain we created earlier in the below command to clean up the last trace of your testing cluster in Route53.
 ``` shell
-aws route53 list-resource-record-sets --hosted-zone-id "/hostedzone/MYPARENTHOSTEDZONEID" | jq -c '.ResourceRecordSets[] | select(."Name" == "subdomain.mydomain.tld")' |
+aws route53 list-resource-record-sets --hosted-zone-id "/hostedzone/MYPARENTHOSTEDZONEID" | jq -c '.ResourceRecordSets[] | select(."Name" == "your-subdomain.your-domain.tld")' |
 while read -r resourcerecordset; do
     aws route53 change-resource-record-sets \
       --hosted-zone-id "/hostedzone/MYPARENTHOSTEDZONEID" \
@@ -440,9 +440,9 @@ aws s3api delete-bucket --bucket my-cluster-state-bucket
 The last artifact that needs to be cleaned up is the `kops` IAM group and user. To do this, you will first need to switch your AWS profile to the profile that gives you IAM permissions in the AWS account you have been using, because the `kops` user will not be able to delete itself. You'll need the Access Key ID you added to `~/.aws/credentials` earlier.
 
 ``` shell
-aws iam delete-access-key --user-name kops --access-key-id AKIAIOSFODNN7EXAMPLE
-aws iam remove-user-from-group --username kops --group-name kops
-aws iam delete-user --user-name kops
+aws iam delete-access-key --user-name firstname.lastname --access-key-id AKIAIOSFODNN7EXAMPLE
+aws iam remove-user-from-group --username firstname.lastname --group-name kops
+aws iam delete-user --user-name firstname.lastname
 aws iam detach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess --group-name kops
 aws iam detach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53FullAccess --group-name kops
 aws iam detach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops
