@@ -1,6 +1,9 @@
 CI:
 - .github/workflows/**
 
+cli:
+- cli/**
+
 data-collector:
 - data-collector/**
 
