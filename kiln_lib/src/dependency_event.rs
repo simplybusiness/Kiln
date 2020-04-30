@@ -581,6 +581,38 @@ pub mod tests {
     }
 
     #[test]
+    fn hash_of_dependency_event_is_correct() {
+        let event = DependencyEvent {
+            event_version: EventVersion::try_from("1".to_string()).unwrap(),
+            event_id: EventID::try_from("383bc5f5-d099-40a4-a1a9-8c8a97559479".to_string()).unwrap(),
+            parent_event_id: EventID::try_from("383bc5f5-d099-40a4-a1a9-8c8a97559479".to_string()).unwrap(),
+            application_name: ApplicationName::try_from("Test application".to_string()).unwrap(),
+            git_branch: GitBranch::try_from(Some("master".to_string())).unwrap(),
+            git_commit_hash: GitCommitHash::try_from("e99f715d0fe787cd43de967b8a79b56960fed3e5".to_string()).unwrap(),
+            timestamp: Timestamp::try_from("2019-09-13T19:37:14+00:00".to_string()).unwrap(),
+            affected_package: AffectedPackage::try_from("BadPkg".to_string()).unwrap(),
+            installed_version: InstalledVersion::try_from("1.0".to_string()).unwrap(),
+            advisory_id: AdvisoryId::try_from("CVE-2017-5638".to_string()).unwrap(),
+            advisory_url: AdvisoryUrl::try_from("https://nvd.nist.gov/vuln/detail/CVE-2017-5638".to_string()).unwrap(),
+            advisory_description: AdvisoryDescription::try_from("The Jakarta Multipart parser in Apache Struts 2 2.3.x before 2.3.32 and 2.5.x before 2.5.10.1 has incorrect exception handling and error-message generation during file-upload attempts, which allows remote attackers to execute arbitrary commands via a crafted Content-Type, Content-Disposition, or Content-Length HTTP header, as exploited in the wild in March 2017 with a Content-Type header containing a #cmd= string.".to_string()).unwrap(),
+            cvss: Cvss::builder()
+                .with_version(CvssVersion::V3)
+                .with_score(Some(10.0f32))
+                .build()
+                .unwrap()
+        };
+
+        let mut hash_ctx = digest::Context::new(&digest::SHA256);
+        hash_ctx.update(digest::digest(&digest::SHA256, b"Test application").as_ref());
+        hash_ctx.update(digest::digest(&digest::SHA256, b"BadPkg").as_ref());
+        hash_ctx.update(digest::digest(&digest::SHA256, b"1.0").as_ref());
+        hash_ctx.update(digest::digest(&digest::SHA256, b"CVE-2017-5638").as_ref());
+        let expected_hash = hash_ctx.finish();
+        let actual_hash = event.hash();
+        assert_eq!(expected_hash.as_ref(), actual_hash.as_slice());
+    }
+
+    #[test]
     fn dependency_event_can_round_trip_to_avro_and_back() {
         let event = DependencyEvent {
             event_version: EventVersion::try_from("1".to_string()).unwrap(),
