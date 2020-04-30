@@ -8,3 +8,5 @@ pub mod kafka;
 
 pub mod tool_report;
 pub mod validation;
+
+pub mod traits;
