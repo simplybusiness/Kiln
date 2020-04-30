@@ -8,12 +8,14 @@ use failure::err_msg;
 #[cfg(feature = "json")]
 use serde_json::value::Value;
 
+use crate::traits::Hashable;
 use crate::validation::ValidationError;
 
 use std::convert::TryFrom;
 
 use chrono::{DateTime, Utc};
 use regex::Regex;
+use ring::digest;
 use serde::Serialize;
 
 #[allow(dead_code)]
@@ -82,6 +84,12 @@ impl std::fmt::Display for EventID {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ApplicationName(String);
+
+impl Hashable for ApplicationName {
+    fn hash(&self) -> Vec<u8> {
+        digest::digest(&digest::SHA256, &self.0.as_bytes()).as_ref().to_vec()
+    }
+}
 
 impl TryFrom<String> for ApplicationName {
     type Error = ValidationError;
