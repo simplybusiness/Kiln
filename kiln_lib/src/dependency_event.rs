@@ -4,6 +4,7 @@ use crate::avro_schema::DEPENDENCY_EVENT_SCHEMA;
 use failure::err_msg;
 
 use crate::tool_report::{ApplicationName, EventID, EventVersion, GitBranch, GitCommitHash};
+use crate::traits::Hashable;
 use crate::validation::ValidationError;
 
 #[cfg(feature = "avro")]
@@ -14,6 +15,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use chrono::{DateTime, Utc};
+use ring::digest;
 use serde::{Serialize, Serializer};
 use url::Url;
 
@@ -156,6 +158,17 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
     }
 }
 
+impl Hashable for DependencyEvent {
+    fn hash(&self) -> Vec<u8> {
+       let mut hash_ctx = digest::Context::new(&digest::SHA256); 
+       hash_ctx.update(&self.application_name.hash());
+       hash_ctx.update(&self.affected_package.hash());
+       hash_ctx.update(&self.installed_version.hash());
+       hash_ctx.update(&self.advisory_id.hash());
+       hash_ctx.finish().as_ref().to_vec()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Timestamp(DateTime<Utc>);
 
@@ -196,6 +209,12 @@ impl TryFrom<avro_rs::types::Value> for Timestamp {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct AffectedPackage(String);
 
+impl Hashable for AffectedPackage {
+    fn hash(&self) -> Vec<u8> {
+        digest::digest(&digest::SHA256, &self.0.as_bytes()).as_ref().to_vec()
+    }
+}
+
 impl TryFrom<String> for AffectedPackage {
     type Error = ValidationError;
 
@@ -230,6 +249,12 @@ impl std::fmt::Display for AffectedPackage {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct InstalledVersion(String);
 
+impl Hashable for InstalledVersion {
+    fn hash(&self) -> Vec<u8> {
+        digest::digest(&digest::SHA256, &self.0.as_bytes()).as_ref().to_vec()
+    }
+}
+
 impl TryFrom<String> for InstalledVersion {
     type Error = ValidationError;
 
@@ -263,6 +288,12 @@ impl std::fmt::Display for InstalledVersion {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct AdvisoryId(String);
+
+impl Hashable for AdvisoryId {
+    fn hash(&self) -> Vec<u8> {
+        digest::digest(&digest::SHA256, &self.0.as_bytes()).as_ref().to_vec()
+    }
+}
 
 impl TryFrom<String> for AdvisoryId {
     type Error = ValidationError;
