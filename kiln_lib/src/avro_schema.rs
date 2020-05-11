@@ -14,7 +14,14 @@ pub const TOOL_REPORT_SCHEMA: &str = r#"
             {"name": "start_time", "type": "string"},
             {"name": "end_time", "type": "string"},
             {"name": "environment", "type": {"type": "enum", "name": "Environment", "symbols": ["Local", "CI"]}},
-            {"name": "tool_version", "type": ["null", "string"]}
+            {"name": "tool_version", "type": ["null", "string"]},
+            {"name": "suppressed_issues", "type": "array", "items": {
+                "name": "Suppressed_Issues", "type": "record", "fields": [
+                    {"name": "issue_hash", "type": "string"},
+                    {"name": "expiry_date", "type": "timestamp-millis"},
+                    {"name": "suppression_reason", "type": ["null", "string"]}
+                ]}
+            }
         ]
     }
 "#;
