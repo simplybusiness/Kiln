@@ -14,6 +14,7 @@ use crate::validation::ValidationError;
 use std::convert::TryFrom;
 
 use chrono::{DateTime, Utc};
+use hex;
 use regex::Regex;
 use ring::digest;
 use serde::Serialize;
@@ -33,6 +34,7 @@ pub struct ToolReport {
     pub end_time: EndTime,
     pub environment: Environment,
     pub tool_version: ToolVersion,
+    pub suppressed_issues: Vec<SuppressedIssue>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -360,6 +362,13 @@ impl TryFrom<&Value> for ToolReport {
         let end_time = ToolReport::parse_tool_end_time(json_value)?;
         let environment = ToolReport::parse_environment(json_value)?;
         let tool_version = ToolReport::parse_tool_version(json_value)?;
+
+        let suppressed_issues = match json_value["suppressed_issues"].as_array() {
+            None => Err(ValidationError::suppressed_issues_not_an_array()),
+            Some(unparsed_issues) => Ok(unparsed_issues.into_iter().map(|unparsed_issue| SuppressedIssue::try_from(unparsed_issue)).collect::<Vec<Result<SuppressedIssue, Self::Error>>>())
+        }?
+            .into_iter().collect::<Result<Vec<SuppressedIssue>, _>>()?;
+
         Ok(ToolReport {
             event_version,
             event_id,
@@ -373,6 +382,7 @@ impl TryFrom<&Value> for ToolReport {
             end_time,
             environment,
             tool_version,
+            suppressed_issues,
         })
     }
 }
@@ -438,6 +448,15 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
             let tool_version =
                 ToolVersion::try_from(fields.find(|&x| x.0 == "tool_version").unwrap().1.clone())
                     .map_err(|err| err_msg(err.error_message))?;
+            let suppressed_issues_avro =
+                fields.find(|&x| x.0 == "suppressed_issues").unwrap().1.clone();
+
+            let suppressed_issues = match suppressed_issues_avro {
+                avro_rs::types::Value::Array(issues) => {
+                    Ok(issues.into_iter().map(|unparsed_issue| SuppressedIssue::try_from(unparsed_issue).map_err(|err| err_msg(err.error_message))).collect::<Result<Vec<SuppressedIssue>, _>>())
+                },
+                _ => Err(ValidationError::suppressed_issues_not_an_array()),
+            }??;
 
             Ok(ToolReport {
                 event_version,
@@ -452,6 +471,7 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
                 end_time,
                 environment,
                 tool_version,
+                suppressed_issues,
             })
         } else {
             Err(err_msg("Something went wrong decoding Avro record"))
@@ -753,6 +773,189 @@ impl ToolReport {
             _ => Err(ValidationError::tool_version_not_a_string()),
         }?;
         ToolVersion::try_from(value)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct SuppressedIssue {
+    pub issue_hash: IssueHash,
+    pub expiry_date: ExpiryDate,
+    pub suppression_reason: SuppressionReason,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct IssueHash(
+    #[serde(with = "hex")]
+    Vec<u8>
+);
+
+impl TryFrom<String> for IssueHash {
+    type Error = ValidationError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.chars().count() != 64 {
+            Err(ValidationError::issue_hash_not_valid())
+        } else {
+            match hex::decode(value) {
+                Ok(bytes) => Ok(IssueHash(bytes)),
+                Err(_) => Err(ValidationError::issue_hash_not_valid())
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ExpiryDate(Option<DateTime<Utc>>);
+
+impl TryFrom<Option<String>> for ExpiryDate {
+    type Error = ValidationError;
+
+    fn try_from(value: Option<String>) -> Result<Self, Self::Error> {
+        match value {
+            None => Ok(ExpiryDate(None)),
+            Some(value) => DateTime::parse_from_rfc3339(&value)
+                                .map(|dt| ExpiryDate(Some(DateTime::<Utc>::from(dt))))
+                                .map_err(|_| ValidationError::expiry_date_not_a_valid_date())
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct SuppressionReason(String);
+
+impl TryFrom<String> for SuppressionReason {
+    type Error = ValidationError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            Err(ValidationError::suppression_reason_empty())
+        } else {
+            Ok(SuppressionReason(value))
+        }
+    }
+}
+
+#[cfg(feature = "json")]
+impl SuppressedIssue {
+    fn parse_issue_hash(json_value: &Value) -> Result<IssueHash, ValidationError> {
+        let value = match &json_value["issue_hash"] {
+            Value::Null => Err(ValidationError::issue_hash_required()),
+            Value::String(value) => Ok(value.to_owned()),
+            _ => Err(ValidationError::issue_hash_not_a_string()),
+        }?;
+        IssueHash::try_from(value)
+    }
+
+    fn parse_expiry_date(json_value: &Value) -> Result<ExpiryDate, ValidationError> {
+        let value = match &json_value["expiry_date"] {
+            Value::Null => Ok(None),
+            Value::String(value) => Ok(Some(value.to_owned())),
+            _ => Err(ValidationError::expiry_date_not_a_string()),
+        }?;
+        ExpiryDate::try_from(value)
+    }
+
+    fn parse_suppression_reason(json_value: &Value) -> Result<SuppressionReason, ValidationError> {
+        let value = match &json_value["suppression_reason"] {
+            Value::Null => Err(ValidationError::suppression_reason_required()),
+            Value::String(value) => Ok(value.to_owned()),
+            _ => Err(ValidationError::suppression_reason_not_a_string()),
+        }?;
+        SuppressionReason::try_from(value)
+    }
+}
+
+#[cfg(feature = "json")]
+impl TryFrom<&Value> for SuppressedIssue {
+    type Error = ValidationError;
+
+    fn try_from(json_value: &Value) -> Result<Self, Self::Error> {
+        Ok(SuppressedIssue {
+            issue_hash: SuppressedIssue::parse_issue_hash(json_value)?,
+            expiry_date: SuppressedIssue::parse_expiry_date(json_value)?,
+            suppression_reason: SuppressedIssue::parse_suppression_reason(json_value)?,
+        })
+    }
+}
+
+#[cfg(feature = "avro")]
+impl TryFrom<avro_rs::types::Value> for SuppressedIssue {
+    type Error = ValidationError;
+
+    fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+        match value {
+            avro_rs::types::Value::Record(unparsed_issue) => {
+                let mut fields = unparsed_issue.iter();
+                println!("{:?}", fields);
+                let issue_hash = IssueHash::try_from(
+                    fields
+                        .find(|&x| x.0 == "issue_hash")
+                        .unwrap()
+                        .1
+                        .clone(),
+                );
+                
+                let expiry_date = ExpiryDate::try_from(
+                    fields
+                        .find(|&x| x.0 == "expiry_date")
+                        .unwrap()
+                        .1
+                        .clone(),
+                );
+
+                let suppression_reason = SuppressionReason::try_from(
+                    fields
+                        .find(|&x| x.0 == "suppression_reason")
+                        .unwrap()
+                        .1
+                        .clone(),
+                );
+
+                Ok(SuppressedIssue {
+                    issue_hash: issue_hash?,
+                    suppression_reason: suppression_reason?,
+                    expiry_date: expiry_date?,
+                })
+            }
+            _ => Err(ValidationError::suppressed_issue_not_a_record()),
+        }
+    }
+}
+
+#[cfg(feature = "avro")]
+impl TryFrom<avro_rs::types::Value> for IssueHash {
+    type Error = ValidationError;
+
+    fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+        match value {
+            avro_rs::types::Value::String(s) => IssueHash::try_from(s),
+            _ => Err(ValidationError::issue_hash_not_a_string()),
+        }
+    }
+}
+
+#[cfg(feature = "avro")]
+impl TryFrom<avro_rs::types::Value> for ExpiryDate {
+    type Error = ValidationError;
+
+    fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+        match value {
+            avro_rs::types::Value::String(s) => ExpiryDate::try_from(Some(s)),
+            avro_rs::types::Value::Null => ExpiryDate::try_from(None),
+            _ => Err(ValidationError::expiry_date_not_a_string()),
+        }
+    }
+}
+
+#[cfg(feature = "avro")]
+impl TryFrom<avro_rs::types::Value> for SuppressionReason {
+    type Error = ValidationError;
+
+    fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+        match value {
+            avro_rs::types::Value::String(s) => SuppressionReason::try_from(s),
+            _ => Err(ValidationError::suppression_reason_not_a_string()),
+        }
     }
 }
 
@@ -1381,6 +1584,174 @@ pub mod tests {
 
             assert_eq!(expected, actual);
         }
+
+        #[test]
+        fn suppressed_issue_collection_can_be_parsed_from_valid_json() {
+            let message: Value = serde_json::from_str(
+                r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "JSON",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "Local",
+                "tool_version": "1.0",
+                "suppressed_issues": [{
+                    "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "suppression_reason": "Test issue",
+                    "expiry_date": "2020-05-12T00:00:00+00:00"
+                }]
+            }"#,
+            )
+            .unwrap();
+            ToolReport::try_from(&message).expect("Expected Ok(_)");
+        }
+
+        #[test]
+        fn suppressed_issue_collection_can_not_be_parsed_from_invalid_json_type() {
+            let message: Value = serde_json::from_str(
+                r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "JSON",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "Local",
+                "tool_version": "1.0",
+                "suppressed_issues": {}
+            }"#,
+            )
+            .unwrap();
+            let expected = ValidationError::suppressed_issues_not_an_array();
+            let actual = ToolReport::try_from(&message).expect_err("Expected Err(_)");
+            assert_eq!(expected, actual);
+        }
+
+        #[test]
+        fn suppressed_issue_hash_can_not_be_parsed_from_invalid_json_type() {
+            let message: Value = serde_json::from_str(
+                r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "JSON",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "Local",
+                "tool_version": "1.0",
+                "suppressed_issues": [{
+                    "issue_hash": true,
+                    "suppression_reason": "Test issue",
+                    "expiry_date": "2020-05-12T00:00:00+00:00"
+                }]
+            }"#,
+            )
+            .unwrap();
+            let expected = ValidationError::issue_hash_not_a_string();
+            let actual = ToolReport::try_from(&message).expect_err("Expected Err(_)");
+            assert_eq!(expected, actual);
+        }
+
+        #[test]
+        fn suppressed_issue_expiry_date_can_not_be_parsed_from_invalid_json_type() {
+            let message: Value = serde_json::from_str(
+                r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "JSON",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "Local",
+                "tool_version": "1.0",
+                "suppressed_issues": [{
+                    "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "suppression_reason": "Test issue",
+                    "expiry_date": true
+                }]
+            }"#,
+            )
+            .unwrap();
+            let expected = ValidationError::expiry_date_not_a_string();
+            let actual = ToolReport::try_from(&message).expect_err("Expected Err(_)");
+            assert_eq!(expected, actual);
+        }
+
+        #[test]
+        fn suppressed_issue_suppression_reason_can_not_be_parsed_from_invalid_json_type() {
+            let message: Value = serde_json::from_str(
+                r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "JSON",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "Local",
+                "tool_version": "1.0",
+                "suppressed_issues": [{
+                    "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "suppression_reason": true,
+                    "expiry_date": "2020-05-12T00:00:00+00:00"
+                }]
+            }"#,
+            )
+            .unwrap();
+
+            let expected = ValidationError::suppression_reason_not_a_string();
+            let actual = ToolReport::try_from(&message).expect_err("Expected Err(_)");
+            assert_eq!(expected, actual);
+        }
+
+        #[test]
+        fn suppressed_issue_expiry_date_can_be_parsed_from_json_when_null() {
+            let message: Value = serde_json::from_str(
+                r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "JSON",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "Local",
+                "tool_version": "1.0",
+                "suppressed_issues": [{
+                    "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "suppression_reason": "Test issue",
+                    "expiry_date": null
+                }]
+            }"#,
+            )
+            .unwrap();
+
+            ToolReport::try_from(&message).expect("Expected Ok(_)");
+        }
     }
 
     #[test]
@@ -1634,7 +2005,12 @@ pub mod tests {
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "Local",
-            "tool_version": "1.0"
+            "tool_version": "1.0",
+            "suppressed_issues": [{
+                "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "suppression_reason": "Test issue",
+                "expiry_date": "2020-05-12T00:00:00+00:00"
+            }]
         }"#,
         )
         .unwrap();
@@ -1649,12 +2025,51 @@ pub mod tests {
         writer.flush().unwrap();
 
         let input = writer.into_inner();
+
         let reader = Reader::with_schema(&schema, &input[..]).unwrap();
         let mut input_records = reader.into_iter().collect::<Vec<_>>();
         let parsed_record = input_records.remove(0).unwrap();
 
         let actual = ToolReport::try_from(parsed_record).expect("expected Ok(_) value");
 
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn valid_issue_hash_can_be_parsed_from_string() {
+        let issue_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned();
+        IssueHash::try_from(issue_hash).expect("Expected Ok(_) value");
+    }
+
+    #[test]
+    fn invalid_issue_hash_length_can_not_be_parsed_from_string() {
+        let issue_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b".to_owned();
+        let expected = ValidationError::issue_hash_not_valid();
+        let actual = IssueHash::try_from(issue_hash).expect_err("Expected Err(_)");
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn invalid_issue_hash_characters_can_not_be_parsed_from_string() {
+        let issue_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852B!^?".to_owned();
+        let expected = ValidationError::issue_hash_not_valid();
+        let actual = IssueHash::try_from(issue_hash).expect_err("Expected Err(_)");
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn suppression_reason_can_not_be_parsed_from_empty_string() {
+        let suppression_reason = "".to_owned();
+        let expected = ValidationError::suppression_reason_empty();
+        let actual = SuppressionReason::try_from(suppression_reason).expect_err("Expected Err(_)");
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn suppression_expiry_date_can_not_be_parsed_from_invalid_string() {
+        let expiry_date = Some("42/17/3000 not a date".to_owned());
+        let expected = ValidationError::expiry_date_not_a_valid_date();
+        let actual = ExpiryDate::try_from(expiry_date).expect_err("Expected Err(_)");
         assert_eq!(expected, actual);
     }
 }
