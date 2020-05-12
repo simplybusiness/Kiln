@@ -497,6 +497,86 @@ impl ValidationError {
             json_field_name: None,
         }
     }
+
+    pub fn suppressed_issues_not_an_array() -> ValidationError {
+        ValidationError {
+            error_code: 157,
+            error_message: "Suppressed Issues not an array of objects".into(),
+            json_field_name: Some("suppressed_issues".to_owned()),
+        }
+    }
+
+    pub fn issue_hash_not_valid() -> ValidationError {
+        ValidationError {
+            error_code: 158,
+            error_message: "One or more issue hashes do not look like a valid SHA256 hashes".into(),
+            json_field_name: Some("suppressed_issues[].issue_hash".to_owned()),
+        }
+    }
+
+    pub fn expiry_date_not_a_valid_date() -> ValidationError {
+        ValidationError {
+            error_code: 159,
+            error_message: "One or more issue suppression expiry dates do not look like valid dates".into(),
+            json_field_name: Some("suppressed_issues[].expiry_date".to_owned()),
+        }
+    }
+
+    pub fn suppression_reason_empty() -> ValidationError {
+        ValidationError {
+            error_code: 160,
+            error_message: "One or more issue suppression reasons are empty".into(),
+            json_field_name: Some("suppressed_issues[].suppression_reason".to_owned()),
+        }
+    }
+
+    pub fn issue_hash_required() -> ValidationError {
+        ValidationError {
+            error_code: 161,
+            error_message: "One or more issue hashes are missing".into(),
+            json_field_name: Some("suppressed_issues[].issue_hash".to_owned()),
+        }
+    }
+
+    pub fn issue_hash_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 162,
+            error_message: "One or more issue hashes are not strings".into(),
+            json_field_name: Some("suppressed_issues[].issue_hash".to_owned()),
+        }
+    }
+
+    pub fn suppression_reason_required() -> ValidationError {
+        ValidationError {
+            error_code: 163,
+            error_message: "One or more issue suppression reasons are missing".into(),
+            json_field_name: Some("suppressed_issues[].suppression_reason".to_owned()),
+        }
+    }
+
+    pub fn suppression_reason_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 164,
+            error_message: "One or more issue suppression reasons are not strings".into(),
+            json_field_name: Some("suppressed_issues[].suppression_reason".to_owned()),
+        }
+    }
+
+    pub fn expiry_date_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 165,
+            error_message: "One or more issue suppression expiry dates are not strings".into(),
+            json_field_name: Some("suppressed_issues[].expiry_date".to_owned()),
+        }
+    }
+
+    pub fn suppressed_issue_not_a_record() -> ValidationError {
+        ValidationError {
+            error_code: 166,
+            error_message: "Suppressed Issue Avro object is not a record".into(),
+            json_field_name: None,
+        }
+    }
 }
 
 #[cfg(feature = "web")]
