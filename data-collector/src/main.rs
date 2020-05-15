@@ -120,8 +120,8 @@ mod tests {
     use serial_test_derive::serial;
 
     use kiln_lib::tool_report::{
-        ApplicationName, EndTime, Environment, EventID, EventVersion, GitBranch, GitCommitHash, OutputFormat, StartTime,
-        ToolName, ToolOutput, ToolVersion,
+        ApplicationName, EndTime, Environment, EventID, EventVersion, ExpiryDate, GitBranch, GitCommitHash, IssueHash,
+        OutputFormat, StartTime, SuppressedIssue, SuppressionReason, ToolName, ToolOutput, ToolVersion,
     };
 
     fn set_env_vars() {
@@ -177,7 +177,12 @@ mod tests {
                     "start_time": "2019-09-13T19:35:38+00:00",
                     "end_time": "2019-09-13T19:37:14+00:00",
                     "environment": "Local",
-                    "tool_version": "1.0"
+                    "tool_version": "1.0",
+                    "suppressed_issues": [{
+                        "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "suppression_reason": "Test issue",
+                        "expiry_date": "2020-05-12T00:00:00+00:00"
+                    }]
                 }"#
         .to_owned();
         let payload = p.as_bytes().into_iter().cloned().collect::<Vec<u8>>();
@@ -203,6 +208,13 @@ mod tests {
             )),
             environment: Environment::Local,
             tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
+            suppressed_issues: vec!(
+                SuppressedIssue {
+                    issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                    suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(Some(DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2020-05-12T00:00:00+00:00").unwrap()))),
+                }
+            ),
         };
 
         let actual = parse_payload(&body).expect("expected Ok(_) value");
