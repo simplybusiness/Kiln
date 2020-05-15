@@ -1829,7 +1829,12 @@ pub mod tests {
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "Local",
-            "tool_version": "1.0"
+            "tool_version": "1.0",
+            "suppressed_issues": [{
+                "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "suppression_reason": "Test issue",
+                "expiry_date": "2020-05-12T00:00:00+00:00"
+            }]
         }"#,
         )
         .unwrap();
@@ -1855,7 +1860,12 @@ pub mod tests {
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "Local",
-            "tool_version": "1.0"
+            "tool_version": "1.0",
+            "suppressed_issues": [{
+                "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "suppression_reason": "Test issue",
+                "expiry_date": "2020-05-12T00:00:00+00:00"
+            }]
         }"#,
         )
         .unwrap();
@@ -1881,7 +1891,12 @@ pub mod tests {
             "start_time": "not a timestamp",
             "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "Local",
-            "tool_version": "1.0"
+            "tool_version": "1.0",
+            "suppressed_issues": [{
+                "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "suppression_reason": "Test issue",
+                "expiry_date": "2020-05-12T00:00:00+00:00"
+            }]
         }"#,
         )
         .unwrap();
@@ -1907,7 +1922,12 @@ pub mod tests {
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "not a timestamp",
             "environment": "Local",
-            "tool_version": "1.0"
+            "tool_version": "1.0",
+            "suppressed_issues": [{
+                "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "suppression_reason": "Test issue",
+                "expiry_date": "2020-05-12T00:00:00+00:00"
+            }]
         }"#,
         )
         .unwrap();
@@ -1933,7 +1953,12 @@ pub mod tests {
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "the moon",
-            "tool_version": "1.0"
+            "tool_version": "1.0",
+            "suppressed_issues": [{
+                "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "suppression_reason": "Test issue",
+                "expiry_date": "2020-05-12T00:00:00+00:00"
+            }]
         }"#,
         )
         .unwrap();
@@ -1959,7 +1984,12 @@ pub mod tests {
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "",
-            "tool_version": "1.0"
+            "tool_version": "1.0",
+            "suppressed_issues": [{
+                "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "suppression_reason": "Test issue",
+                "expiry_date": "2020-05-12T00:00:00+00:00"
+            }]
         }"#,
         )
         .unwrap();
@@ -1985,7 +2015,12 @@ pub mod tests {
             "start_time": "2019-09-13T19:35:38+00:00",
             "end_time": "2019-09-13T19:37:14+00:00",
             "environment": "Local",
-            "tool_version": ""
+            "tool_version": "",
+            "suppressed_issues": [{
+                "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "suppression_reason": "Test issue",
+                "expiry_date": "2020-05-12T00:00:00+00:00"
+            }]
         }"#,
         )
         .unwrap();
