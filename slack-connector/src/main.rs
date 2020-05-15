@@ -44,19 +44,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let reader = Reader::new(body)?;
                 for value in reader {
                     let event = DependencyEvent::try_from(value?)?;
-                    let payload = json!({
-                        "channel": channel_id,
-                        "text": event.to_slack_message()
-                    });
-                    let req = client.request(Method::POST, "https://slack.com/api/chat.postMessage")
-                        .bearer_auth(&oauth_token)
-                        .json(&payload)
-                        .build()?;
-                    let resp = client.execute(req)?;
-                    let resp_body: Value = resp.json()?;
-                    if resp_body.get("ok").unwrap().as_bool().unwrap() == false {
-                        let cause = resp_body.get("error").unwrap().as_str().unwrap();
-                        eprintln!("Error sending message for event {}, parent {}, {}", event.event_id.to_string(), event.parent_event_id.to_string(), cause);
+                    if !event.suppressed {
+                        let payload = json!({
+                            "channel": channel_id,
+                            "text": event.to_slack_message()
+                        });
+                        let req = client.request(Method::POST, "https://slack.com/api/chat.postMessage")
+                            .bearer_auth(&oauth_token)
+                            .json(&payload)
+                            .build()?;
+                        let resp = client.execute(req)?;
+                        let resp_body: Value = resp.json()?;
+                        if resp_body.get("ok").unwrap().as_bool().unwrap() == false {
+                            let cause = resp_body.get("error").unwrap().as_str().unwrap();
+                            eprintln!("Error sending message for event {}, parent {}, {}", event.event_id.to_string(), event.parent_event_id.to_string(), cause);
+                        }
                     }
                 }
             }
