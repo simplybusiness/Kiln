@@ -34,7 +34,8 @@ pub struct DependencyEvent{
     pub advisory_id: AdvisoryId,
     pub advisory_url: AdvisoryUrl,
     pub advisory_description: AdvisoryDescription,
-    pub cvss: Cvss
+    pub cvss: Cvss,
+    pub suppressed: bool,
 }
 
 #[cfg(feature = "avro")]
@@ -136,6 +137,14 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
                     .clone(),
             )
             .map_err(|err| err_msg(err.error_message))?;
+            let suppressed_avro = fields.find(|&x| x.0 == "suppressed")
+                .unwrap()
+                .1
+                .clone();
+            let suppressed = match suppressed_avro {
+                avro_rs::types::Value::Boolean(b) => Ok(b),
+                _ => Err(err_msg(ValidationError::suppressed_flag_not_a_boolean()))
+            }?;
 
             Ok(DependencyEvent {
                 event_version,
@@ -150,7 +159,8 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
                 advisory_id,
                 advisory_url,
                 advisory_description,
-                cvss
+                cvss,
+                suppressed,
             })
         } else {
             Err(err_msg("Something went wrong decoding Avro record"))
@@ -599,7 +609,8 @@ pub mod tests {
                 .with_version(CvssVersion::V3)
                 .with_score(Some(10.0f32))
                 .build()
-                .unwrap()
+                .unwrap(),
+            suppressed: false
         };
 
         let mut hash_ctx = digest::Context::new(&digest::SHA256);
@@ -631,7 +642,8 @@ pub mod tests {
                 .with_version(CvssVersion::V3)
                 .with_score(Some(10.0f32))
                 .build()
-                .unwrap()
+                .unwrap(),
+            suppressed: false
         };
 
         let schema = Schema::parse_str(DEPENDENCY_EVENT_SCHEMA).unwrap();
