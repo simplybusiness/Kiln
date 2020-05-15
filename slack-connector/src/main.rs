@@ -1,8 +1,10 @@
 use avro_rs::Reader;
 use failure::err_msg;
 use futures_util::stream::StreamExt;
+use hex;
 use kiln_lib::kafka::*;
 use kiln_lib::dependency_event::DependencyEvent;
+use kiln_lib::traits::Hashable;
 use rdkafka::consumer::{CommitMode, Consumer};
 use rdkafka::message::Message;
 use reqwest::blocking::Client;
@@ -73,7 +75,7 @@ trait ToSlackMessage {
 
 impl ToSlackMessage for DependencyEvent {
     fn to_slack_message(&self) -> String {
-        format!("Vulnerable package found in: {}\nWhat package is affected? {} {}\nWhere was this found? Commit {} on branch {}\nWhat is the problem? {}\nHow serious is it? CVSS {}\nWhere can I find out more? {}",
+        format!("Vulnerable package found in: {}\nWhat package is affected? {} {}\nWhere was this found? Commit {} on branch {}\nWhat is the problem? {}\nHow serious is it? CVSS {}\nWhere can I find out more? {}\nIssue hash if this should be suppressed: {}",
             self.application_name.to_string(),
             self.affected_package.to_string(),
             self.installed_version.to_string(),
@@ -81,7 +83,8 @@ impl ToSlackMessage for DependencyEvent {
             self.git_branch.to_string(),
             self.advisory_description.to_string(),
             self.cvss.to_string(),
-            self.advisory_url.to_string()
+            self.advisory_url.to_string(),
+            hex::encode(self.hash()),
         )
     }
 }
