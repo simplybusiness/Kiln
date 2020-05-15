@@ -48,7 +48,8 @@ pub const DEPENDENCY_EVENT_SCHEMA: &str = r#"
                     {"name": "version", "type": {"type": "enum", "name": "CvssVersion", "symbols": ["Unknown", "V2", "V3"]}},
                     {"name": "score", "type": ["null", "float"]}]
                 }
-            }
+            },
+            {"name": "suppressed", "type": "boolean"}
         ]
     }
 "#;
