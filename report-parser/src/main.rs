@@ -298,6 +298,7 @@ fn parse_bundler_audit_plaintext(report: &ToolReport, vulns: &HashMap<String, Cv
             advisory_id,
             advisory_description: AdvisoryDescription::try_from(fields.get("Title").or(Some(&"".to_string())).unwrap().to_owned())?,
             cvss: cvss.clone(),
+            suppressed: false,
        };
        events.push(event);
     }
