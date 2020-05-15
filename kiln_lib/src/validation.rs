@@ -577,6 +577,14 @@ impl ValidationError {
             json_field_name: None,
         }
     }
+
+    pub fn suppressed_flag_not_a_boolean() -> ValidationError {
+        ValidationError {
+            error_code: 167,
+            error_message: "Suppression flag Avro value is not a boolean".into(),
+            json_field_name: None,
+        }
+    }
 }
 
 #[cfg(feature = "web")]
