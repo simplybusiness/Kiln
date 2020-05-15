@@ -947,6 +947,12 @@ impl TryFrom<avro_rs::types::Value> for ExpiryDate {
     }
 }
 
+impl From<Option<DateTime<Utc>>> for ExpiryDate {
+    fn from(dt: Option<DateTime<Utc>>) -> Self {
+        Self(dt)
+    }
+}
+
 #[cfg(feature = "avro")]
 impl TryFrom<avro_rs::types::Value> for SuppressionReason {
     type Error = ValidationError;
