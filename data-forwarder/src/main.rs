@@ -128,6 +128,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 		end_time: parsed_end_time.into(), 
 		environment: Environment::try_from(scan_env.to_string())?, 
 		tool_version: ToolVersion::try_from(tool_version.map(|s| s.to_string()))?, 
+                suppressed_issues: vec!()
 	}; 	
 
 	let client = Client::new();
