@@ -941,7 +941,7 @@ impl TryFrom<avro_rs::types::Value> for ExpiryDate {
     fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
         match value {
             avro_rs::types::Value::String(s) => ExpiryDate::try_from(Some(s)),
-            avro_rs::types::Value::Null => ExpiryDate::try_from(None),
+            avro_rs::types::Value::Null => Ok(ExpiryDate::from(None)),
             _ => Err(ValidationError::expiry_date_not_a_string()),
         }
     }
