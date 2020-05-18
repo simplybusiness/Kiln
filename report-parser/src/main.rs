@@ -12,7 +12,8 @@ use iter_read::IterRead;
 use kiln_lib::avro_schema::DEPENDENCY_EVENT_SCHEMA;
 use kiln_lib::kafka::*;
 use kiln_lib::dependency_event::{DependencyEvent, Timestamp, AdvisoryDescription, AdvisoryId, AdvisoryUrl, InstalledVersion, AffectedPackage, Cvss, CvssVersion};
-use kiln_lib::tool_report::{ToolReport, EventVersion, EventID};
+use kiln_lib::tool_report::{ToolReport, EventVersion, EventID, IssueHash, SuppressedIssue};
+use kiln_lib::traits::Hashable;
 use rdkafka::consumer::{CommitMode, Consumer};
 use rdkafka::message::Message;
 use rdkafka::producer::future_producer::FutureRecord;
@@ -284,7 +285,7 @@ fn parse_bundler_audit_plaintext(report: &ToolReport, vulns: &HashMap<String, Cv
         let cvss = vulns.get(&advisory_id.to_string())
             .unwrap_or(&default_cvss);
 
-        let event = DependencyEvent {
+        let mut event = DependencyEvent {
             event_version: EventVersion::try_from("1".to_string())?,
             event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
             parent_event_id: report.event_id.clone(),
@@ -299,8 +300,168 @@ fn parse_bundler_audit_plaintext(report: &ToolReport, vulns: &HashMap<String, Cv
             advisory_description: AdvisoryDescription::try_from(fields.get("Title").or(Some(&"".to_string())).unwrap().to_owned())?,
             cvss: cvss.clone(),
             suppressed: false,
-       };
-       events.push(event);
+        };
+
+        let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+        event.suppressed = should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
+
+        events.push(event);
     }
     Ok(events)
+}
+
+fn should_issue_be_suppressed(issue_hash: &IssueHash, suppressed_issues: &Vec<SuppressedIssue>, current_time: &DateTime::<Utc>) -> bool {
+    if suppressed_issues.is_empty() {
+        false
+    } else {
+        let matching_issues = suppressed_issues.iter().filter(|x| &x.issue_hash == issue_hash).collect::<Vec<_>>();
+        if matching_issues.is_empty() {
+            false
+        } else {
+            matching_issues.iter().any(|x| x.expiry_date.is_none() || x.expiry_date > *current_time)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use kiln_lib::tool_report::{ExpiryDate, SuppressionReason};
+
+    #[test]
+    fn issue_suppression_works_when_suppressed_issues_is_empty() {
+        let test_hash = IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap();
+        let suppressed_issues: Vec<SuppressedIssue> = vec!();
+        let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
+        assert_eq!(false, should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date));
+    }
+
+    #[test]
+    fn issue_suppression_works_when_suppressed_issues_does_not_contain_matching_hash() {
+        let test_hash = IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap();
+        let suppressed_issues: Vec<SuppressedIssue> = vec!(
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("a441b688fb60942c701fbcee0f30c66c0f7b22da7f0b4c51488488d2a2b64197".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(None),
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+            }
+        );
+        let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
+        assert_eq!(false, should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date));
+    }
+
+    #[test]
+    fn issue_suppression_works_when_suppressed_issues_contains_hash_with_current_suppression() {
+        let test_hash = IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap();
+        let suppressed_issues: Vec<SuppressedIssue> = vec!(
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 20).and_hms(12, 0, 0))),
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+            },
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("46a9d5bde718bf366178313019f04a753bad00685d38e3ec81c8628f35dfcb1b".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(None),
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+            }
+        );
+        let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
+        assert_eq!(true, should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date));
+    }
+
+    #[test]
+    fn issue_suppression_works_when_suppressed_issues_contains_hash_with_expired_suppression_by_date() {
+        let test_hash = IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap();
+        let suppressed_issues: Vec<SuppressedIssue> = vec!(
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 17).and_hms(0, 0, 0))),
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+            },
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("9cf8847d2992e7219e659cdde1969e0d567ebab39a7aba13b36f9916fa26f6ca".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(None),
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+            }
+        );
+        let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
+        assert_eq!(false, should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date));
+    }
+
+    #[test]
+    fn issue_suppression_works_when_suppressed_issues_contains_hash_with_expired_suppression_by_date_and_time() {
+        let test_hash = IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap();
+        let suppressed_issues: Vec<SuppressedIssue> = vec!(
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 18).and_hms(10, 0, 0))),
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+            },
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("b100dabbadeedabbad1eadabbadeedabbad1edabbadeedabbad1eadabbadeeda".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(None),
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+            }
+        );
+        let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
+        assert_eq!(false, should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date));
+    }
+
+    #[test]
+    fn issue_suppression_works_when_suppressed_issues_contains_hash_with_suppression_with_no_expiry() {
+        let test_hash = IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap();
+        let suppressed_issues: Vec<SuppressedIssue> = vec!(
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(None),
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+            },
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("a41f58ced5996b018dfbd697c1b16675f0cf864a3475d237cdd3f4d8c7160fdb".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(None),
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+            }
+        );
+        let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
+        assert_eq!(true, should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date));
+    }
+
+    #[test]
+    fn issue_suppression_works_when_suppressed_issues_contains_multiple_hashes_with_two_current_suppressions() {
+        let test_hash = IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap();
+        let suppressed_issues: Vec<SuppressedIssue> = vec!(
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 19).and_hms(12, 0, 0))),
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+            },
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 07, 19).and_hms(12, 0, 0))),
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+            }
+        );
+        let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
+        assert_eq!(true, should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date));
+    }
+
+    #[test]
+    fn issue_suppression_works_when_suppressed_issues_contains_multiple_hashes_with_one_expired_suppression_and_one_current_suppression() {
+        let test_hash = IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap();
+        let suppressed_issues: Vec<SuppressedIssue> = vec!(
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 17).and_hms(12, 0, 0))),
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+            },
+            SuppressedIssue {
+                issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 07, 19).and_hms(12, 0, 0))),
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+            }
+        );
+        let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
+        assert_eq!(true, should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date));
+    }
 }
