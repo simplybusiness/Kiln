@@ -820,6 +820,23 @@ impl TryFrom<Option<String>> for ExpiryDate {
     }
 }
 
+impl std::cmp::PartialEq<DateTime<Utc>> for ExpiryDate {
+    fn eq(&self, rhs: &DateTime<Utc>) -> bool {
+        match self.0 {
+            Some(dt) => {
+                dt == *rhs
+            },
+            None => false
+        }
+    }
+}
+
+impl std::cmp::PartialOrd<DateTime<Utc>> for ExpiryDate {
+    fn partial_cmp(&self, rhs: &DateTime<Utc>) -> Option<std::cmp::Ordering> {
+        self.0.and_then(|x| x.partial_cmp(rhs))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct SuppressionReason(String);
 
