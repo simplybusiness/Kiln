@@ -24,3 +24,4 @@ iter-read = "0.2"
 tokio = { version = "0.2", features = ["full"] }
 rdkafka = { version = "0.23", features = ["cmake-build", "ssl-vendored"] }
 futures-util = "0.3"
+hex = "0.4"
