@@ -837,6 +837,16 @@ impl std::cmp::PartialOrd<DateTime<Utc>> for ExpiryDate {
     }
 }
 
+impl ExpiryDate {
+    pub fn is_none(&self) -> bool {
+        self.0.is_none()
+    }
+
+    pub fn is_some(&self) -> bool {
+        self.0.is_some()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct SuppressionReason(String);
 
