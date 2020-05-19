@@ -18,12 +18,14 @@ ring = { version = "0.16",features = ["std"] }
 addr = { version = "0.2", optional = true }
 url = "2.1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
+toml_crate = { version = "0.5", package = "toml", optional = true }
 
 [features]
 
 default = []
-all = ["avro", "web", "json", "streaming"]
+all = ["avro", "web", "json", "streaming", "toml"]
 avro = ["avro-rs"]
 json = ["serde_json"]
 web = ["actix-web", "http", "json"]
 streaming = ["addr", "rdkafka"]
+toml = ["toml_crate"]
