@@ -593,6 +593,30 @@ impl ValidationError {
             json_field_name: None
         }
     }
+
+    pub fn suppressed_by_not_a_string() -> ValidationError {
+        ValidationError {
+            error_code: 169,
+            error_message: "One or more Suppressed Issues SuppressedBy fields are not a string".into(),
+            json_field_name: Some("suppressed_issues[].suppressed_by".into()),
+        }
+    }
+
+    pub fn suppressed_by_required() -> ValidationError {
+        ValidationError {
+            error_code: 170,
+            error_message: "One or more Suppressed Issues SuppressedBy fields missing".into(),
+            json_field_name: Some("suppressed_issues[].suppressed_by".into()),
+        }
+    }
+
+    pub fn suppressed_by_empty() -> ValidationError {
+        ValidationError {
+            error_code: 171,
+            error_message: "One or more Suppressed Issues SuppressedBy fields are present but empty".into(),
+            json_field_name: Some("suppressed_issues[].suppressed_by".into()),
+        }
+    }
 }
 
 #[cfg(feature = "web")]

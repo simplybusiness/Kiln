@@ -784,6 +784,7 @@ pub struct SuppressedIssue {
     pub issue_hash: IssueHash,
     pub expiry_date: ExpiryDate,
     pub suppression_reason: SuppressionReason,
+    pub suppressed_by: SuppressedBy,
 }
 
 #[cfg(feature = "toml")]
@@ -811,10 +812,17 @@ impl TryFrom<toml::Value> for SuppressedIssue {
                     _ => Err(ValidationError::expiry_date_not_a_string()),
                 }?;
 
+                let suppressed_by = match t.get("suppressed_by") {
+                    None => Err(ValidationError::suppressed_by_required()),
+                    Some(toml::Value::String(s)) => SuppressedBy::try_from(s.clone()),
+                    _ => Err(ValidationError::suppressed_by_not_a_string()),
+                }?;
+
                 Ok(SuppressedIssue {
                     issue_hash,
                     suppression_reason,
                     expiry_date,
+                    suppressed_by,
                 })
             },
             _ => Err(ValidationError::suppressed_issue_toml_value_not_a_table()),
@@ -901,6 +909,34 @@ impl TryFrom<String> for SuppressionReason {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct SuppressedBy(String);
+
+impl TryFrom<String> for SuppressedBy {
+    type Error = ValidationError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value.is_empty() {
+            Err(ValidationError::suppressed_by_empty())
+        } else {
+            Ok(SuppressedBy(value))
+        }
+    }
+}
+
+#[cfg(feature = "avro")]
+impl TryFrom<avro_rs::types::Value> for SuppressedBy {
+    type Error = ValidationError;
+
+    fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
+        match value {
+            avro_rs::types::Value::String(s) => SuppressedBy::try_from(s),
+            _ => Err(ValidationError::suppressed_by_not_a_string()),
+        }
+    }
+}
+
+
 #[cfg(feature = "json")]
 impl SuppressedIssue {
     fn parse_issue_hash(json_value: &Value) -> Result<IssueHash, ValidationError> {
@@ -929,6 +965,15 @@ impl SuppressedIssue {
         }?;
         SuppressionReason::try_from(value)
     }
+
+    fn parse_suppressed_by(json_value: &Value) -> Result<SuppressedBy, ValidationError> {
+        let value = match &json_value["suppressed_by"] {
+            Value::Null => Err(ValidationError::suppressed_by_required()),
+            Value::String(value) => Ok(value.to_owned()),
+            _ => Err(ValidationError::suppressed_by_not_a_string()),
+        }?;
+        SuppressedBy::try_from(value)
+    }
 }
 
 #[cfg(feature = "json")]
@@ -940,6 +985,7 @@ impl TryFrom<&Value> for SuppressedIssue {
             issue_hash: SuppressedIssue::parse_issue_hash(json_value)?,
             expiry_date: SuppressedIssue::parse_expiry_date(json_value)?,
             suppression_reason: SuppressedIssue::parse_suppression_reason(json_value)?,
+            suppressed_by: SuppressedIssue::parse_suppressed_by(json_value)?,
         })
     }
 }
@@ -977,10 +1023,19 @@ impl TryFrom<avro_rs::types::Value> for SuppressedIssue {
                         .clone(),
                 );
 
+                let suppressed_by = SuppressedBy::try_from(
+                    fields
+                        .find(|&x| x.0 == "suppressed_by")
+                        .unwrap()
+                        .1
+                        .clone(),
+                );
+
                 Ok(SuppressedIssue {
                     issue_hash: issue_hash?,
                     suppression_reason: suppression_reason?,
                     expiry_date: expiry_date?,
+                    suppressed_by: suppressed_by?,
                 })
             }
             _ => Err(ValidationError::suppressed_issue_not_a_record()),
@@ -1676,7 +1731,8 @@ pub mod tests {
                 "suppressed_issues": [{
                     "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                     "suppression_reason": "Test issue",
-                    "expiry_date": "2020-05-12T00:00:00+00:00"
+                    "expiry_date": "2020-05-12T00:00:00+00:00",
+                    "suppressed_by": "Dan Murphy"
                 }]
             }"#,
             )
@@ -1786,13 +1842,45 @@ pub mod tests {
                 "suppressed_issues": [{
                     "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                     "suppression_reason": true,
-                    "expiry_date": "2020-05-12T00:00:00+00:00"
+                    "expiry_date": "2020-05-12T00:00:00+00:00",
+                    "suppressed_by": "Dan Murphy"
                 }]
             }"#,
             )
             .unwrap();
 
             let expected = ValidationError::suppression_reason_not_a_string();
+            let actual = ToolReport::try_from(&message).expect_err("Expected Err(_)");
+            assert_eq!(expected, actual);
+        }
+
+        #[test]
+        fn suppressed_issue_suppressed_by_can_not_be_parsed_from_invalid_json_type() {
+            let message: Value = serde_json::from_str(
+                r#"{
+                "event_version": "1",
+                "event_id": "383bc5f5-d099-40a4-a1a9-8c8a97559479",
+                "application_name": "Test application",
+                "git_branch": "master",
+                "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
+                "tool_name": "example tool",
+                "tool_output": "{}",
+                "output_format": "JSON",
+                "start_time": "2019-09-13T19:35:38+00:00",
+                "end_time": "2019-09-13T19:37:14+00:00",
+                "environment": "Local",
+                "tool_version": "1.0",
+                "suppressed_issues": [{
+                    "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    "suppression_reason": "Test issue",
+                    "expiry_date": "2020-05-12T00:00:00+00:00",
+                    "suppressed_by": true
+                }]
+            }"#,
+            )
+            .unwrap();
+
+            let expected = ValidationError::suppressed_by_not_a_string();
             let actual = ToolReport::try_from(&message).expect_err("Expected Err(_)");
             assert_eq!(expected, actual);
         }
@@ -1816,7 +1904,8 @@ pub mod tests {
                 "suppressed_issues": [{
                     "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                     "suppression_reason": "Test issue",
-                    "expiry_date": null
+                    "expiry_date": null,
+                    "suppressed_by": "Dan Murphy"
                 }]
             }"#,
             )
@@ -1899,7 +1988,8 @@ pub mod tests {
             "suppressed_issues": [{
                 "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "suppression_reason": "Test issue",
-                "expiry_date": "2020-05-12T00:00:00+00:00"
+                "expiry_date": "2020-05-12T00:00:00+00:00",
+                "suppressed_by": "Dan Murphy"
             }]
         }"#,
         )
@@ -1930,7 +2020,8 @@ pub mod tests {
             "suppressed_issues": [{
                 "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "suppression_reason": "Test issue",
-                "expiry_date": "2020-05-12T00:00:00+00:00"
+                "expiry_date": "2020-05-12T00:00:00+00:00",
+                "suppressed_by": "Dan Murphy"
             }]
         }"#,
         )
@@ -1961,7 +2052,8 @@ pub mod tests {
             "suppressed_issues": [{
                 "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "suppression_reason": "Test issue",
-                "expiry_date": "2020-05-12T00:00:00+00:00"
+                "expiry_date": "2020-05-12T00:00:00+00:00",
+                "suppressed_by": "Dan Murphy"
             }]
         }"#,
         )
@@ -1992,7 +2084,8 @@ pub mod tests {
             "suppressed_issues": [{
                 "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "suppression_reason": "Test issue",
-                "expiry_date": "2020-05-12T00:00:00+00:00"
+                "expiry_date": "2020-05-12T00:00:00+00:00",
+                "suppressed_by": "Dan Murphy"
             }]
         }"#,
         )
@@ -2023,7 +2116,8 @@ pub mod tests {
             "suppressed_issues": [{
                 "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "suppression_reason": "Test issue",
-                "expiry_date": "2020-05-12T00:00:00+00:00"
+                "expiry_date": "2020-05-12T00:00:00+00:00",
+                "suppressed_by": "Dan Murphy"
             }]
         }"#,
         )
@@ -2054,7 +2148,8 @@ pub mod tests {
             "suppressed_issues": [{
                 "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "suppression_reason": "Test issue",
-                "expiry_date": "2020-05-12T00:00:00+00:00"
+                "expiry_date": "2020-05-12T00:00:00+00:00",
+                "suppressed_by": "Dan Murphy"
             }]
         }"#,
         )
@@ -2085,7 +2180,8 @@ pub mod tests {
             "suppressed_issues": [{
                 "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "suppression_reason": "Test issue",
-                "expiry_date": "2020-05-12T00:00:00+00:00"
+                "expiry_date": "2020-05-12T00:00:00+00:00",
+                "suppressed_by": "Dan Murphy"
             }]
         }"#,
         )
@@ -2116,7 +2212,8 @@ pub mod tests {
             "suppressed_issues": [{
                 "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                 "suppression_reason": "Test issue",
-                "expiry_date": "2020-05-12T00:00:00+00:00"
+                "expiry_date": "2020-05-12T00:00:00+00:00",
+                "suppressed_by": "Dan Murphy"
             }]
         }"#,
         )
@@ -2177,6 +2274,14 @@ pub mod tests {
         let expiry_date = Some("42/17/3000 not a date".to_owned());
         let expected = ValidationError::expiry_date_not_a_valid_date();
         let actual = ExpiryDate::try_from(expiry_date).expect_err("Expected Err(_)");
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn suppressed_by_can_not_be_empty() {
+        let suppressed_by = "".to_owned();
+        let expected = ValidationError::suppressed_by_empty();
+        let actual = SuppressedBy::try_from(suppressed_by).expect_err("Expected Err(_)");
         assert_eq!(expected, actual);
     }
 }
