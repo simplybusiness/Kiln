@@ -521,7 +521,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.1.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=finding_suppression_kiln_lib#3791e00fad6454882bd21d84b8a498c6e04843ec"
+source = "git+https://github.com/simplybusiness/Kiln?branch=finding_suppression_kiln_lib#4ee323925db08930861db4840b16130e97565b39"
 dependencies = [
  "addr 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "avro-rs 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)",
