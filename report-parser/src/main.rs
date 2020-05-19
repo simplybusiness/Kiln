@@ -327,7 +327,7 @@ fn should_issue_be_suppressed(issue_hash: &IssueHash, suppressed_issues: &Vec<Su
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kiln_lib::tool_report::{ExpiryDate, SuppressionReason};
+    use kiln_lib::tool_report::{ExpiryDate, SuppressedBy, SuppressionReason};
 
     #[test]
     fn issue_suppression_works_when_suppressed_issues_is_empty() {
@@ -344,7 +344,8 @@ mod tests {
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("a441b688fb60942c701fbcee0f30c66c0f7b22da7f0b4c51488488d2a2b64197".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             }
         );
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -358,12 +359,14 @@ mod tests {
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 20).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("46a9d5bde718bf366178313019f04a753bad00685d38e3ec81c8628f35dfcb1b".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             }
         );
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -377,12 +380,14 @@ mod tests {
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 17).and_hms(0, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("9cf8847d2992e7219e659cdde1969e0d567ebab39a7aba13b36f9916fa26f6ca".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             }
         );
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -396,12 +401,14 @@ mod tests {
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 18).and_hms(10, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("b100dabbadeedabbad1eadabbadeedabbad1edabbadeedabbad1eadabbadeeda".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             }
         );
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -415,12 +422,14 @@ mod tests {
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("a41f58ced5996b018dfbd697c1b16675f0cf864a3475d237cdd3f4d8c7160fdb".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             }
         );
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -434,12 +443,14 @@ mod tests {
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 19).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 07, 19).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             }
         );
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -453,12 +464,14 @@ mod tests {
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 17).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                 expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 07, 19).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap()
+                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             }
         );
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
