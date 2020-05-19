@@ -19,7 +19,8 @@ pub const TOOL_REPORT_SCHEMA: &str = r#"
                 "name": "Suppressed_Issues", "type": "record", "fields": [
                     {"name": "issue_hash", "type": "string"},
                     {"name": "expiry_date", "type": ["null", "string"]},
-                    {"name": "suppression_reason", "type": "string"}
+                    {"name": "suppression_reason", "type": "string"},
+                    {"name": "suppressed_by", "type": "string"}
                 ]}}
             }
         ]
