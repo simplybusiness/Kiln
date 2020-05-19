@@ -143,15 +143,15 @@ fn main() {
                 );
                 let tool_image_repo = image_name_matches
                     .name("r")
-                    .and_then(|capture| Some(capture.as_str()))
+                    .map(|capture| capture.as_str())
                     .unwrap_or_else(|| "kiln");
                 let tool_image_name = image_name_matches
                     .name("i")
-                    .and_then(|capture| Some(capture.as_str()))
+                    .map(|capture| capture.as_str())
                     .unwrap_or_else(|| "bundler-audit");
                 let tool_image_tag = image_name_matches
                     .name("t")
-                    .and_then(|capture| Some(capture.as_str()))
+                    .map(|capture| capture.as_str())
                     .unwrap_or_else(|| "master-latest");
 
                 let test_tool_name = String::from("bundler-audit-kiln-container");
@@ -268,27 +268,31 @@ fn validate_config_info(config_info: &CliConfigOptions) -> Result<(), ConfigFile
     match &config_info.app_name {
         Some(app_name) => {
             if app_name.is_empty() {
-                Err(ConfigFileError::app_name_empty())?
+                Err(ConfigFileError::app_name_empty())
+            } else {
+                Ok(())
             }
         }
-        None => Err(ConfigFileError::app_name_unspecified())?,
-    };
+        None => Err(ConfigFileError::app_name_unspecified()),
+    }?;
     match &config_info.data_collector_url {
         Some(url) => {
             if url.is_empty() {
-                Err(ConfigFileError::data_collector_url_empty())?
+                Err(ConfigFileError::data_collector_url_empty())
+            } else {
+                Ok(())
             }
         }
-        None => Err(ConfigFileError::data_collector_url_unspecified())?,
-    };
+        None => Err(ConfigFileError::data_collector_url_unspecified()),
+    }?;
 
     Ok(())
 }
 
-static DOCKER_AUTH_URL: &'static str =
+static DOCKER_AUTH_URL: &str =
     "https://auth.docker.io/token?service=registry.docker.io&scope=repository";
 
-static DOCKER_REGISTRY_URL: &'static str = "https://registry.hub.docker.com";
+static DOCKER_REGISTRY_URL: &str = "https://registry.hub.docker.com";
 
 pub fn get_fs_layers_for_docker_image(
     repo_name: String,
@@ -320,7 +324,7 @@ pub fn get_fs_layers_for_docker_image(
         .iter()
         .map(|hashval| {
             let hashstr: String = hashval["blobSum"].as_str().unwrap().to_string();
-            let v: Vec<&str> = hashstr.split(":").collect();
+            let v: Vec<&str> = hashstr.split(':').collect();
             (&(v[1].to_string())[..12]).to_string()
         })
         .collect::<HashSet<_>>();
@@ -333,8 +337,7 @@ struct ProgressBarDisplay {
     pull_started: bool,
 }
 
-static PBAR_FMT: &'static str =
-    "{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
+static PBAR_FMT: &str = "{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
 
 impl ProgressBarDisplay {
     fn create_progress_bar(len: u64) -> ProgressBar {
@@ -374,14 +377,13 @@ impl ProgressBarDisplay {
                         Err(_e) => break,
                         Ok(val) => {
                             if val["status"] != serde_json::Value::Null {
-                                if (val["status"].as_str().unwrap().to_string() == "Pull complete")
-                                    || (val["status"].as_str().unwrap().to_string()
-                                        == "Already exists")
+                                if (val["status"].as_str().unwrap() == "Pull complete")
+                                    || (val["status"].as_str().unwrap() == "Already exists")
                                 {
                                     pgbar.finish_and_clear();
                                     break;
                                 }
-                                if val["status"].as_str().unwrap().to_string() != status_val {
+                                if val["status"].as_str().unwrap() != status_val {
                                     status_val = val["status"].as_str().unwrap().to_string();
                                     if val["id"] != serde_json::Value::Null {
                                         pgbar.set_message(
@@ -396,27 +398,26 @@ impl ProgressBarDisplay {
                                     }
                                 }
                             }
-                            if val["progressDetail"] != serde_json::Value::Null {
-                                if val["progressDetail"]["current"] != serde_json::Value::Null {
-                                    if val["progressDetail"]["total"] != serde_json::Value::Null {
-                                        let curr_count =
-                                            (val["progressDetail"]["current"]).as_u64().unwrap();
-                                        let total_count =
-                                            (val["progressDetail"]["total"]).as_u64().unwrap();
-                                        if bar_length < total_count {
-                                            pgbar.set_length(total_count);
-                                            pgbar.set_position(curr_count);
-                                            bar_length = total_count;
-                                        }
-                                        if curr_count < total_count {
-                                            pgbar.set_position(curr_count);
-                                        }
-                                        if curr_count >= total_count {
-                                            pgbar.set_length(0);
-                                            pgbar.set_position(0);
-                                            bar_length = 0;
-                                        }
-                                    }
+                            if !val["progressDetail"].is_null()
+                                && !val["progressDetail"]["current"].is_null()
+                                && !val["progressDetail"]["total"].is_null()
+                            {
+                                let curr_count =
+                                    (val["progressDetail"]["current"]).as_u64().unwrap();
+                                let total_count =
+                                    (val["progressDetail"]["total"]).as_u64().unwrap();
+                                if bar_length < total_count {
+                                    pgbar.set_length(total_count);
+                                    pgbar.set_position(curr_count);
+                                    bar_length = total_count;
+                                }
+                                if curr_count < total_count {
+                                    pgbar.set_position(curr_count);
+                                }
+                                if curr_count >= total_count {
+                                    pgbar.set_length(0);
+                                    pgbar.set_position(0);
+                                    bar_length = 0;
                                 }
                             }
                         }
@@ -431,10 +432,10 @@ impl ProgressBarDisplay {
         });
     }
 
-    pub fn update_progress_bar(&mut self, output: serde_json::Value) -> () {
+    pub fn update_progress_bar(&mut self, output: serde_json::Value) {
         if output["id"] != serde_json::Value::Null {
             if output["status"] != serde_json::Value::Null {
-                if self.pull_started == true {
+                if self.pull_started {
                     let status = output["status"].as_str().unwrap().to_string();
                     let id = output["id"].as_str().unwrap().to_string();
                     match self.prog_channels.get(&id) {
@@ -464,7 +465,7 @@ fn prepare_tool_image(
     let tool_image_name_full =
         format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
     if use_local_image {
-        return Box::new(
+        Box::new(
             docker
                 .images()
                 .get(tool_image_name_full.as_ref())
@@ -473,7 +474,7 @@ fn prepare_tool_image(
                     Ok(_) => futures::future::ok(()),
                     Err(err) => {
                         match &err {
-                            shiplift::errors::Error::Fault { code, message: _ } if *code == 404 => {
+                            shiplift::errors::Error::Fault { code, .. } if *code == 404 => {
                                 eprintln!("Could not find {} locally. Quitting!", tool_image_name)
                             }
                             _ => eprintln!("{}", err),
@@ -481,7 +482,7 @@ fn prepare_tool_image(
                         futures::future::err(())
                     }
                 }),
-        );
+        )
     } else {
         let pull_options = PullOptions::builder().image(&tool_image_name_full).build();
 
@@ -499,7 +500,7 @@ fn prepare_tool_image(
             }
         };
 
-        return Box::new(
+        Box::new(
             docker
                 .images()
                 .pull(&pull_options)
@@ -513,7 +514,7 @@ fn prepare_tool_image(
                     Ok(_) => Ok(()),
                     Err(err) => {
                         match &err {
-                            shiplift::errors::Error::Fault { code, message: _ } if *code == 404 => {
+                            shiplift::errors::Error::Fault { code, .. } if *code == 404 => {
                                 eprintln!(
                                     "Could not find {} on Docker Hub. Quitting!",
                                     tool_image_name_full
@@ -524,6 +525,6 @@ fn prepare_tool_image(
                         Err(())
                     }
                 }),
-        );
+        )
     }
 }
