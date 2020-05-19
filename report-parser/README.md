@@ -18,3 +18,5 @@ This component is configured using environment variables. Ensure that the enviro
 By default, this component will validate that hosts in the `KAFKA_BOOTSTRAP_TLS` environment variable are valid domain names. If you need to connect to a cluster using bare hostnames, you can disable this validation by setting: `DISABLE_KAFKA_DOMAIN_VALIDATION=true`.
 
 If your Kafka cluster uses TLS certificates issued by a private Certificate Authority, you will need to provide the CA Certificate in PEM format so that certificate validation can be performed when connecting to the Kafka cluster. You should do this by including the CA certificate in PEM format in the `/tls` directory of the container, probably through a volume mount.
+
+If you want to provide an alternative URL for downloading NIST NVD data, this can be configured by starting the report-paser with the `NVD_BASE_URL` environment variable set to the URL of your NVD mirror.
