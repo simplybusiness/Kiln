@@ -1,4 +1,4 @@
-use kiln_lib::tool_report::{ToolReport, ApplicationName, GitBranch, GitCommitHash,  ToolName, ToolOutput, OutputFormat, EventVersion, EventID, Environment,ToolVersion}; 
+use kiln_lib::tool_report::{ToolReport, ApplicationName, GitBranch, GitCommitHash,  ToolName, ToolOutput, OutputFormat, EventVersion, EventID, Environment, SuppressedIssue, ToolVersion};
 use kiln_lib::validation::ValidationError; 
 use clap::{Arg, App}; 
 use std::convert::TryFrom; 
@@ -11,6 +11,9 @@ use std::io::prelude::*;
 use std::env;
 use git2::Repository;
 use uuid::Uuid;
+use std::path::PathBuf;
+use std::str::FromStr;
+use toml;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     openssl_probe::init_ssl_cert_env_vars();
@@ -115,6 +118,32 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
         };
         let git_commit = head.peel_to_commit()?.id().to_string(); 
 
+        let kiln_cfg_path = PathBuf::from_str("./kiln.toml")?;
+        let mut kiln_cfg_raw = String::new();
+
+        File::open(kiln_cfg_path)?.read_to_string(&mut kiln_cfg_raw)?;
+        let kiln_cfg: toml::value::Table = toml::de::from_str(&kiln_cfg_raw)?;
+        let suppressed_issues = kiln_cfg
+            .get("suppressed_issues")
+            .and_then(|value| value.as_array())
+            .and_then(|values| {
+                Some(
+                    values
+                        .into_iter()
+                        .map(|value| SuppressedIssue::try_from(value.clone()))
+                        .collect::<Result<Vec<_>, _>>(),
+                )
+            })
+            .unwrap_or(Ok(vec![]));
+
+        if let Err(e) = suppressed_issues {
+            eprintln!(
+                "Error while parsing suppressed issues in kiln.toml: {}",
+                e.error_message
+            );
+            std::process::exit(1);
+        }
+
 	let tool_report = ToolReport { 
                 event_version: EventVersion::try_from("1".to_string())?,
                 event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
@@ -128,7 +157,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
 		end_time: parsed_end_time.into(), 
 		environment: Environment::try_from(scan_env.to_string())?, 
 		tool_version: ToolVersion::try_from(tool_version.map(|s| s.to_string()))?, 
-                suppressed_issues: vec!()
+                suppressed_issues: suppressed_issues.unwrap(),
 	}; 	
 
 	let client = Client::new();
