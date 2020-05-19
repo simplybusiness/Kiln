@@ -12,8 +12,6 @@ DependencyEvents are consumed from a Kafka topic called "DependencyEvents". If y
 
 To grant the Slack Connector access to your Slack workspace, you will need to register it as a Slack app for your workspace and generate an access token for it. Instructions for this can be found [here](https://api.slack.com/authentication/basics). Follow those instructions up to and including "Installing the app to a workspace". When you get to the step where you're adding OAuth Scopes, add the following scopes: `channels:read` and `chat:write`. By the end of that step, you should have an OAuth2 Access token for the Slack Connector. It is important that this token is handled carefully, because it grants access to your Slack workspace.
 
-**Please note: There is currently a known issue with running this component in a HA configuration, which results in duplicate messages being posted to Slack. This is being tracked in #139.**
-
 ## Configuration
 This component is configured using environment variables. Ensure that the environment variable `KAFKA_BOOTSTRAP_TLS` is set to a comma separated list of host:port pairs to bootstrap connectivity to your Kafka cluster over TLS.
 
