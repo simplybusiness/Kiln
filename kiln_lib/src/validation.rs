@@ -585,6 +585,14 @@ impl ValidationError {
             json_field_name: None,
         }
     }
+
+    pub fn suppressed_issue_toml_value_not_a_table() -> ValidationError {
+        ValidationError {
+            error_code: 168,
+            error_message: "Suppressed Issue TOML type must be a Table".into(),
+            json_field_name: None
+        }
+    }
 }
 
 #[cfg(feature = "web")]
