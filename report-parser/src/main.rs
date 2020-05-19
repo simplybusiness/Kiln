@@ -18,6 +18,7 @@ use rdkafka::consumer::{CommitMode, Consumer};
 use rdkafka::message::Message;
 use rdkafka::producer::future_producer::FutureRecord;
 use regex::Regex;
+use reqwest::blocking::Client;
 use ring::digest;
 use serde_json::Value;
 use std::boxed::Box;
@@ -56,10 +57,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let base_url = Url::parse(&env::var("NVD_BASE_URL").unwrap_or("https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()))?;
     let mut last_updated_time = None;
+    let client_builder = Client::builder();
+    let client = client_builder
+        .timeout(Some(std::time::Duration::new(10, 0)))
+        .build()?;
 
     let mut vulns = HashMap::new();
     for year in 2002..=2020 {
-        let parsed_vulns = download_and_parse_vulns(year.to_string(), last_updated_time, &base_url);
+        let parsed_vulns = download_and_parse_vulns(year.to_string(), last_updated_time, &base_url, &client);
         if let Err(err) = parsed_vulns {
             error!("{}", err);
             return Err(err)
@@ -78,7 +83,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let modified_vulns = download_and_parse_vulns("modified".to_string(), last_updated_time, &base_url);
+    let modified_vulns = download_and_parse_vulns("modified".to_string(), last_updated_time, &base_url, &client);
     if let Err(err) = modified_vulns {
         error!("{}", err);
         return Err(err)
@@ -102,7 +107,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     loop {
         if last_updated_time.unwrap().lt(&(Utc::now() - Duration::hours(2))) {
-            let modified_vulns = download_and_parse_vulns("modified".to_string(), last_updated_time, &base_url);
+            let modified_vulns = download_and_parse_vulns("modified".to_string(), last_updated_time, &base_url, &client);
             if let Err(err) = modified_vulns {
                 error!("{}", err);
             } else {
@@ -137,7 +142,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Utc>>, base_url: &Url) -> Result<Option<HashMap<String, Cvss>>, Box<dyn Error>> {
+fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Utc>>, base_url: &Url, client: &Client) -> Result<Option<HashMap<String, Cvss>>, Box<dyn Error>> {
     lazy_static! {
         static ref META_LAST_MOD_RE: Regex = Regex::new("lastModifiedDate:(.*)\r\n").unwrap();
         static ref META_COMPRESSED_GZ_SIZE_RE: Regex = Regex::new("gzSize:(.*)\r\n").unwrap();
@@ -148,7 +153,7 @@ fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Ut
     let meta_filename = format!("nvdcve-1.1-{}.meta", index);
     let meta_url = base_url.join(&meta_filename)?;
 
-    let meta_resp_text = reqwest::blocking::get(meta_url)
+    let meta_resp_text = client.get(meta_url).send()
         .map_err(|err| Box::new(err_msg(format!("Error downloading {}: {}", meta_filename, err)).compat()))
         .and_then(|resp| resp.text()
             .map_err(|err| Box::new(err_msg(format!("Error reading body of {}: {}", meta_filename, err)).compat()))
@@ -178,7 +183,7 @@ fn download_and_parse_vulns(index: String, last_updated_time: Option<DateTime<Ut
         let data_filename = format!("nvdcve-1.1-{}.json.gz", index);
         let data_url = base_url.join(&data_filename)?;
 
-        let mut resp = reqwest::blocking::get(data_url)
+        let mut resp = client.get(data_url).send()
             .map_err(|err| Box::new(err_msg(format!("Error downloading {}: {}", data_filename, err)).compat()))?;
 
         let mut resp_compressed_bytes = Vec::<u8>::with_capacity(usize::from_str(compressed_size)?);
