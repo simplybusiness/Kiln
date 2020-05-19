@@ -8,6 +8,9 @@ use failure::err_msg;
 #[cfg(feature = "json")]
 use serde_json::value::Value;
 
+#[cfg(feature = "toml")]
+use toml_crate as toml;
+
 use crate::traits::Hashable;
 use crate::validation::ValidationError;
 
@@ -781,6 +784,42 @@ pub struct SuppressedIssue {
     pub issue_hash: IssueHash,
     pub expiry_date: ExpiryDate,
     pub suppression_reason: SuppressionReason,
+}
+
+#[cfg(feature = "toml")]
+impl TryFrom<toml::Value> for SuppressedIssue {
+    type Error = ValidationError;
+
+    fn try_from(value: toml::Value) -> Result<Self, Self::Error> {
+        match value {
+            toml::Value::Table(t) => {
+                let issue_hash = match t.get("issue_hash") {
+                    None => Err(ValidationError::issue_hash_required()),
+                    Some(toml::Value::String(s)) => IssueHash::try_from(s.clone()),
+                    _ => Err(ValidationError::issue_hash_not_a_string()),
+                }?;
+
+                let suppression_reason = match t.get("suppression_reason") {
+                    None => Err(ValidationError::suppression_reason_required()),
+                    Some(toml::Value::String(s)) => SuppressionReason::try_from(s.clone()),
+                    _ => Err(ValidationError::suppression_reason_not_a_string()),
+                }?;
+
+                let expiry_date = match t.get("expiry_date") {
+                    None => Ok(ExpiryDate::from(None)), 
+                    Some(toml::Value::String(s)) => ExpiryDate::try_from(Some(s.clone())),
+                    _ => Err(ValidationError::expiry_date_not_a_string()),
+                }?;
+
+                Ok(SuppressedIssue {
+                    issue_hash,
+                    suppression_reason,
+                    expiry_date,
+                })
+            },
+            _ => Err(ValidationError::suppressed_issue_toml_value_not_a_table()),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
