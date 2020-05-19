@@ -998,7 +998,6 @@ impl TryFrom<avro_rs::types::Value> for SuppressedIssue {
         match value {
             avro_rs::types::Value::Record(unparsed_issue) => {
                 let mut fields = unparsed_issue.iter();
-                println!("{:?}", fields);
                 let issue_hash = IssueHash::try_from(
                     fields
                         .find(|&x| x.0 == "issue_hash")
