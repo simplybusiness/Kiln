@@ -913,7 +913,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.1.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=finding_suppression_kiln_lib#787641a138826e3586f2a622f24b3d59a9e3438e"
+source = "git+https://github.com/simplybusiness/Kiln?branch=finding_suppression_kiln_lib#4ee323925db08930861db4840b16130e97565b39"
 dependencies = [
  "actix-web 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "addr 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
