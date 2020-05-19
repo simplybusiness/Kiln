@@ -121,7 +121,7 @@ mod tests {
 
     use kiln_lib::tool_report::{
         ApplicationName, EndTime, Environment, EventID, EventVersion, ExpiryDate, GitBranch, GitCommitHash, IssueHash,
-        OutputFormat, StartTime, SuppressedIssue, SuppressionReason, ToolName, ToolOutput, ToolVersion,
+        OutputFormat, StartTime, SuppressedBy, SuppressedIssue, SuppressionReason, ToolName, ToolOutput, ToolVersion,
     };
 
     fn set_env_vars() {
@@ -181,7 +181,8 @@ mod tests {
                     "suppressed_issues": [{
                         "issue_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                         "suppression_reason": "Test issue",
-                        "expiry_date": "2020-05-12T00:00:00+00:00"
+                        "expiry_date": "2020-05-12T00:00:00+00:00",
+                        "suppressed_by": "Dan Murphy"
                     }]
                 }"#
         .to_owned();
@@ -213,6 +214,7 @@ mod tests {
                     issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
                     suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
                     expiry_date: ExpiryDate::from(Some(DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2020-05-12T00:00:00+00:00").unwrap()))),
+                    suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
                 }
             ),
         };
