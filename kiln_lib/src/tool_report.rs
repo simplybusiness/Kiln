@@ -17,7 +17,6 @@ use crate::validation::ValidationError;
 use std::convert::TryFrom;
 
 use chrono::{DateTime, Utc};
-use hex;
 use regex::Regex;
 use ring::digest;
 use serde::Serialize;
