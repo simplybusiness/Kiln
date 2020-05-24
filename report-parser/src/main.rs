@@ -47,15 +47,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let consumer =
         build_kafka_consumer(config.clone(), "report-parser".to_string(), &tls_cert_path)
-            .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.description())))?;
+            .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?;
 
-    consumer.subscribe(&vec!["ToolReports"])?;
+    consumer.subscribe(&["ToolReports"])?;
 
     let producer = build_kafka_producer(config.clone(), &tls_cert_path)
-        .map_err(|err| err_msg(format!("Kafka Producer Error: {}", err.description())))?;
+        .map_err(|err| err_msg(format!("Kafka Producer Error: {}", err.to_string())))?;
 
     let base_url = Url::parse(
-        &env::var("NVD_BASE_URL").unwrap_or("https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()),
+        &env::var("NVD_BASE_URL").unwrap_or_else(|_| "https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()),
     )?;
     let mut last_updated_time = None;
     let client_builder = Client::builder();
@@ -72,8 +72,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             return Err(err);
         } else {
             parsed_vulns.into_iter().fold(&mut vulns, |acc, values| {
-                if values.is_some() {
-                    for (k, v) in values.unwrap().drain() {
+                if let Some(mut values) = values {
+                    for (k, v) in values.drain() {
                         acc.insert(k, v);
                     }
                 }
@@ -94,8 +94,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         return Err(err);
     } else {
         modified_vulns.into_iter().fold(&mut vulns, |acc, values| {
-            if values.is_some() {
-                for (k, v) in values.unwrap().drain() {
+            if let Some(mut values) = values {
+                for (k, v) in values.drain() {
                     acc.insert(k, v);
                 }
             }
@@ -187,7 +187,7 @@ fn download_and_parse_vulns(
     let last_mod_timestamp = META_LAST_MOD_RE
         .captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
-        .ok_or(Box::new(
+        .ok_or_else(|| Box::new(
             err_msg(format!(
                 "Error reading lastModifiedDate from {}",
                 meta_filename
@@ -199,7 +199,7 @@ fn download_and_parse_vulns(
     let uncompressed_size = META_UNCOMPRESSED_SIZE_RE
         .captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
-        .ok_or(Box::new(
+        .ok_or_else(|| Box::new(
             err_msg(format!("Error reading size from {}", meta_filename)).compat(),
         ))
         .map(|capture| capture.as_str())?;
@@ -207,7 +207,7 @@ fn download_and_parse_vulns(
     let compressed_size = META_COMPRESSED_GZ_SIZE_RE
         .captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
-        .ok_or(Box::new(
+        .ok_or_else(|| Box::new(
             err_msg(format!(
                 "Error reading compressed size from {}",
                 meta_filename
@@ -219,7 +219,7 @@ fn download_and_parse_vulns(
     let hash = META_SHA256_RE
         .captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
-        .ok_or(Box::new(
+        .ok_or_else(|| Box::new(
             err_msg(format!("Error reading sha256 hash from {}", meta_filename)).compat(),
         ))
         .map(|capture| capture.as_str())?;
@@ -294,13 +294,13 @@ fn download_and_parse_vulns(
                     Cvss::builder().with_version(CvssVersion::Unknown).build()
                 };
 
-                return (
+                (
                     vuln_info["cve"]["CVE_data_meta"]["ID"]
                         .as_str()
                         .unwrap()
                         .to_string(),
                     cvss.unwrap(),
-                );
+                )
             })
             .collect::<HashMap<_, _>>();
 
@@ -362,7 +362,8 @@ fn parse_bundler_audit_plaintext(
         let advisory_id = AdvisoryId::try_from(
             fields
                 .get("Advisory")
-                .or(Some(&"".to_string()))
+                .cloned()
+                .or_else(|| Some("".to_string()))
                 .unwrap()
                 .to_owned(),
         )?;
@@ -385,21 +386,24 @@ fn parse_bundler_audit_plaintext(
             affected_package: AffectedPackage::try_from(
                 fields
                     .get("Name")
-                    .or(Some(&"".to_string()))
+                    .cloned()
+                    .or_else(|| Some("".to_string()))
                     .unwrap()
                     .to_owned(),
             )?,
             installed_version: InstalledVersion::try_from(
                 fields
                     .get("Version")
-                    .or(Some(&"".to_string()))
+                    .cloned()
+                    .or_else(|| Some("".to_string()))
                     .unwrap()
                     .to_owned(),
             )?,
             advisory_url: AdvisoryUrl::try_from(
                 fields
                     .get("URL")
-                    .or(Some(&"".to_string()))
+                    .cloned()
+                    .or_else(|| Some("".to_string()))
                     .unwrap()
                     .to_owned(),
             )?,
@@ -407,7 +411,8 @@ fn parse_bundler_audit_plaintext(
             advisory_description: AdvisoryDescription::try_from(
                 fields
                     .get("Title")
-                    .or(Some(&"".to_string()))
+                    .cloned()
+                    .or_else(|| Some("".to_owned()))
                     .unwrap()
                     .to_owned(),
             )?,
@@ -427,7 +432,7 @@ fn parse_bundler_audit_plaintext(
 
 fn should_issue_be_suppressed(
     issue_hash: &IssueHash,
-    suppressed_issues: &Vec<SuppressedIssue>,
+    suppressed_issues: &[SuppressedIssue],
     current_time: &DateTime<Utc>,
 ) -> bool {
     if suppressed_issues.is_empty() {
