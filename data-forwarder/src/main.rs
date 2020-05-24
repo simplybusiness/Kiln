@@ -15,7 +15,6 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
-use toml;
 use uuid::Uuid;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
@@ -137,15 +136,13 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     let suppressed_issues = kiln_cfg
         .get("suppressed_issues")
         .and_then(|value| value.as_array())
-        .and_then(|values| {
-            Some(
-                values
-                    .into_iter()
-                    .map(|value| SuppressedIssue::try_from(value.clone()))
-                    .collect::<Result<Vec<_>, _>>(),
-            )
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| SuppressedIssue::try_from(value.clone()))
+                .collect::<Result<Vec<_>, _>>()
         })
-        .unwrap_or(Ok(vec![]));
+        .unwrap_or_else(|| Ok(vec![]));
 
     if let Err(e) = suppressed_issues {
         eprintln!(
@@ -162,8 +159,8 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
         git_branch: GitBranch::try_from(git_branch_name)?,
         git_commit_hash: GitCommitHash::try_from(git_commit)?,
         tool_name: ToolName::try_from(tool_name.to_string())?,
-        tool_output: ToolOutput::try_from(tool_output.to_string())?,
-        output_format: OutputFormat::try_from(output_format.to_string())?,
+        tool_output: ToolOutput::try_from(tool_output)?,
+        output_format: OutputFormat::try_from(output_format)?,
         start_time: parsed_start_time.into(),
         end_time: parsed_end_time.into(),
         environment: Environment::try_from(scan_env.to_string())?,
