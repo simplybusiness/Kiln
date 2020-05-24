@@ -1,7 +1,6 @@
 use avro_rs::Reader;
 use failure::err_msg;
 use futures_util::stream::StreamExt;
-use hex;
 use kiln_lib::dependency_event::DependencyEvent;
 use kiln_lib::kafka::*;
 use kiln_lib::traits::Hashable;
@@ -35,9 +34,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "slack-connector".to_string(),
         &tls_cert_path,
     )
-    .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.description())))?;
+    .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?;
 
-    consumer.subscribe(&vec!["DependencyEvents"])?;
+    consumer.subscribe(&["DependencyEvents"])?;
     let mut messages = consumer.start_with(std::time::Duration::from_secs(1), false);
 
     let client = Client::new();
@@ -60,7 +59,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             .build()?;
                         let resp = client.execute(req)?;
                         let resp_body: Value = resp.json()?;
-                        if resp_body.get("ok").unwrap().as_bool().unwrap() == false {
+                        if !resp_body.get("ok").unwrap().as_bool().unwrap() {
                             let cause = resp_body.get("error").unwrap().as_str().unwrap();
                             eprintln!(
                                 "Error sending message for event {}, parent {}, {}",
