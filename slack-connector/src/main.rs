@@ -2,8 +2,8 @@ use avro_rs::Reader;
 use failure::err_msg;
 use futures_util::stream::StreamExt;
 use hex;
-use kiln_lib::kafka::*;
 use kiln_lib::dependency_event::DependencyEvent;
+use kiln_lib::kafka::*;
 use kiln_lib::traits::Hashable;
 use rdkafka::consumer::{CommitMode, Consumer};
 use rdkafka::message::Message;
@@ -11,9 +11,9 @@ use reqwest::blocking::Client;
 use reqwest::Method;
 use serde_json::{json, Value};
 use std::boxed::Box;
+use std::convert::TryFrom;
 use std::env;
 use std::error::Error;
-use std::convert::TryFrom;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -21,8 +21,10 @@ use std::str::FromStr;
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
-    let oauth_token = env::var("OAUTH2_TOKEN").expect("Error: Required Env Var OAUTH2_TOKEN not provided");
-    let channel_id = env::var("SLACK_CHANNEL_ID").expect("Error: Required Env Var SLACK_CHANNEL_ID not provided");
+    let oauth_token =
+        env::var("OAUTH2_TOKEN").expect("Error: Required Env Var OAUTH2_TOKEN not provided");
+    let channel_id = env::var("SLACK_CHANNEL_ID")
+        .expect("Error: Required Env Var SLACK_CHANNEL_ID not provided");
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
@@ -31,9 +33,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let consumer = build_kafka_consumer(
         config.clone(),
         "slack-connector".to_string(),
-        &tls_cert_path
+        &tls_cert_path,
     )
-        .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.description())))?;
+    .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.description())))?;
 
     consumer.subscribe(&vec!["DependencyEvents"])?;
     let mut messages = consumer.start_with(std::time::Duration::from_secs(1), false);
@@ -51,7 +53,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             "channel": channel_id,
                             "text": event.to_slack_message()
                         });
-                        let req = client.request(Method::POST, "https://slack.com/api/chat.postMessage")
+                        let req = client
+                            .request(Method::POST, "https://slack.com/api/chat.postMessage")
                             .bearer_auth(&oauth_token)
                             .json(&payload)
                             .build()?;
@@ -59,7 +62,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         let resp_body: Value = resp.json()?;
                         if resp_body.get("ok").unwrap().as_bool().unwrap() == false {
                             let cause = resp_body.get("error").unwrap().as_str().unwrap();
-                            eprintln!("Error sending message for event {}, parent {}, {}", event.event_id.to_string(), event.parent_event_id.to_string(), cause);
+                            eprintln!(
+                                "Error sending message for event {}, parent {}, {}",
+                                event.event_id.to_string(),
+                                event.parent_event_id.to_string(),
+                                cause
+                            );
                         }
                     }
                 }
