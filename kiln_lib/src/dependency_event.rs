@@ -474,6 +474,12 @@ pub struct CvssBuilder {
     score: Option<f32>,
 }
 
+ impl Default for CvssBuilder {
+     fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cvss {
     pub fn builder() -> CvssBuilder {
         CvssBuilder {
@@ -503,9 +509,9 @@ impl CvssBuilder {
 
     pub fn build(self) -> Result<Cvss, ValidationError> {
         if self.version == CvssVersion::Unknown && self.score.is_some() {
-            return Err(ValidationError::cvss_version_unknown_with_score());
+            Err(ValidationError::cvss_version_unknown_with_score())
         } else if self.version != CvssVersion::Unknown && self.score.is_none() {
-            return Err(ValidationError::cvss_version_known_without_score());
+            Err(ValidationError::cvss_version_known_without_score())
         } else {
             Ok(Cvss {
                 version: self.version,
