@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
     let producer = build_kafka_producer(config, &tls_cert_path)
-        .map_err(|err| err_msg(format!("Kafka Error: {}", err.description())))?;
+        .map_err(|err| err_msg(format!("Kafka Error: {}", err.to_string())))?;
 
     let shared_producer = Arc::from(producer);
 
