@@ -92,7 +92,9 @@ pub struct ApplicationName(String);
 
 impl Hashable for ApplicationName {
     fn hash(&self) -> Vec<u8> {
-        digest::digest(&digest::SHA256, &self.0.as_bytes()).as_ref().to_vec()
+        digest::digest(&digest::SHA256, &self.0.as_bytes())
+            .as_ref()
+            .to_vec()
     }
 }
 
@@ -298,7 +300,7 @@ impl PartialEq<&str> for OutputFormat {
         let parsed_other = OutputFormat::try_from(*other);
         match parsed_other {
             Ok(parsed_other) => parsed_other == *self,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -368,9 +370,13 @@ impl TryFrom<&Value> for ToolReport {
 
         let suppressed_issues = match json_value["suppressed_issues"].as_array() {
             None => Err(ValidationError::suppressed_issues_not_an_array()),
-            Some(unparsed_issues) => Ok(unparsed_issues.into_iter().map(|unparsed_issue| SuppressedIssue::try_from(unparsed_issue)).collect::<Vec<Result<SuppressedIssue, Self::Error>>>())
+            Some(unparsed_issues) => Ok(unparsed_issues
+                .into_iter()
+                .map(|unparsed_issue| SuppressedIssue::try_from(unparsed_issue))
+                .collect::<Vec<Result<SuppressedIssue, Self::Error>>>()),
         }?
-            .into_iter().collect::<Result<Vec<SuppressedIssue>, _>>()?;
+        .into_iter()
+        .collect::<Result<Vec<SuppressedIssue>, _>>()?;
 
         Ok(ToolReport {
             event_version,
@@ -451,13 +457,20 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
             let tool_version =
                 ToolVersion::try_from(fields.find(|&x| x.0 == "tool_version").unwrap().1.clone())
                     .map_err(|err| err_msg(err.error_message))?;
-            let suppressed_issues_avro =
-                fields.find(|&x| x.0 == "suppressed_issues").unwrap().1.clone();
+            let suppressed_issues_avro = fields
+                .find(|&x| x.0 == "suppressed_issues")
+                .unwrap()
+                .1
+                .clone();
 
             let suppressed_issues = match suppressed_issues_avro {
-                avro_rs::types::Value::Array(issues) => {
-                    Ok(issues.into_iter().map(|unparsed_issue| SuppressedIssue::try_from(unparsed_issue).map_err(|err| err_msg(err.error_message))).collect::<Result<Vec<SuppressedIssue>, _>>())
-                },
+                avro_rs::types::Value::Array(issues) => Ok(issues
+                    .into_iter()
+                    .map(|unparsed_issue| {
+                        SuppressedIssue::try_from(unparsed_issue)
+                            .map_err(|err| err_msg(err.error_message))
+                    })
+                    .collect::<Result<Vec<SuppressedIssue>, _>>()),
                 _ => Err(ValidationError::suppressed_issues_not_an_array()),
             }??;
 
@@ -807,7 +820,7 @@ impl TryFrom<toml::Value> for SuppressedIssue {
                 }?;
 
                 let expiry_date = match t.get("expiry_date") {
-                    None => Ok(ExpiryDate::from(None)), 
+                    None => Ok(ExpiryDate::from(None)),
                     Some(toml::Value::String(s)) => ExpiryDate::try_from(Some(s.clone())),
                     _ => Err(ValidationError::expiry_date_not_a_string()),
                 }?;
@@ -824,17 +837,14 @@ impl TryFrom<toml::Value> for SuppressedIssue {
                     expiry_date,
                     suppressed_by,
                 })
-            },
+            }
             _ => Err(ValidationError::suppressed_issue_toml_value_not_a_table()),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct IssueHash(
-    #[serde(with = "hex")]
-    Vec<u8>
-);
+pub struct IssueHash(#[serde(with = "hex")] Vec<u8>);
 
 impl TryFrom<String> for IssueHash {
     type Error = ValidationError;
@@ -845,7 +855,7 @@ impl TryFrom<String> for IssueHash {
         } else {
             match hex::decode(value) {
                 Ok(bytes) => Ok(IssueHash(bytes)),
-                Err(_) => Err(ValidationError::issue_hash_not_valid())
+                Err(_) => Err(ValidationError::issue_hash_not_valid()),
             }
         }
     }
@@ -861,8 +871,8 @@ impl TryFrom<Option<String>> for ExpiryDate {
         match value {
             None => Ok(ExpiryDate(None)),
             Some(value) => DateTime::parse_from_rfc3339(&value)
-                                .map(|dt| ExpiryDate(Some(DateTime::<Utc>::from(dt))))
-                                .map_err(|_| ValidationError::expiry_date_not_a_valid_date())
+                .map(|dt| ExpiryDate(Some(DateTime::<Utc>::from(dt))))
+                .map_err(|_| ValidationError::expiry_date_not_a_valid_date()),
         }
     }
 }
@@ -870,10 +880,8 @@ impl TryFrom<Option<String>> for ExpiryDate {
 impl std::cmp::PartialEq<DateTime<Utc>> for ExpiryDate {
     fn eq(&self, rhs: &DateTime<Utc>) -> bool {
         match self.0 {
-            Some(dt) => {
-                dt == *rhs
-            },
-            None => false
+            Some(dt) => dt == *rhs,
+            None => false,
         }
     }
 }
@@ -936,7 +944,6 @@ impl TryFrom<avro_rs::types::Value> for SuppressedBy {
     }
 }
 
-
 #[cfg(feature = "json")]
 impl SuppressedIssue {
     fn parse_issue_hash(json_value: &Value) -> Result<IssueHash, ValidationError> {
@@ -998,21 +1005,11 @@ impl TryFrom<avro_rs::types::Value> for SuppressedIssue {
         match value {
             avro_rs::types::Value::Record(unparsed_issue) => {
                 let mut fields = unparsed_issue.iter();
-                let issue_hash = IssueHash::try_from(
-                    fields
-                        .find(|&x| x.0 == "issue_hash")
-                        .unwrap()
-                        .1
-                        .clone(),
-                );
-                
-                let expiry_date = ExpiryDate::try_from(
-                    fields
-                        .find(|&x| x.0 == "expiry_date")
-                        .unwrap()
-                        .1
-                        .clone(),
-                );
+                let issue_hash =
+                    IssueHash::try_from(fields.find(|&x| x.0 == "issue_hash").unwrap().1.clone());
+
+                let expiry_date =
+                    ExpiryDate::try_from(fields.find(|&x| x.0 == "expiry_date").unwrap().1.clone());
 
                 let suppression_reason = SuppressionReason::try_from(
                     fields
@@ -1023,11 +1020,7 @@ impl TryFrom<avro_rs::types::Value> for SuppressedIssue {
                 );
 
                 let suppressed_by = SuppressedBy::try_from(
-                    fields
-                        .find(|&x| x.0 == "suppressed_by")
-                        .unwrap()
-                        .1
-                        .clone(),
+                    fields.find(|&x| x.0 == "suppressed_by").unwrap().1.clone(),
                 );
 
                 Ok(SuppressedIssue {
@@ -2240,7 +2233,8 @@ pub mod tests {
 
     #[test]
     fn valid_issue_hash_can_be_parsed_from_string() {
-        let issue_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned();
+        let issue_hash =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned();
         IssueHash::try_from(issue_hash).expect("Expected Ok(_) value");
     }
 
@@ -2254,7 +2248,8 @@ pub mod tests {
 
     #[test]
     fn invalid_issue_hash_characters_can_not_be_parsed_from_string() {
-        let issue_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852B!^?".to_owned();
+        let issue_hash =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852B!^?".to_owned();
         let expected = ValidationError::issue_hash_not_valid();
         let actual = IssueHash::try_from(issue_hash).expect_err("Expected Err(_)");
         assert_eq!(expected, actual);

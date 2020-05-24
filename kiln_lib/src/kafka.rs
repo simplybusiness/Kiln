@@ -103,7 +103,8 @@ mod tests {
     #[allow(unused_must_use)]
     #[test]
     fn creating_kafka_producer_does_not_return_a_client_config_error() {
-        let config = KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(),"host2:1234".to_string()]);
+        let config =
+            KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
         let path = std::path::Path::new(&std::env::current_dir().unwrap()).join("ca-cert");
         build_kafka_producer(config, &path).unwrap();
     }
@@ -111,7 +112,8 @@ mod tests {
     #[allow(unused_must_use)]
     #[test]
     fn creating_kafka_consumer_does_not_return_a_client_config_error() {
-        let config = KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(),"host2:1234".to_string()]);
+        let config =
+            KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
         let path = std::path::Path::new(&std::env::current_dir().unwrap()).join("ca-cert");
         build_kafka_consumer(config, "TestConsumerGroup".to_string(), &path).unwrap();
     }
@@ -171,17 +173,22 @@ mod tests {
     }
 
     #[test]
-    fn get_bootstrap_config_returns_configration_when_hostname_not_a_valid_domain_and_domain_validation_disabled() {
+    fn get_bootstrap_config_returns_configration_when_hostname_not_a_valid_domain_and_domain_validation_disabled(
+    ) {
         let hostname = "kafka:1234".to_owned();
-        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()), ("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "true".to_owned())].into_iter();
+        let mut fake_vars = vec![
+            ("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()),
+            (
+                "DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(),
+                "true".to_owned(),
+            ),
+        ]
+        .into_iter();
         let expected = vec![hostname.clone()];
 
         let actual = get_bootstrap_config(&mut fake_vars).expect("expected Ok(_) value");
 
-        assert_eq!(
-            actual.0,
-            expected
-        )
+        assert_eq!(actual.0, expected)
     }
 
     #[test]
@@ -199,7 +206,8 @@ mod tests {
 
     #[test]
     fn get_bootstrap_config_returns_error_when_disable_kafka_domain_validation_present_but_empty() {
-        let mut fake_vars = vec![("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "".to_owned())].into_iter();
+        let mut fake_vars =
+            vec![("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "".to_owned())].into_iter();
         let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
 
         assert_eq!(
@@ -209,8 +217,13 @@ mod tests {
     }
 
     #[test]
-    fn get_bootstrap_config_returns_error_when_disable_kafka_domain_validation_present_but_invalid() {
-        let mut fake_vars = vec![("DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(), "blah".to_owned())].into_iter();
+    fn get_bootstrap_config_returns_error_when_disable_kafka_domain_validation_present_but_invalid()
+    {
+        let mut fake_vars = vec![(
+            "DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(),
+            "blah".to_owned(),
+        )]
+        .into_iter();
         let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
 
         assert_eq!(

@@ -1,6 +1,6 @@
 use serde::Serialize;
-use std::error::Error; 
-use std::fmt; 
+use std::error::Error;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct ValidationError {
@@ -9,11 +9,15 @@ pub struct ValidationError {
     pub json_field_name: Option<String>,
 }
 
-impl Error for ValidationError { } 
+impl Error for ValidationError {}
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "Error Validating data: (Err {}) {}", self.error_code, self.error_message)
+        write!(
+            f,
+            "Error Validating data: (Err {}) {}",
+            self.error_code, self.error_message
+        )
     }
 }
 
@@ -270,7 +274,7 @@ impl ValidationError {
         ValidationError {
             error_code: 130,
             error_message: "Tried to deserialise a ToolReport from Avro but value didn't pass schema validation".into(),
-            json_field_name: None, 
+            json_field_name: None
         }
     }
 
@@ -278,7 +282,7 @@ impl ValidationError {
         ValidationError {
             error_code: 131,
             error_message: "Tool output format not an avro enum".into(),
-            json_field_name: None, 
+            json_field_name: None,
         }
     }
 
@@ -286,7 +290,7 @@ impl ValidationError {
         ValidationError {
             error_code: 132,
             error_message: "Environment not an avro enum".into(),
-            json_field_name: None, 
+            json_field_name: None,
         }
     }
 
@@ -517,7 +521,8 @@ impl ValidationError {
     pub fn expiry_date_not_a_valid_date() -> ValidationError {
         ValidationError {
             error_code: 159,
-            error_message: "One or more issue suppression expiry dates do not look like valid dates".into(),
+            error_message:
+                "One or more issue suppression expiry dates do not look like valid dates".into(),
             json_field_name: Some("suppressed_issues[].expiry_date".to_owned()),
         }
     }
@@ -590,14 +595,15 @@ impl ValidationError {
         ValidationError {
             error_code: 168,
             error_message: "Suppressed Issue TOML type must be a Table".into(),
-            json_field_name: None
+            json_field_name: None,
         }
     }
 
     pub fn suppressed_by_not_a_string() -> ValidationError {
         ValidationError {
             error_code: 169,
-            error_message: "One or more Suppressed Issues SuppressedBy fields are not a string".into(),
+            error_message: "One or more Suppressed Issues SuppressedBy fields are not a string"
+                .into(),
             json_field_name: Some("suppressed_issues[].suppressed_by".into()),
         }
     }
@@ -613,7 +619,8 @@ impl ValidationError {
     pub fn suppressed_by_empty() -> ValidationError {
         ValidationError {
             error_code: 171,
-            error_message: "One or more Suppressed Issues SuppressedBy fields are present but empty".into(),
+            error_message:
+                "One or more Suppressed Issues SuppressedBy fields are present but empty".into(),
             json_field_name: Some("suppressed_issues[].suppressed_by".into()),
         }
     }
@@ -625,7 +632,6 @@ use actix_web::HttpResponse;
 #[cfg(feature = "web")]
 impl Into<HttpResponse> for ValidationError {
     fn into(self) -> HttpResponse {
-        HttpResponse::BadRequest()
-            .json(self)
+        HttpResponse::BadRequest().json(self)
     }
 }
