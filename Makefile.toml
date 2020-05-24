@@ -19,6 +19,14 @@ args = ["make", "--cwd", "cli", "build-kiln-cli"]
 command = "cargo"
 args = ["make", "--cwd", "data-collector", "build-data-collector-docker"]
 
+[tasks.build-report-parser-docker]
+command = "cargo"
+args = ["make", "--cwd", "report-parser", "build-report-parser-docker"]
+
+[tasks.build-slack-connector-docker]
+command = "cargo"
+args = ["make", "--cwd", "slack-connector", "build-slack-connector-docker"]
+
 [tasks.build-data-forwarder-musl]
 command = "cargo"
 args = ["make", "--cwd", "data-forwarder", "build-data-forwarder-musl"]
