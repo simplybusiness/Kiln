@@ -1,6 +1,6 @@
 use actix_web::middleware::Logger;
-use actix_web::{web, App, HttpResponse, HttpServer};
 use actix_web::Error as ActixError;
+use actix_web::{web, App, HttpResponse, HttpServer};
 use avro_rs::{Schema, Writer};
 use failure::err_msg;
 use rdkafka::producer::future_producer::{FutureProducer, FutureRecord};
@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 async fn handler(
     body: web::Bytes,
-    producer: web::Data<Arc<FutureProducer>>
+    producer: web::Data<Arc<FutureProducer>>,
 ) -> Result<HttpResponse, ActixError> {
     let report_result = parse_payload(&body);
 
@@ -58,7 +58,11 @@ async fn handler(
         if let Some(field_name) = &err.json_field_name {
             warn!("Request did not pass validation. Error message: {}. JSON field name: {}. Request body: {}\n", err.error_message, field_name, str::from_utf8(&body).unwrap());
         } else {
-            warn!("Request did not pass validation. Error message: {}. Request body: {}\n", err.error_message, str::from_utf8(&body).unwrap());
+            warn!(
+                "Request did not pass validation. Error message: {}. Request body: {}\n",
+                err.error_message,
+                str::from_utf8(&body).unwrap()
+            );
         }
         return Ok(err.into());
     }
@@ -72,16 +76,12 @@ async fn handler(
         .payload(&serialised_record)
         .key(&app_name);
 
-    let delivery_result = producer
-        .send(kafka_payload, 5000)
-        .await?;
+    let delivery_result = producer.send(kafka_payload, 5000).await?;
 
     match delivery_result {
         Ok(_) => Ok(HttpResponse::Ok().finish()),
-        Err(err) => Err(err_msg(format!("Error publishing to Kafka: {}", err.0)).into())
-
+        Err(err) => Err(err_msg(format!("Error publishing to Kafka: {}", err.0)).into()),
     }
-
 }
 
 pub fn parse_payload(body: &web::Bytes) -> Result<ToolReport, ValidationError> {
@@ -120,8 +120,9 @@ mod tests {
     use serial_test_derive::serial;
 
     use kiln_lib::tool_report::{
-        ApplicationName, EndTime, Environment, EventID, EventVersion, ExpiryDate, GitBranch, GitCommitHash, IssueHash,
-        OutputFormat, StartTime, SuppressedBy, SuppressedIssue, SuppressionReason, ToolName, ToolOutput, ToolVersion,
+        ApplicationName, EndTime, Environment, EventID, EventVersion, ExpiryDate, GitBranch,
+        GitCommitHash, IssueHash, OutputFormat, StartTime, SuppressedBy, SuppressedIssue,
+        SuppressionReason, ToolName, ToolOutput, ToolVersion,
     };
 
     fn set_env_vars() {
@@ -209,14 +210,17 @@ mod tests {
             )),
             environment: Environment::Local,
             tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
-            suppressed_issues: vec!(
-                SuppressedIssue {
-                    issue_hash: IssueHash::try_from("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned()).unwrap(),
-                    suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
-                    expiry_date: ExpiryDate::from(Some(DateTime::<Utc>::from(DateTime::parse_from_rfc3339("2020-05-12T00:00:00+00:00").unwrap()))),
-                    suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
-                }
-            ),
+            suppressed_issues: vec![SuppressedIssue {
+                issue_hash: IssueHash::try_from(
+                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                )
+                .unwrap(),
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                expiry_date: ExpiryDate::from(Some(DateTime::<Utc>::from(
+                    DateTime::parse_from_rfc3339("2020-05-12T00:00:00+00:00").unwrap(),
+                ))),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+            }],
         };
 
         let actual = parse_payload(&body).expect("expected Ok(_) value");
@@ -234,7 +238,10 @@ mod tests {
 
         match actual {
             Ok(_) => panic!("expected Err(_) value"),
-            Err(err) => assert_eq!("Configuration Error: Required environment variable missing: KAFKA_BOOTSTRAP_TLS", err.to_string()),
+            Err(err) => assert_eq!(
+                "Configuration Error: Required environment variable missing: KAFKA_BOOTSTRAP_TLS",
+                err.to_string()
+            ),
         }
     }
 }
