@@ -21,7 +21,7 @@ use url::Url;
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct DependencyEvent{
+pub struct DependencyEvent {
     pub event_version: EventVersion,
     pub event_id: EventID,
     pub parent_event_id: EventID,
@@ -59,9 +59,14 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
             let event_id =
                 EventID::try_from(fields.find(|&x| x.0 == "event_id").unwrap().1.clone())
                     .map_err(|err| err_msg(err.error_message))?;
-            let parent_event_id =
-                EventID::try_from(fields.find(|&x| x.0 == "parent_event_id").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+            let parent_event_id = EventID::try_from(
+                fields
+                    .find(|&x| x.0 == "parent_event_id")
+                    .unwrap()
+                    .1
+                    .clone(),
+            )
+            .map_err(|err| err_msg(err.error_message))?;
             let application_name = ApplicationName::try_from(
                 fields
                     .find(|&x| x.0 == "application_name")
@@ -81,14 +86,9 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
                     .clone(),
             )
             .map_err(|err| err_msg(err.error_message))?;
-            let timestamp = Timestamp::try_from(
-                fields
-                    .find(|&x| x.0 == "timestamp")
-                    .unwrap()
-                    .1
-                    .clone(),
-            )
-            .map_err(|err| err_msg(err.error_message))?;
+            let timestamp =
+                Timestamp::try_from(fields.find(|&x| x.0 == "timestamp").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
             let affected_package = AffectedPackage::try_from(
                 fields
                     .find(|&x| x.0 == "affected_package")
@@ -105,22 +105,12 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
                     .clone(),
             )
             .map_err(|err| err_msg(err.error_message))?;
-            let advisory_id = AdvisoryId::try_from(
-                fields
-                    .find(|&x| x.0 == "advisory_id")
-                    .unwrap()
-                    .1
-                    .clone(),
-            )
-            .map_err(|err| err_msg(err.error_message))?;
-            let advisory_url = AdvisoryUrl::try_from(
-                fields
-                    .find(|&x| x.0 == "advisory_url")
-                    .unwrap()
-                    .1
-                    .clone(),
-            )
-            .map_err(|err| err_msg(err.error_message))?;
+            let advisory_id =
+                AdvisoryId::try_from(fields.find(|&x| x.0 == "advisory_id").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
+            let advisory_url =
+                AdvisoryUrl::try_from(fields.find(|&x| x.0 == "advisory_url").unwrap().1.clone())
+                    .map_err(|err| err_msg(err.error_message))?;
             let advisory_description = AdvisoryDescription::try_from(
                 fields
                     .find(|&x| x.0 == "advisory_description")
@@ -129,21 +119,12 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
                     .clone(),
             )
             .map_err(|err| err_msg(err.error_message))?;
-            let cvss = Cvss::try_from(
-                fields
-                    .find(|&x| x.0 == "cvss")
-                    .unwrap()
-                    .1
-                    .clone(),
-            )
-            .map_err(|err| err_msg(err.error_message))?;
-            let suppressed_avro = fields.find(|&x| x.0 == "suppressed")
-                .unwrap()
-                .1
-                .clone();
+            let cvss = Cvss::try_from(fields.find(|&x| x.0 == "cvss").unwrap().1.clone())
+                .map_err(|err| err_msg(err.error_message))?;
+            let suppressed_avro = fields.find(|&x| x.0 == "suppressed").unwrap().1.clone();
             let suppressed = match suppressed_avro {
                 avro_rs::types::Value::Boolean(b) => Ok(b),
-                _ => Err(err_msg(ValidationError::suppressed_flag_not_a_boolean()))
+                _ => Err(err_msg(ValidationError::suppressed_flag_not_a_boolean())),
             }?;
 
             Ok(DependencyEvent {
@@ -170,12 +151,12 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
 
 impl Hashable for DependencyEvent {
     fn hash(&self) -> Vec<u8> {
-       let mut hash_ctx = digest::Context::new(&digest::SHA256); 
-       hash_ctx.update(&self.application_name.hash());
-       hash_ctx.update(&self.affected_package.hash());
-       hash_ctx.update(&self.installed_version.hash());
-       hash_ctx.update(&self.advisory_id.hash());
-       hash_ctx.finish().as_ref().to_vec()
+        let mut hash_ctx = digest::Context::new(&digest::SHA256);
+        hash_ctx.update(&self.application_name.hash());
+        hash_ctx.update(&self.affected_package.hash());
+        hash_ctx.update(&self.installed_version.hash());
+        hash_ctx.update(&self.advisory_id.hash());
+        hash_ctx.finish().as_ref().to_vec()
     }
 }
 
@@ -221,7 +202,9 @@ pub struct AffectedPackage(String);
 
 impl Hashable for AffectedPackage {
     fn hash(&self) -> Vec<u8> {
-        digest::digest(&digest::SHA256, &self.0.as_bytes()).as_ref().to_vec()
+        digest::digest(&digest::SHA256, &self.0.as_bytes())
+            .as_ref()
+            .to_vec()
     }
 }
 
@@ -249,7 +232,6 @@ impl TryFrom<avro_rs::types::Value> for AffectedPackage {
     }
 }
 
-
 impl std::fmt::Display for AffectedPackage {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -261,7 +243,9 @@ pub struct InstalledVersion(String);
 
 impl Hashable for InstalledVersion {
     fn hash(&self) -> Vec<u8> {
-        digest::digest(&digest::SHA256, &self.0.as_bytes()).as_ref().to_vec()
+        digest::digest(&digest::SHA256, &self.0.as_bytes())
+            .as_ref()
+            .to_vec()
     }
 }
 
@@ -289,7 +273,6 @@ impl TryFrom<avro_rs::types::Value> for InstalledVersion {
     }
 }
 
-
 impl std::fmt::Display for InstalledVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -301,7 +284,9 @@ pub struct AdvisoryId(String);
 
 impl Hashable for AdvisoryId {
     fn hash(&self) -> Vec<u8> {
-        digest::digest(&digest::SHA256, &self.0.as_bytes()).as_ref().to_vec()
+        digest::digest(&digest::SHA256, &self.0.as_bytes())
+            .as_ref()
+            .to_vec()
     }
 }
 
@@ -371,7 +356,7 @@ impl TryFrom<avro_rs::types::Value> for AdvisoryUrl {
 }
 
 impl Serialize for AdvisoryUrl {
-fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -416,7 +401,7 @@ impl std::fmt::Display for AdvisoryDescription {
 pub enum CvssVersion {
     Unknown,
     V2,
-    V3
+    V3,
 }
 
 impl std::fmt::Display for CvssVersion {
@@ -433,14 +418,19 @@ impl std::fmt::Display for CvssVersion {
 #[serde(default)]
 pub struct Cvss {
     version: CvssVersion,
-    score: Option<f32>
+    score: Option<f32>,
 }
 
 impl std::fmt::Display for Cvss {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self.version {
             CvssVersion::Unknown => write!(f, "Unknown"),
-            _ => write!(f, "{}({})", self.version.to_string(), self.score.unwrap().to_string())
+            _ => write!(
+                f,
+                "{}({})",
+                self.version.to_string(),
+                self.score.unwrap().to_string()
+            ),
         }
     }
 }
@@ -455,27 +445,25 @@ impl TryFrom<avro_rs::types::Value> for Cvss {
                 let fields = fields.into_iter().collect::<HashMap<_, _>>();
 
                 let version = match fields.get("version").unwrap() {
-                    avro_rs::types::Value::Enum(_, version) => {
-                        match version.as_ref() {
-                            "V2" => Ok(CvssVersion::V2),
-                            "V3" => Ok(CvssVersion::V3),
-                            _ => Ok(CvssVersion::Unknown)
-                        }
+                    avro_rs::types::Value::Enum(_, version) => match version.as_ref() {
+                        "V2" => Ok(CvssVersion::V2),
+                        "V3" => Ok(CvssVersion::V3),
+                        _ => Ok(CvssVersion::Unknown),
                     },
-                    _ => Err(ValidationError::cvss_version_not_a_string())
+                    _ => Err(ValidationError::cvss_version_not_a_string()),
                 }?;
 
                 let score = match fields.get("score").unwrap() {
                     avro_rs::types::Value::Null => Ok(None),
                     avro_rs::types::Value::Float(val) => Ok(Some(*val)),
-                    _ => Err(ValidationError::cvss_score_not_valid())
+                    _ => Err(ValidationError::cvss_score_not_valid()),
                 }?;
 
                 Cvss::builder()
                     .with_version(version)
                     .with_score(score)
                     .build()
-            },
+            }
             _ => Err(ValidationError::cvss_not_a_record()),
         }
     }
@@ -483,14 +471,14 @@ impl TryFrom<avro_rs::types::Value> for Cvss {
 
 pub struct CvssBuilder {
     version: CvssVersion,
-    score: Option<f32>
+    score: Option<f32>,
 }
 
 impl Cvss {
     pub fn builder() -> CvssBuilder {
         CvssBuilder {
             version: CvssVersion::Unknown,
-            score: None 
+            score: None,
         }
     }
 }
@@ -499,7 +487,7 @@ impl CvssBuilder {
     pub fn new() -> CvssBuilder {
         CvssBuilder {
             version: CvssVersion::Unknown,
-            score: None 
+            score: None,
         }
     }
 
@@ -521,23 +509,23 @@ impl CvssBuilder {
         } else {
             Ok(Cvss {
                 version: self.version,
-                score: self.score
+                score: self.score,
             })
         }
     }
 }
 
-
 #[cfg(test)]
 #[cfg(feature = "all")]
 pub mod tests {
-    use avro_rs::{Reader, Schema, Writer};
     use super::*;
+    use avro_rs::{Reader, Schema, Writer};
 
     #[test]
     fn timestamp_try_from_string_returns_error_when_timestamp_not_valid() {
         let expected = ValidationError::timestamp_not_a_valid_timestamp();
-        let actual = Timestamp::try_from("not a timestamp".to_string()).expect_err("Expected Err(_) value");
+        let actual =
+            Timestamp::try_from("not a timestamp".to_string()).expect_err("Expected Err(_) value");
 
         assert_eq!(expected, actual)
     }
@@ -577,7 +565,8 @@ pub mod tests {
     #[test]
     fn advisory_url_try_from_string_returns_error_when_value_not_valid() {
         let expected = ValidationError::advisory_url_not_valid();
-        let actual = AdvisoryUrl::try_from("not a url".to_string()).expect_err("Expected Err(_) value");
+        let actual =
+            AdvisoryUrl::try_from("not a url".to_string()).expect_err("Expected Err(_) value");
 
         assert_eq!(expected, actual)
     }
@@ -585,7 +574,8 @@ pub mod tests {
     #[test]
     fn advisory_description_try_from_string_returns_error_when_value_empty() {
         let expected = ValidationError::advisory_description_empty();
-        let actual = AdvisoryDescription::try_from("".to_string()).expect_err("Expected Err(_) value");
+        let actual =
+            AdvisoryDescription::try_from("".to_string()).expect_err("Expected Err(_) value");
 
         assert_eq!(expected, actual)
     }
@@ -661,4 +651,3 @@ pub mod tests {
         assert_eq!(event, actual);
     }
 }
-
