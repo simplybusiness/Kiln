@@ -1,4 +1,11 @@
-use bollard::{Docker, container::{self, CreateContainerOptions, CreateContainerResults, HostConfig, LogOutput, LogsOptions, MountPoint, StartContainerOptions, WaitContainerOptions}, image::{CreateImageOptions, CreateImageProgressDetail, CreateImageResults, ListImagesOptions}};
+use bollard::{
+    container::{
+        self, CreateContainerOptions, CreateContainerResults, HostConfig, LogOutput, LogsOptions,
+        MountPoint, StartContainerOptions, WaitContainerOptions,
+    },
+    image::{CreateImageOptions, CreateImageProgressDetail, CreateImageResults, ListImagesOptions},
+    Docker,
+};
 use clap::{App, AppSettings, Arg, SubCommand};
 use failure::err_msg;
 use futures::stream::StreamExt;
@@ -13,8 +20,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt::{self, Debug};
-use std::io::Read;
 use std::fs::File;
+use std::io::Read;
 use std::process;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -165,13 +172,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     tool_image_name.to_owned(),
                     tool_image_tag.to_owned(),
                     use_local_image,
-                ).await?;
+                )
+                .await?;
 
                 let tool_image_name_full =
                     format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
 
                 let create_container_options = Some(CreateContainerOptions {
-                    name: test_tool_name.clone()
+                    name: test_tool_name.clone(),
                 });
 
                 let container_config = container::Config {
@@ -184,7 +192,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         auto_remove: Some(true),
                         mounts: Some(vec![MountPoint {
                             target: "/code".to_string(),
-                            source: std::env::current_dir().unwrap().to_str().unwrap().to_string(),
+                            source: std::env::current_dir()
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_string(),
                             type_: "bind".to_string(),
                             ..Default::default()
                         }]),
@@ -193,29 +205,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     ..Default::default()
                 };
 
-                let create_container_result = docker.create_container(create_container_options, container_config).await;
+                let create_container_result = docker
+                    .create_container(create_container_options, container_config)
+                    .await;
                 match create_container_result {
                     Err(err) => {
                         eprintln!("Error creating tool container: {}", err);
                         panic!();
-                    },
-                    Ok(CreateContainerResults{warnings, ..}) if warnings.is_some() => {
-                        warnings.unwrap()
-                            .iter()
-                            .for_each(|item| {
-                                println!("Warning occured while creating tool container: {}", item);
-                            });
-                    },
-                    _ => ()
+                    }
+                    Ok(CreateContainerResults { warnings, .. }) if warnings.is_some() => {
+                        warnings.unwrap().iter().for_each(|item| {
+                            println!("Warning occured while creating tool container: {}", item);
+                        });
+                    }
+                    _ => (),
                 }
 
-                let container_start_result = docker.start_container(&test_tool_name, None::<StartContainerOptions::<String>>).await;
+                let container_start_result = docker
+                    .start_container(&test_tool_name, None::<StartContainerOptions<String>>)
+                    .await;
                 if let Err(err) = container_start_result {
                     eprintln!("Error start tool container: {}", err);
                     panic!();
                 }
 
-                let mut container_result = docker.wait_container(&test_tool_name, None::<WaitContainerOptions::<String>>);
+                let mut container_result =
+                    docker.wait_container(&test_tool_name, None::<WaitContainerOptions<String>>);
 
                 let logs_options = Some(LogsOptions {
                     follow: true,
@@ -228,23 +243,30 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 loop {
                     if logs_stream.is_done() {
-                        break
+                        break;
                     }
                     let log_line = logs_stream.next().await;
                     if let Some(log_line) = log_line {
                         match log_line {
-                            Ok(LogOutput::StdOut{ message }) => println!("{}", message),
-                            Ok(LogOutput::Console{ message }) => println!("{}", message),
-                            Ok(LogOutput::StdErr{ message }) => eprintln!("{}", message),
+                            Ok(LogOutput::StdOut { message }) => println!("{}", message),
+                            Ok(LogOutput::Console { message }) => println!("{}", message),
+                            Ok(LogOutput::StdErr { message }) => eprintln!("{}", message),
                             Err(err) => eprintln!("Error getting tool logs: {}", err),
-                            _ => ()
+                            _ => (),
                         }
                     }
                 }
-                
+
                 let container_exit_details = container_result.next().await.unwrap()?;
                 if container_exit_details.status_code != 0 {
-                    eprintln!("Tool container exited with code {}, {}", container_exit_details.status_code, container_exit_details.error.map(|e| e.message).unwrap_or_else(|| "No error message".to_string()))
+                    eprintln!(
+                        "Tool container exited with code {}, {}",
+                        container_exit_details.status_code,
+                        container_exit_details
+                            .error
+                            .map(|e| e.message)
+                            .unwrap_or_else(|| "No error message".to_string())
+                    )
                 }
             }
             _ => unreachable!(),
@@ -348,13 +370,15 @@ pub async fn get_fs_layers_for_docker_image(
 }
 
 struct ProgressBarDisplay {
-    prog_channels: HashMap<std::string::String, Arc<Mutex<mpsc::Sender<(String, Option<CreateImageProgressDetail>, String)>>>>,
+    prog_channels: HashMap<
+        std::string::String,
+        Arc<Mutex<mpsc::Sender<(String, Option<CreateImageProgressDetail>, String)>>>,
+    >,
     multibar_arc: Arc<MultiProgress>,
     pull_started: bool,
 }
 
-static PBAR_FMT: &str =
-    "{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
+static PBAR_FMT: &str = "{msg} {percent}% [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} eta: {eta}";
 
 impl ProgressBarDisplay {
     fn create_progress_bar(len: u64) -> ProgressBar {
@@ -385,23 +409,21 @@ impl ProgressBarDisplay {
             let sender = Arc::new(Mutex::new(sender));
             self.prog_channels
                 .insert(layer.clone().to_string(), Arc::clone(&sender));
-            thread::spawn(move || {
-                loop {
-                    let output_val = receiver.recv();
-                    match output_val {
-                        Err(_e) => break,
-                        Ok(update) => {
-                            let (id, progress_detail, status) = update;
-                            if status == "Pull complete" || status == "Already exists" {
-                                pgbar.finish();
-                            }
-                            pgbar.set_message(format!("{}:{}", id, status).as_ref());
-                            let total = progress_detail.map(|pd| pd.total).flatten();
-                            let current = progress_detail.map(|pd| pd.current).flatten();
-                            if let (Some(total), Some(current)) = (total, current) {
-                                pgbar.set_length(total);
-                                pgbar.set_position(current);
-                            }
+            thread::spawn(move || loop {
+                let output_val = receiver.recv();
+                match output_val {
+                    Err(_e) => break,
+                    Ok(update) => {
+                        let (id, progress_detail, status) = update;
+                        if status == "Pull complete" || status == "Already exists" {
+                            pgbar.finish();
+                        }
+                        pgbar.set_message(format!("{}:{}", id, status).as_ref());
+                        let total = progress_detail.map(|pd| pd.total).flatten();
+                        let current = progress_detail.map(|pd| pd.current).flatten();
+                        if let (Some(total), Some(current)) = (total, current) {
+                            pgbar.set_length(total);
+                            pgbar.set_position(current);
                         }
                     }
                 }
@@ -414,7 +436,12 @@ impl ProgressBarDisplay {
         });
     }
 
-    pub fn update_progress_bar(&mut self, id: Option<String>, progress_detail: Option<CreateImageProgressDetail>, status: String) {
+    pub fn update_progress_bar(
+        &mut self,
+        id: Option<String>,
+        progress_detail: Option<CreateImageProgressDetail>,
+        status: String,
+    ) {
         if let Some(id) = id {
             if self.pull_started {
                 match self.prog_channels.get(&id) {
@@ -444,7 +471,7 @@ async fn prepare_tool_image(
     if use_local_image {
         let mut filters = HashMap::new();
         filters.insert("reference", vec![tool_image_name_full.as_ref()]);
-        let options = Some(ListImagesOptions{
+        let options = Some(ListImagesOptions {
             filters,
             ..Default::default()
         });
@@ -477,18 +504,23 @@ async fn prepare_tool_image(
 
         let mut status_stream = docker.create_image(create_image_options, None, None).fuse();
         loop {
-            let item = status_stream.next().await; 
+            let item = status_stream.next().await;
             if item.is_none() {
-                break
+                break;
             }
             match item.unwrap() {
-                Ok(CreateImageResults::CreateImageProgressResponse {status, progress_detail, id, ..}) => {
+                Ok(CreateImageResults::CreateImageProgressResponse {
+                    status,
+                    progress_detail,
+                    id,
+                    ..
+                }) => {
                     if let Some(prog_bar_disp) = prog_bar_disp.as_mut() {
                         prog_bar_disp.update_progress_bar(id, progress_detail, status);
                     }
                     Ok(())
-                },
-                Ok(CreateImageResults::CreateImageError {error, ..}) => Err(error),
+                }
+                Ok(CreateImageResults::CreateImageError { error, .. }) => Err(error),
                 Err(err) => Err(err.to_string()),
             }?
         }
