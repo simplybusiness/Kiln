@@ -6,7 +6,7 @@ use kiln_lib::kafka::*;
 use kiln_lib::traits::Hashable;
 use rdkafka::consumer::{CommitMode, Consumer};
 use rdkafka::message::Message;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use reqwest::Method;
 use serde_json::{json, Value};
 use std::boxed::Box;
@@ -57,8 +57,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             .bearer_auth(&oauth_token)
                             .json(&payload)
                             .build()?;
-                        let resp = client.execute(req)?;
-                        let resp_body: Value = resp.json()?;
+                        let resp = client.execute(req).await?;
+                        let resp_body: Value = resp.json().await?;
                         if !resp_body.get("ok").unwrap().as_bool().unwrap() {
                             let cause = resp_body.get("error").unwrap().as_str().unwrap();
                             eprintln!(
