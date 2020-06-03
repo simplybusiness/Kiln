@@ -369,11 +369,10 @@ pub async fn get_fs_layers_for_docker_image(
     Ok(layers)
 }
 
+type ProgressChannelUpdate = (String, Option<CreateImageProgressDetail>, String);
+
 struct ProgressBarDisplay {
-    prog_channels: HashMap<
-        std::string::String,
-        Arc<Mutex<mpsc::Sender<(String, Option<CreateImageProgressDetail>, String)>>>,
-    >,
+    prog_channels: HashMap<std::string::String, Arc<Mutex<mpsc::Sender<ProgressChannelUpdate>>>>,
     multibar_arc: Arc<MultiProgress>,
     pull_started: bool,
 }
