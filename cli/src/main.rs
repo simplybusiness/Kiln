@@ -3,7 +3,10 @@ use bollard::{
         self, CreateContainerOptions, CreateContainerResults, HostConfig, LogOutput, LogsOptions,
         MountPoint, StartContainerOptions, WaitContainerOptions,
     },
-    image::{CreateImageOptions, CreateImageProgressDetail, CreateImageResults, ListImagesOptions},
+    image::{
+        CreateImageOptions, CreateImageProgressDetail, CreateImageResults, ListImagesOptions,
+        RemoveImageOptions,
+    },
     Docker,
 };
 use clap::{App, AppSettings, Arg, SubCommand};
@@ -167,6 +170,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 let test_tool_name = String::from("bundler-audit-kiln-container");
 
+                let mut image_filters = HashMap::new();
+                let reference_filter = format!("{}/{}", tool_image_repo, tool_image_name);
+                image_filters.insert("reference", vec![reference_filter.as_str()]);
+                let list_image_options = Some(ListImagesOptions {
+                    filters: image_filters,
+                    ..Default::default()
+                });
+
+                let pre_pull_images = docker.list_images(list_image_options.clone()).await?;
+
                 prepare_tool_image(
                     tool_image_repo.to_owned(),
                     tool_image_name.to_owned(),
@@ -174,6 +187,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     use_local_image,
                 )
                 .await?;
+
+                let post_pull_images = docker.list_images(list_image_options).await?;
+
+                let images_to_delete: Vec<_> = post_pull_images
+                    .iter()
+                    .filter(|item| {
+                        pre_pull_images
+                            .iter()
+                            .any(|other_item| other_item.id == item.id)
+                    })
+                    .filter(|item| {
+                        !item
+                            .repo_tags
+                            .as_ref()
+                            .map(|tags| {
+                                tags.iter().any(|tag| tag.as_str().contains("latest"))
+                            })
+                            .unwrap_or(false)
+                    })
+                    .map(|item| item.id.clone())
+                    .collect();
+
+                for item in images_to_delete.iter() {
+                    if docker
+                        .remove_image(item, None::<RemoveImageOptions>, None)
+                        .await
+                        .is_err()
+                    {
+                        eprintln!("Warning: Error occured while trying to clean up old Kiln tool images for {}/{}", tool_image_repo, tool_image_name);
+                    }
+                }
 
                 let tool_image_name_full =
                     format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
