@@ -1,24 +1,25 @@
+use bollard::{Docker, container::{self, CreateContainerOptions, CreateContainerResults, HostConfig, LogOutput, LogsOptions, MountPoint, StartContainerOptions, WaitContainerOptions}, image::{CreateImageOptions, CreateImageProgressDetail, CreateImageResults, ListImagesOptions}};
 use clap::{App, AppSettings, Arg, SubCommand};
-use futures::prelude::Future;
+use failure::err_msg;
+use futures::stream::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use regex::Regex;
-use reqwest::blocking::Client;
+use reqwest::Client;
 use reqwest::Method;
 use serde::Deserialize;
 use serde_json::Value;
-use shiplift::{builder::LogsOptions, builder::PullOptions, tty::StreamType, Docker};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::error::Error;
 use std::fmt::{self, Debug};
+use std::io::Read;
 use std::fs::File;
 use std::process;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
-use tokio::prelude::*;
 
 #[derive(Debug, Deserialize)]
 enum ScanEnv {
@@ -85,7 +86,8 @@ impl ConfigFileError {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Kiln CLI")
         .setting(AppSettings::SubcommandRequired)
         .arg(Arg::with_name("use-local-image")
@@ -125,11 +127,13 @@ fn main() {
 
             env_df_url.push_str((config_info.data_collector_url.unwrap()).as_ref());
 
-            env_vec.push(env_df_url.as_ref());
-            env_vec.push(env_app_name.as_ref());
-            env_vec.push(env_scan_env.as_ref());
+            env_vec.push(env_df_url);
+            env_vec.push(env_app_name);
+            env_vec.push(env_scan_env);
         }
     };
+
+    let docker = Docker::connect_with_local_defaults()?;
 
     match matches.subcommand() {
         ("ruby", Some(sub_m)) => match sub_m.subcommand_name() {
@@ -156,82 +160,98 @@ fn main() {
 
                 let test_tool_name = String::from("bundler-audit-kiln-container");
 
-                let prep_fut = prepare_tool_image(
+                prepare_tool_image(
                     tool_image_repo.to_owned(),
                     tool_image_name.to_owned(),
                     tool_image_tag.to_owned(),
                     use_local_image,
-                );
-                tokio::run(prep_fut);
+                ).await?;
 
-                let path = std::env::current_dir()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string()
-                    + ":"
-                    + "/code";
-                let mut path_vec = Vec::new();
-                path_vec.push(path.as_ref());
-
-                let docker = Docker::new();
                 let tool_image_name_full =
                     format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
-                let tool_container_future = docker
-                    .containers()
-                    .create(
-                        &shiplift::ContainerOptions::builder(&tool_image_name_full)
-                            .name(&test_tool_name)
-                            .attach_stdout(true)
-                            .attach_stderr(true)
-                            .auto_remove(true)
-                            .volumes(path_vec)
-                            .env(env_vec)
-                            .build(),
-                    )
-                    .map_err(|e| eprintln!("Error: {}", e))
-                    .and_then(|container| {
-                        let docker = Docker::new();
-                        docker
-                            .containers()
-                            .get(&container.id)
-                            .start()
-                            .map_err(|e| eprintln!("Error: {}", e))
-                    })
-                    .and_then(move |_| {
-                        let docker = Docker::new();
-                        let log_future = docker
-                            .containers()
-                            .get(&test_tool_name)
-                            .logs(
-                                &LogsOptions::builder()
-                                    .stdout(true)
-                                    .stderr(true)
-                                    .follow(true)
-                                    .build(),
-                            )
-                            .for_each(|chunk| {
-                                match chunk.stream_type {
-                                    StreamType::StdOut => {
-                                        println!("{}", chunk.as_string().unwrap())
-                                    }
-                                    StreamType::StdErr => {
-                                        eprintln!("{}", chunk.as_string().unwrap())
-                                    }
-                                    StreamType::StdIn => (),
-                                }
-                                Ok(())
-                            })
-                            .map_err(|e| eprintln!("Error: {}", e));
-                        tokio::spawn(log_future);
-                        Ok(())
-                    });
-                tokio::run(tool_container_future);
+
+                let create_container_options = Some(CreateContainerOptions {
+                    name: test_tool_name.clone()
+                });
+
+                let container_config = container::Config {
+                    attach_stdout: Some(true),
+                    attach_stderr: Some(true),
+                    tty: Some(true),
+                    image: Some(tool_image_name_full),
+                    env: Some(env_vec),
+                    host_config: Some(HostConfig {
+                        auto_remove: Some(true),
+                        mounts: Some(vec![MountPoint {
+                            target: "/code".to_string(),
+                            source: std::env::current_dir().unwrap().to_str().unwrap().to_string(),
+                            type_: "bind".to_string(),
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                };
+
+                let create_container_result = docker.create_container(create_container_options, container_config).await;
+                match create_container_result {
+                    Err(err) => {
+                        eprintln!("Error creating tool container: {}", err);
+                        panic!();
+                    },
+                    Ok(CreateContainerResults{warnings, ..}) if warnings.is_some() => {
+                        warnings.unwrap()
+                            .iter()
+                            .for_each(|item| {
+                                println!("Warning occured while creating tool container: {}", item);
+                            });
+                    },
+                    _ => ()
+                }
+
+                let container_start_result = docker.start_container(&test_tool_name, None::<StartContainerOptions::<String>>).await;
+                if let Err(err) = container_start_result {
+                    eprintln!("Error start tool container: {}", err);
+                    panic!();
+                }
+
+                let mut container_result = docker.wait_container(&test_tool_name, None::<WaitContainerOptions::<String>>);
+
+                let logs_options = Some(LogsOptions {
+                    follow: true,
+                    stdout: true,
+                    stderr: true,
+                    tail: "all".to_string(),
+                    ..Default::default()
+                });
+                let mut logs_stream = docker.logs(&test_tool_name, logs_options).fuse();
+
+                loop {
+                    if logs_stream.is_done() {
+                        break
+                    }
+                    let log_line = logs_stream.next().await;
+                    if let Some(log_line) = log_line {
+                        match log_line {
+                            Ok(LogOutput::StdOut{ message }) => println!("{}", message),
+                            Ok(LogOutput::Console{ message }) => println!("{}", message),
+                            Ok(LogOutput::StdErr{ message }) => eprintln!("{}", message),
+                            Err(err) => eprintln!("Error getting tool logs: {}", err),
+                            _ => ()
+                        }
+                    }
+                }
+                
+                let container_exit_details = container_result.next().await.unwrap()?;
+                if container_exit_details.status_code != 0 {
+                    eprintln!("Tool container exited with code {}, {}", container_exit_details.status_code, container_exit_details.error.map(|e| e.message).unwrap_or_else(|| "No error message".to_string()))
+                }
             }
             _ => unreachable!(),
         },
         _ => unreachable!(),
     };
+    Ok(())
 }
 
 fn parse_kiln_toml_file() -> Result<CliConfigOptions, ConfigFileError> {
@@ -290,7 +310,7 @@ static DOCKER_AUTH_URL: &str =
 
 static DOCKER_REGISTRY_URL: &str = "https://registry.hub.docker.com";
 
-pub fn get_fs_layers_for_docker_image(
+pub async fn get_fs_layers_for_docker_image(
     repo_name: String,
     image_name: String,
     tag: String,
@@ -299,8 +319,8 @@ pub fn get_fs_layers_for_docker_image(
 
     let docker_auth_url = format!("{}:{}/{}:pull", DOCKER_AUTH_URL, repo_name, image_name);
     let req = client.request(Method::GET, &docker_auth_url).build()?;
-    let resp = client.execute(req)?;
-    let resp_body: Value = resp.json()?;
+    let resp = client.execute(req).await?;
+    let resp_body: Value = resp.json().await?;
     let token = resp_body["token"].as_str().unwrap();
 
     let docker_manifest_url = format!(
@@ -311,8 +331,8 @@ pub fn get_fs_layers_for_docker_image(
         .request(Method::GET, &docker_manifest_url)
         .bearer_auth(token)
         .build()?;
-    let manifest_resp = client.execute(manifest_req)?;
-    let manifest_resp_body: Value = manifest_resp.json()?;
+    let manifest_resp = client.execute(manifest_req).await?;
+    let manifest_resp_body: Value = manifest_resp.json().await?;
 
     let layers = manifest_resp_body["fsLayers"]
         .as_array()
@@ -328,7 +348,7 @@ pub fn get_fs_layers_for_docker_image(
 }
 
 struct ProgressBarDisplay {
-    prog_channels: HashMap<std::string::String, Arc<Mutex<mpsc::Sender<serde_json::value::Value>>>>,
+    prog_channels: HashMap<std::string::String, Arc<Mutex<mpsc::Sender<(String, Option<CreateImageProgressDetail>, String)>>>>,
     multibar_arc: Arc<MultiProgress>,
     pull_started: bool,
 }
@@ -366,56 +386,21 @@ impl ProgressBarDisplay {
             self.prog_channels
                 .insert(layer.clone().to_string(), Arc::clone(&sender));
             thread::spawn(move || {
-                let mut status_val = "".to_string();
-                let mut bar_length = 0;
                 loop {
                     let output_val = receiver.recv();
                     match output_val {
                         Err(_e) => break,
-                        Ok(val) => {
-                            if val["status"] != serde_json::Value::Null {
-                                if (val["status"].as_str().unwrap() == "Pull complete")
-                                    || (val["status"].as_str().unwrap() == "Already exists")
-                                {
-                                    pgbar.finish_and_clear();
-                                    break;
-                                }
-                                if val["status"].as_str().unwrap() != status_val {
-                                    status_val = val["status"].as_str().unwrap().to_string();
-                                    if val["id"] != serde_json::Value::Null {
-                                        pgbar.set_message(
-                                            [
-                                                val["id"].as_str().unwrap().to_string(),
-                                                ":".to_string(),
-                                                status_val.clone(),
-                                            ]
-                                            .concat()
-                                            .as_ref(),
-                                        );
-                                    }
-                                }
+                        Ok(update) => {
+                            let (id, progress_detail, status) = update;
+                            if status == "Pull complete" || status == "Already exists" {
+                                pgbar.finish();
                             }
-                            if !val["progressDetail"].is_null()
-                                && !val["progressDetail"]["current"].is_null()
-                                && !val["progressDetail"]["total"].is_null()
-                            {
-                                let curr_count =
-                                    (val["progressDetail"]["current"]).as_u64().unwrap();
-                                let total_count =
-                                    (val["progressDetail"]["total"]).as_u64().unwrap();
-                                if bar_length < total_count {
-                                    pgbar.set_length(total_count);
-                                    pgbar.set_position(curr_count);
-                                    bar_length = total_count;
-                                }
-                                if curr_count < total_count {
-                                    pgbar.set_position(curr_count);
-                                }
-                                if curr_count >= total_count {
-                                    pgbar.set_length(0);
-                                    pgbar.set_position(0);
-                                    bar_length = 0;
-                                }
+                            pgbar.set_message(format!("{}:{}", id, status).as_ref());
+                            let total = progress_detail.map(|pd| pd.total).flatten();
+                            let current = progress_detail.map(|pd| pd.current).flatten();
+                            if let (Some(total), Some(current)) = (total, current) {
+                                pgbar.set_length(total);
+                                pgbar.set_position(current);
                             }
                         }
                     }
@@ -429,62 +414,55 @@ impl ProgressBarDisplay {
         });
     }
 
-    pub fn update_progress_bar(&mut self, output: serde_json::Value) {
-        if output["id"] != serde_json::Value::Null {
-            if output["status"] != serde_json::Value::Null {
-                if self.pull_started {
-                    let status = output["status"].as_str().unwrap().to_string();
-                    let id = output["id"].as_str().unwrap().to_string();
-                    match self.prog_channels.get(&id) {
-                        Some(trx) => trx.lock().unwrap().send(output).unwrap(),
-                        None => {
-                            eprintln!("Error: Cannot find channel for sending progress update message in kiln-cli for id {} and status {}",id, status);
-                        }
-                    }
-                } else {
-                    println!("{}", output["status"].as_str().unwrap().to_string());
-                    self.pull_started = true;
+    pub fn update_progress_bar(&mut self, id: Option<String>, progress_detail: Option<CreateImageProgressDetail>, status: String) {
+        if let Some(id) = id {
+            if self.pull_started {
+                match self.prog_channels.get(&id) {
+                    Some(tx) => tx.lock().unwrap().send((id, progress_detail, status)).unwrap(),
+                    None => eprintln!("Error: Cannot find channel for sending progress update message in kiln-cli for id {} and status {}", id, status)
                 }
+            } else {
+                println!("{}", status);
+                self.pull_started = true;
             }
-        } else if output["status"] != serde_json::Value::Null {
-            println!("{}", output["status"].as_str().unwrap().to_string());
+        } else {
+            println!("{}", status);
         }
     }
 }
 
-fn prepare_tool_image(
+async fn prepare_tool_image(
     tool_image_repo: String,
     tool_image_name: String,
     tool_image_tag: String,
     use_local_image: bool,
-) -> Box<dyn Future<Item = (), Error = ()> + Send + 'static> {
-    let docker = Docker::new();
+) -> Result<(), Box<dyn std::error::Error>> {
+    let docker = Docker::connect_with_local_defaults()?;
     let tool_image_name_full =
         format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
+
     if use_local_image {
-        Box::new(
-            docker
-                .images()
-                .get(tool_image_name_full.as_ref())
-                .inspect()
-                .then(move |res| match res {
-                    Ok(_) => futures::future::ok(()),
-                    Err(err) => {
-                        match &err {
-                            shiplift::errors::Error::Fault { code, message: _ } if *code == 404 => {
-                                eprintln!("Could not find {} locally. Quitting!", tool_image_name)
-                            }
-                            _ => eprintln!("{}", err),
-                        };
-                        futures::future::err(())
-                    }
-                }),
-        )
+        let mut filters = HashMap::new();
+        filters.insert("reference", vec![tool_image_name_full.as_ref()]);
+        let options = Some(ListImagesOptions{
+            filters,
+            ..Default::default()
+        });
+        let images = docker.list_images(options).await?;
+        if images.is_empty() {
+            Err(err_msg(format!("Could not find {} locally.", tool_image_name_full)).into())
+        } else {
+            Ok(())
+        }
     } else {
-        let pull_options = PullOptions::builder().image(&tool_image_name_full).build();
+        let create_image_options = Some(CreateImageOptions {
+            from_image: format!("{}/{}", tool_image_repo, tool_image_name),
+            tag: tool_image_tag.clone(),
+            ..Default::default()
+        });
 
         let layers =
-            get_fs_layers_for_docker_image(tool_image_repo, tool_image_name, tool_image_tag);
+            get_fs_layers_for_docker_image(tool_image_repo, tool_image_name, tool_image_tag).await;
         let mut prog_bar_disp: Option<ProgressBarDisplay> = match layers {
             Ok(fslayers) => {
                 let mut p = ProgressBarDisplay::new();
@@ -497,31 +475,23 @@ fn prepare_tool_image(
             }
         };
 
-        Box::new(
-            docker
-                .images()
-                .pull(&pull_options)
-                .for_each(move |output| {
-                    if prog_bar_disp.is_some() {
-                        prog_bar_disp.as_mut().unwrap().update_progress_bar(output);
+        let mut status_stream = docker.create_image(create_image_options, None, None).fuse();
+        loop {
+            let item = status_stream.next().await; 
+            if item.is_none() {
+                break
+            }
+            match item.unwrap() {
+                Ok(CreateImageResults::CreateImageProgressResponse {status, progress_detail, id, ..}) => {
+                    if let Some(prog_bar_disp) = prog_bar_disp.as_mut() {
+                        prog_bar_disp.update_progress_bar(id, progress_detail, status);
                     }
                     Ok(())
-                })
-                .then(move |res| match res {
-                    Ok(_) => Ok(()),
-                    Err(err) => {
-                        match &err {
-                            shiplift::errors::Error::Fault { code, message: _ } if *code == 404 => {
-                                eprintln!(
-                                    "Could not find {} on Docker Hub. Quitting!",
-                                    tool_image_name_full
-                                )
-                            }
-                            _ => eprintln!("{}", err),
-                        };
-                        Err(())
-                    }
-                }),
-        )
+                },
+                Ok(CreateImageResults::CreateImageError {error, ..}) => Err(error),
+                Err(err) => Err(err.to_string()),
+            }?
+        }
+        Ok(())
     }
 }
