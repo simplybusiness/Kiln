@@ -1,14 +1,15 @@
 use avro_rs::Reader;
+use bytes::buf::ext::BufExt;
+use bytes::Bytes;
 use failure::err_msg;
-use futures_util::stream::StreamExt;
+use futures::stream::{StreamExt, TryStreamExt};
+use futures_util::sink::SinkExt;
 use kiln_lib::dependency_event::DependencyEvent;
 use kiln_lib::kafka::*;
 use kiln_lib::traits::Hashable;
-use rdkafka::consumer::{CommitMode, Consumer};
+use rdkafka::consumer::Consumer;
 use rdkafka::message::Message;
 use reqwest::Client;
-use reqwest::Method;
-use serde_json::{json, Value};
 use std::boxed::Box;
 use std::convert::TryFrom;
 use std::env;
@@ -30,50 +31,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let tls_cert_path = PathBuf::from_str("/etc/ssl/certs/ca-certificates.crt").unwrap();
 
     let consumer = build_kafka_consumer(
-        config.clone(),
+        config,
         "slack-connector".to_string(),
         &tls_cert_path,
     )
     .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?;
 
-    consumer.subscribe(&["DependencyEvents"])?;
-    let mut messages = consumer.start_with(std::time::Duration::from_secs(1), false);
-
     let client = Client::new();
+    let (queue_tx, queue_rx) = futures::channel::mpsc::channel(10);
 
-    loop {
-        if let Some(Ok(message)) = messages.next().await {
-            if let Some(body) = message.payload() {
-                let reader = Reader::new(body)?;
-                for value in reader {
-                    let event = DependencyEvent::try_from(value?)?;
-                    if !event.suppressed {
-                        let payload = json!({
-                            "channel": channel_id,
-                            "text": event.to_slack_message()
-                        });
-                        let req = client
-                            .request(Method::POST, "https://slack.com/api/chat.postMessage")
-                            .bearer_auth(&oauth_token)
-                            .json(&payload)
-                            .build()?;
-                        let resp = client.execute(req).await?;
-                        let resp_body: Value = resp.json().await?;
-                        if !resp_body.get("ok").unwrap().as_bool().unwrap() {
-                            let cause = resp_body.get("error").unwrap().as_str().unwrap();
-                            eprintln!(
-                                "Error sending message for event {}, parent {}, {}",
-                                event.event_id.to_string(),
-                                event.parent_event_id.to_string(),
-                                cause
-                            );
-                        }
-                    }
-                }
-            }
-            consumer.commit_message(&message, CommitMode::Async)?;
-        }
-    }
+    consumer.subscribe(&["DependencyEvents"])?;
+    let avro_bytes = consumer.start_with(std::time::Duration::from_secs(1), false);
+    let mut events = avro_bytes
+        .map_ok(|message| message.detach())
+        .map_err(|err| failure::Error::from_boxed_compat(Box::new(err)))
+        .and_then(move |message| async move {
+            message
+                .payload()
+                .ok_or_else(|| err_msg("Received empty payload from Kafka"))
+                .map(|msg| Bytes::copy_from_slice(msg))
+        })
+        .and_then(|body_bytes| async { Reader::new(body_bytes.reader()) })
+        .map_ok(|unparsed_events| {
+            futures::stream::iter(unparsed_events.map(|event| DependencyEvent::try_from(event?)))
+        })
+        .boxed();
+
+    queue_tx
+        .sink_map_err(|_| err_msg("Could not send event to stream"))
+        .send_all(&mut events);
+
+    Ok(())
 }
 
 trait ToSlackMessage {
