@@ -49,11 +49,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
             message
                 .payload()
                 .ok_or_else(|| err_msg("Received empty payload from Kafka"))
-                .map(|msg| Bytes::copy_from_slice(msg))
+                .map(|msg| (message.offset(), Bytes::copy_from_slice(msg)))
         })
-        .and_then(|body_bytes| async { Reader::new(body_bytes.reader()) })
-        .map_ok(|unparsed_events| {
-            futures::stream::iter(unparsed_events.map(|event| DependencyEvent::try_from(event?)))
+        .map_ok(|(offset, body_bytes)| (offset, Reader::new(body_bytes.reader())))
+        .map_ok(|(offset, reader_result)| {
+            reader_result.map(|reader| {
+                reader.map(move |unparsed_event| {
+                    (
+                        offset,
+                        unparsed_event
+                            .map(|unparsed_event| DependencyEvent::try_from(unparsed_event)),
+                    )
+                })
+            })
         })
         .boxed();
 
