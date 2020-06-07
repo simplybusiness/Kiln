@@ -65,10 +65,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .boxed();
 
-    queue_tx
-        .sink_map_err(|_| err_msg("Could not send event to stream"))
+    let mut queue_tx_mapped = queue_tx
+        .sink_err_into();
+
+    let queue_all = queue_tx_mapped
         .send_all(&mut events);
 
+    futures::try_join!(queue_all);
     Ok(())
 }
 
