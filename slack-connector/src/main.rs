@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?;
 
     let client = Client::new();
-    let (queue_tx, queue_rx) = futures::channel::mpsc::channel(10);
+    let (queue_tx, queue_rx) = futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, _>>)>(10);
 
     consumer.subscribe(&["DependencyEvents"])?;
     let avro_bytes = consumer.start_with(std::time::Duration::from_secs(1), false);
@@ -51,17 +51,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .ok_or_else(|| err_msg("Received empty payload from Kafka"))
                 .map(|msg| (message.offset(), Bytes::copy_from_slice(msg)))
         })
-        .map_ok(|(offset, body_bytes)| (offset, Reader::new(body_bytes.reader())))
-        .map_ok(|(offset, reader_result)| {
-            reader_result.map(|reader| {
-                reader.map(move |unparsed_event| {
-                    (
-                        offset,
-                        unparsed_event
-                            .map(|unparsed_event| DependencyEvent::try_from(unparsed_event)),
-                    )
-                })
-            })
+        .and_then(|(offset, body_bytes)| async move {
+            let reader_result = Reader::new(body_bytes.reader());
+            match reader_result {
+                Ok(reader) => Ok((offset, reader)),
+                Err(err) => Err(err_msg("Could not parse avro value from bytes"))
+            }
+        })
+        .map_ok(|(offset, reader)| {
+            (offset, reader.map(|event| DependencyEvent::try_from(event?)).collect())
         })
         .boxed();
 
