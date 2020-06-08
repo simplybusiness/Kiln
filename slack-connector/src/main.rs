@@ -9,13 +9,17 @@ use kiln_lib::kafka::*;
 use kiln_lib::traits::Hashable;
 use rdkafka::consumer::Consumer;
 use rdkafka::message::Message;
+use rdkafka::Offset;
 use reqwest::Client;
+use reqwest::Method;
+use serde_json::{json, Value};
 use std::boxed::Box;
 use std::convert::TryFrom;
 use std::env;
 use std::error::Error;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -30,15 +34,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let tls_cert_path = PathBuf::from_str("/etc/ssl/certs/ca-certificates.crt").unwrap();
 
-    let consumer = build_kafka_consumer(
-        config,
-        "slack-connector".to_string(),
-        &tls_cert_path,
-    )
-    .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?;
+    let consumer = Arc::new(
+        build_kafka_consumer(config, "slack-connector".to_string(), &tls_cert_path)
+            .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?,
+    );
 
     let client = Client::new();
-    let (queue_tx, queue_rx) = futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, _>>)>(10);
+    let (queue_tx, queue_rx) =
+        futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, _>>)>(10);
 
     consumer.subscribe(&["DependencyEvents"])?;
     let avro_bytes = consumer.start_with(std::time::Duration::from_secs(1), false);
@@ -55,21 +58,73 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let reader_result = Reader::new(body_bytes.reader());
             match reader_result {
                 Ok(reader) => Ok((offset, reader)),
-                Err(err) => Err(err_msg("Could not parse avro value from bytes"))
+                Err(_) => Err(err_msg("Could not parse avro value from bytes")),
             }
         })
         .map_ok(|(offset, reader)| {
-            (offset, reader.map(|event| DependencyEvent::try_from(event?)).collect())
+            (
+                offset,
+                reader
+                    .map(|event| DependencyEvent::try_from(event?))
+                    .collect(),
+            )
         })
         .boxed();
 
-    let mut queue_tx_mapped = queue_tx
-        .sink_err_into();
+    let dispatch_consumer = &consumer;
+    let dispatch_oauth_token = &oauth_token;
+    let dispatch_client = &client;
+    let dispatch_channel_id = &channel_id;
 
-    let queue_all = queue_tx_mapped
-        .send_all(&mut events);
+    let slack_dispatch = queue_rx
+        .then(|(offset, events)| async move {
+            for event in events.iter() {
+                if let Err(err) = event {
+                    eprintln!("Offset: {}, {}", offset, err);
+                }
+                if let Ok(event) = event {
+                    if !event.suppressed {
+                        let payload = json!({
+                            "channel": dispatch_channel_id,
+                            "text": event.to_slack_message()
+                        });
+                        let req = dispatch_client
+                            .request(Method::POST, "https://slack.com/api/chat.postMessage")
+                            .bearer_auth(&dispatch_oauth_token)
+                            .json(&payload)
+                            .build()?;
+                        let resp = dispatch_client.execute(req).await?;
+                        let resp_body: Value = resp.json().await?;
+                        if !resp_body.get("ok").unwrap().as_bool().unwrap() {
+                            let cause = resp_body.get("error").unwrap().as_str().unwrap();
+                            eprintln!(
+                                "Error sending message for event {}, parent {}, {}",
+                                event.event_id.to_string(),
+                                event.parent_event_id.to_string(),
+                                cause
+                            );
+                            //HANDLE RETRY HERE
+                        }
+                    }
+                }
+            }
+            dispatch_consumer
+                .assignment()
+                .unwrap()
+                .set_all_offsets(Offset::from_raw(offset));
+            Ok::<(), failure::Error>(())
+        })
+        .collect::<Vec<_>>();
 
-    futures::try_join!(queue_all);
+    let mut queue_tx_mapped = queue_tx.sink_err_into();
+
+    let queue_all = queue_tx_mapped.send_all(&mut events);
+
+    let results = futures::join!(queue_all, slack_dispatch);
+    results.0?;
+    for result in results.1 {
+        result?
+    }
     Ok(())
 }
 
