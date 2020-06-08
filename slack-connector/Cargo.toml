@@ -19,3 +19,4 @@ rdkafka = { version = "0.23", features = ["cmake-build", "ssl-vendored"] }
 futures = "0.3"
 futures-util = "0.3"
 hex = { version = "0.4", features = ["serde"] }
+futures-timer = "3"
