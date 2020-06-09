@@ -11,6 +11,8 @@ use rdkafka::consumer::Consumer;
 use rdkafka::message::Message;
 use rdkafka::Offset;
 use reqwest::Client;
+use reqwest::Method;
+use serde_json::{json, Value};
 use std::boxed::Box;
 use std::convert::TryFrom;
 use std::env;
@@ -19,8 +21,6 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use reqwest::Method;
-use serde_json::{json, Value};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -35,15 +35,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let tls_cert_path = PathBuf::from_str("/etc/ssl/certs/ca-certificates.crt").unwrap();
 
-    let consumer = Arc::new(build_kafka_consumer(
-        config,
-        "slack-connector".to_string(),
-        &tls_cert_path,
-    )
-    .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?);
+    let consumer = Arc::new(
+        build_kafka_consumer(config, "slack-connector".to_string(), &tls_cert_path)
+            .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?,
+    );
 
     let client = Client::new();
-    let (queue_tx, queue_rx) = futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, _>>)>(10);
+    let (queue_tx, queue_rx) =
+        futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, _>>)>(10);
 
     consumer.subscribe(&["DependencyEvents"])?;
     let avro_bytes = consumer.start_with(Duration::from_secs(1), false);
@@ -60,11 +59,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let reader_result = Reader::new(body_bytes.reader());
             match reader_result {
                 Ok(reader) => Ok((offset, reader)),
-                Err(_) => Err(err_msg("Could not parse avro value from bytes"))
+                Err(_) => Err(err_msg("Could not parse avro value from bytes")),
             }
         })
         .map_ok(|(offset, reader)| {
-            (offset, reader.map(|event| DependencyEvent::try_from(event?)).collect())
+            (
+                offset,
+                reader
+                    .map(|event| DependencyEvent::try_from(event?))
+                    .collect(),
+            )
         })
         .boxed();
 
@@ -102,11 +106,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Vec<_>>();
 
-    let mut queue_tx_mapped = queue_tx
-        .sink_err_into();
+    let mut queue_tx_mapped = queue_tx.sink_err_into();
 
-    let queue_all = queue_tx_mapped
-        .send_all(&mut events);
+    let queue_all = queue_tx_mapped.send_all(&mut events);
 
     let results = futures::join!(queue_all, slack_dispatch);
     results.0?;
@@ -138,7 +140,7 @@ impl ToSlackMessage for DependencyEvent {
 
 enum SlackSendError {
     RateLimited(std::time::Duration),
-    Unknown(failure::Error)
+    Unknown(failure::Error),
 }
 
 impl From<reqwest::Error> for SlackSendError {
@@ -147,7 +149,12 @@ impl From<reqwest::Error> for SlackSendError {
     }
 }
 
-async fn try_send_slack_message<T : AsRef<str> + serde::ser::Serialize + std::fmt::Display>(channel_id: T, event: &DependencyEvent, client: &reqwest::Client, oauth_token: T) -> Result<(), SlackSendError> {
+async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt::Display>(
+    channel_id: T,
+    event: &DependencyEvent,
+    client: &reqwest::Client,
+    oauth_token: T,
+) -> Result<(), SlackSendError> {
     let payload = json!({
         "channel": channel_id,
         "text": event.to_slack_message()
@@ -157,9 +164,10 @@ async fn try_send_slack_message<T : AsRef<str> + serde::ser::Serialize + std::fm
         .bearer_auth(&oauth_token)
         .json(&payload)
         .build()
-        .map_err(|err| SlackSendError::from(err))?;
+        .map_err(SlackSendError::from)?;
     let resp = client.execute(req).await?;
-    let retry_delay: Option<std::time::Duration> = resp.headers()
+    let retry_delay: Option<std::time::Duration> = resp
+        .headers()
         .get("Retry-After")
         .map(|val| Duration::from_secs(val.to_str().unwrap().parse().unwrap()));
 
@@ -173,10 +181,12 @@ async fn try_send_slack_message<T : AsRef<str> + serde::ser::Serialize + std::fm
             cause
         );
         return if cause == "rate_limited" {
-            Err(SlackSendError::RateLimited(retry_delay.unwrap_or(Duration::from_secs(30))))
+            Err(SlackSendError::RateLimited(
+                retry_delay.unwrap_or(Duration::from_secs(30)),
+            ))
         } else {
             Err(SlackSendError::Unknown(err_msg(cause.to_owned())))
-        }
+        };
     }
     Ok(())
 }
