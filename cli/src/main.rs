@@ -100,6 +100,7 @@ impl ConfigFileError {
 async fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Kiln CLI")
         .setting(AppSettings::SubcommandRequired)
+        .version(clap::crate_version!())
         .arg(Arg::with_name("use-local-image")
             .long("use-local-image")
             .help("Do not try and pull the latest version of a tool image. Useful for development and scanning without network access"))
