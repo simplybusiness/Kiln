@@ -1,0 +1,3 @@
+[submodule "utils/rpm-builder"]
+	path = utils/rpm-builder
+	url = https://github.com/Richterrettich/rpm-builder.git
