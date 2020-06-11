@@ -9,6 +9,31 @@ script = [
 	"cargo build --release"
 ] 
 
+[tasks.rpm]
+dependencies = [
+	"build-rpm-builder",
+	"musl-build",
+	"build-rpm",
+	"move-rpm"
+]
+
+[tasks.build-rpm]
+script = [
+"../utils/rpm-builder/target/release/rpm-builder --exec-file target/x86_64-unknown-linux-musl/release/kiln-cli:/usr/bin/kiln-cli --compression gzip --arch x86_64 --desc 'CLI Tool for running security tools to send data to a Kiln stack' --license MIT --version $CARGO_MAKE_CRATE_VERSION kiln-cli-$CARGO_MAKE_CRATE_VERSION",
+]
+
+[tasks.move-rpm]
+script  = [
+	"mkdir -p target/rpm",
+	"mv *.rpm target/rpm/"
+]
+
+[tasks.build-rpm-builder]
+script = [
+	"cd ../utils/rpm-builder/",
+	"cargo build --release"
+]
+
 [tasks.musl-build]
 script = [
 	"mkdir target &> /dev/null || true",
