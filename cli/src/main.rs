@@ -101,9 +101,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Kiln CLI")
         .setting(AppSettings::SubcommandRequired)
         .version(clap::crate_version!())
-        .arg(Arg::with_name("use-local-image")
-            .long("use-local-image")
-            .help("Do not try and pull the latest version of a tool image. Useful for development and scanning without network access"))
+        .arg(Arg::with_name("offline")
+            .long("offline")
+            .help("Do not make any network requests to pull images or update scanning databases etc"))
         .arg(Arg::with_name("tool-image-name")
             .long("tool-image-name")
             .takes_value(true)
@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             )
         ).get_matches();
 
-    let use_local_image = matches.is_present("use-local-image");
+    let offline = matches.is_present("offline");
 
     let mut env_vec = Vec::new();
     let mut env_app_name = "APP_NAME=".to_string();
@@ -185,7 +185,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     tool_image_repo.to_owned(),
                     tool_image_name.to_owned(),
                     tool_image_tag.to_owned(),
-                    use_local_image,
+                    offline,
                 )
                 .await?;
 
@@ -506,13 +506,13 @@ async fn prepare_tool_image(
     tool_image_repo: String,
     tool_image_name: String,
     tool_image_tag: String,
-    use_local_image: bool,
+    offline: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let docker = Docker::connect_with_local_defaults()?;
     let tool_image_name_full =
         format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
 
-    if use_local_image {
+    if offline {
         let mut filters = HashMap::new();
         filters.insert("reference", vec![tool_image_name_full.as_ref()]);
         let options = Some(ListImagesOptions {
