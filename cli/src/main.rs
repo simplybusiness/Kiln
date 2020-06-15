@@ -122,6 +122,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut env_app_name = "APP_NAME=".to_string();
     let mut env_scan_env = "SCAN_ENV=".to_string();
     let mut env_df_url = "DATA_COLLECTOR_URL=".to_string();
+    let env_offline = format!("OFFLINE={}", offline).to_string();
 
     match parse_kiln_toml_file() {
         Err(e) => {
@@ -141,6 +142,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             env_vec.push(env_df_url);
             env_vec.push(env_app_name);
             env_vec.push(env_scan_env);
+            env_vec.push(env_offline);
         }
     };
 
