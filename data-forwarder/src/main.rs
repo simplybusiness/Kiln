@@ -1,11 +1,13 @@
 use chrono::{DateTime, Utc};
 use clap::{App, Arg};
+use failure::err_msg;
 use git2::Repository;
 use kiln_lib::tool_report::{
     ApplicationName, Environment, EventID, EventVersion, GitBranch, GitCommitHash, OutputFormat,
     SuppressedIssue, ToolName, ToolOutput, ToolReport, ToolVersion,
 };
 use kiln_lib::validation::ValidationError;
+use retry::{OperationResult, retry_with_index, delay::Fibonacci};
 use reqwest::Client;
 use reqwest::StatusCode;
 use std::convert::TryFrom;
@@ -169,12 +171,40 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     };
 
     let client = Client::new();
-    let mut resp = client.post(endpoint_url).json(&tool_report).send()?;
+    let send_success = retry_with_index(Fibonacci::from_millis(1000).take(5), |current_try| {
+        if current_try > 1 {
+            eprintln!("Retrying sending data to Kiln, {} of 5", current_try-1)
+        }
+        let resp = client.post(endpoint_url).json(&tool_report).send();
+        match resp {
+            Err(err) => {
+                if err.is_timeout() {
+                    return OperationResult::Retry(err_msg("Timeout"))
+                }
+                return OperationResult::Retry(err_msg(err))
+            },
+            Ok(mut res) => {
+                match res.status() {
+                    StatusCode::OK => OperationResult::Ok(()),
+                    _ => OperationResult::Err(err_msg(res.text().unwrap()))
+                }
+            }
+        }
+    });
 
-    match resp.status() {
-        StatusCode::OK => (),
-        _ => eprintln!("Error received from data-collector: {}", resp.text()?),
-    };
-
-    Ok(())
+    match send_success {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            match err {
+                retry::Error::Operation{error, ..} => {
+                    eprintln!("Gave up trying to send data to Kiln: {}", error);
+                    std::process::exit(1)
+                }
+                retry::Error::Internal(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(1)
+                }
+            }
+        }
+    }
 }
