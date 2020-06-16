@@ -17,19 +17,19 @@ There is a Cargo-make target for building this component for musl-libc which wil
 This step assumes you have already built the Data-forwarder using the previously mentioned Cargo-make target. The Bundler-audit `Makefile.toml` includes a set of tasks that can be used as a starting point for building new tool images. `cd` to the directory containing your tool image, then run:
 ```
 cargo make pre-build-bundler-audit-docker
-cargo make build-bundler-audit-master-docker
+cargo make build-bundler-audit-git-docker
 ```
 
 The first task will ensure that the Data-forwarder binary is available for the Docker image build to copy it into the image, while the second one will actually build the image.
 
 ## Building the Data-collector docker image
-To build the data-collector Docker image, run `cargo make build-docker-images` from the project root. This target will be kept updated with all of the docker image targets. It also includes linting and unit testing of the code being built. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-data-collector-master-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/data-collector:master-latest`.
+To build the data-collector Docker image, run `cargo make build-docker-images` from the project root. This target will be kept updated with all of the docker image targets. It also includes linting and unit testing of the code being built. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-data-collector-git-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/data-collector:git-latest`.
 
 ## Building the report-parser docker image
-This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-report-parser-master-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/report-parser:master-latest`.
+This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-report-parser-git-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/report-parser:git-latest`.
 
 ## Building the slack-connector docker image
-This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-slack-connector-master-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/slack-connector:master-latest`.
+This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-slack-connector-git-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/slack-connector:git-latest`.
 
 ## Configuring the slack-connector docker container
 You will need to create a `.env` file in the root of the project. This path is ignored by Git, because it will contain a Slack OAuth2 token. Find the information needed by following the instructions in the Slack-connector component README.
@@ -52,7 +52,7 @@ Run `docker exec -it kiln_kafka_1 bash` to get a shell within the running Kafka 
 Then to start the console consumer, run `$KAFKA_HOME/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic DependencyEvents --consumer.config /tls/client-ssl.properties --from-beginning`. Now if you send a valid HTTP request to the data-collector, you should see a serialised Avro message printed in this terminal.
 
 ## Running a tool image against a local Kiln stack
-Using the Bundler-audit tool image as an example, this command will start the tool, mounting the current working directory for analysis and report it to a locally running Kiln stack: `docker run -it -v "${PWD}:/code" --net host -e SCAN_ENV="Local" -e APP_NAME="Railsgoat" -e DATA_COLLECTOR_URL="http://localhost:8081" kiln/bundler-audit:master-latest`
+Using the Bundler-audit tool image as an example, this command will start the tool, mounting the current working directory for analysis and report it to a locally running Kiln stack: `docker run -it -v "${PWD}:/code" --net host -e SCAN_ENV="Local" -e APP_NAME="Railsgoat" -e DATA_COLLECTOR_URL="http://localhost:8081" kiln/bundler-audit:git-latest`
 
 A good codebase to test this particular example on is [OWASP RailsGoat](https://github.com/OWASP/railsgoat).
 
@@ -66,7 +66,7 @@ Below are a valid JSON payload for a request to the data-collector and an exampl
     "event_version": "1",
     "event_id": "123e4567-e89b-12d3-a456-426655440000",
     "application_name": "Test application",
-    "git_branch": "master",
+    "git_branch": "main",
     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
     "tool_name": "example tool",
     "tool_output": "{}",
@@ -93,7 +93,7 @@ curl -X POST \
     "event_version": "1",
     "event_id": "123e4567-e89b-12d3-a456-426655440000",
     "application_name": "Test application",
-    "git_branch": "master",
+    "git_branch": "main",
     "git_commit_hash": "e99f715d0fe787cd43de967b8a79b56960fed3e5",
     "tool_name": "example tool",
     "tool_output": "{}",
