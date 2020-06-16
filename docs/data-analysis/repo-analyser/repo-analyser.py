@@ -40,5 +40,5 @@ for commit in all_commits:
     try:
         subprocess.check_output(["kiln-cli", "--offline", "ruby", "dependencies"], cwd=proj_dir)
     except subprocess.CalledProcessError as err:
-        print("Something went wrong when running Kiln on commit ", rev.id)
+        print("Something went wrong when running Kiln on commit ", commit.id)
         raise
