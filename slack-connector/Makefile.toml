@@ -26,24 +26,24 @@ script = [
 command = "docker"
 args = ["build", "-t", "kiln/slack-connector:${GIT_BRANCH}-${GIT_SHA}", "."]
 
-[tasks.build-slack-connector-master-docker]
-dependencies = ["musl-build", "build-slack-connector-docker-tag-master-version", "build-slack-connector-docker-tag-master-latest"]
+[tasks.build-slack-connector-git-docker]
+dependencies = ["musl-build", "build-slack-connector-docker-tag-git-version", "build-slack-connector-docker-tag-git-latest"]
 
-[tasks.build-slack-connector-docker-tag-master-version]
+[tasks.build-slack-connector-docker-tag-git-version]
 command = "docker"
-args = ["build", "-t", "kiln/slack-connector:master-${GIT_SHA}", "."]
+args = ["build", "-t", "kiln/slack-connector:git-${GIT_SHA}", "."]
 
-[tasks.push-slack-connector-docker-master-version]
+[tasks.push-slack-connector-docker-git-version]
 command = "docker"
-args = ["push", "kiln/slack-connector:master-${GIT_SHA}"]
+args = ["push", "kiln/slack-connector:git-${GIT_SHA}"]
 
-[tasks.build-slack-connector-docker-tag-master-latest]
+[tasks.build-slack-connector-docker-tag-git-latest]
 command = "docker"
-args = ["tag", "kiln/slack-connector:master-${GIT_SHA}", "kiln/slack-connector:master-latest"]
+args = ["tag", "kiln/slack-connector:git-${GIT_SHA}", "kiln/slack-connector:git-latest"]
 
-[tasks.push-slack-connector-docker-master-latest]
+[tasks.push-slack-connector-docker-git-latest]
 command = "docker"
-args = ["push", "kiln/slack-connector:master-latest"]
+args = ["push", "kiln/slack-connector:git-latest"]
 
 [tasks.build-slack-connector-release-docker]
 dependencies = ["musl-build", "build-slack-connector-docker-tag-release-version", "build-slack-connector-docker-tag-release-latest"]
