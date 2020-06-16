@@ -15,24 +15,24 @@ args = ["data-forwarder"]
 command = "docker"
 args = ["build", "-t", "kiln/bundler-audit:${GIT_BRANCH}-${GIT_SHA}", "--build-arg", "BUNDLER_AUDIT_VERSION=${TOOL_VERSION_BUNDLER_AUDIT}", "."]
 
-[tasks.build-bundler-audit-master-docker]
-dependencies = ["build-bundler-audit-docker-tag-master-version", "build-bundler-audit-docker-tag-master-latest"]
+[tasks.build-bundler-audit-git-docker]
+dependencies = ["build-bundler-audit-docker-tag-git-version", "build-bundler-audit-docker-tag-git-latest"]
 
-[tasks.build-bundler-audit-docker-tag-master-version]
+[tasks.build-bundler-audit-docker-tag-git-version]
 command = "docker"
-args = ["build", "-t", "kiln/bundler-audit:master-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}", "--build-arg", "BUNDLER_AUDIT_VERSION=${TOOL_VERSION_BUNDLER_AUDIT}", "."]
+args = ["build", "-t", "kiln/bundler-audit:git-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}", "--build-arg", "BUNDLER_AUDIT_VERSION=${TOOL_VERSION_BUNDLER_AUDIT}", "."]
 
-[tasks.bundler-audit-docker-push-master-version]
+[tasks.bundler-audit-docker-push-git-version]
 command = "docker"
-args = ["push", "kiln/bundler-audit:master-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}"]
+args = ["push", "kiln/bundler-audit:git-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}"]
 
-[tasks.build-bundler-audit-docker-tag-master-latest]
+[tasks.build-bundler-audit-docker-tag-git-latest]
 command = "docker"
-args = ["tag", "kiln/bundler-audit:master-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}", "kiln/bundler-audit:master-latest"]
+args = ["tag", "kiln/bundler-audit:git-${GIT_SHA}-${TOOL_VERSION_BUNDLER_AUDIT}", "kiln/bundler-audit:git-latest"]
 
-[tasks.bundler-audit-docker-push-master-latest]
+[tasks.bundler-audit-docker-push-git-latest]
 command = "docker"
-args = ["push", "kiln/bundler-audit:master-latest"]
+args = ["push", "kiln/bundler-audit:git-latest"]
 
 [tasks.build-bundler-audit-release-docker]
 dependencies = ["build-bundler-audit-docker-tag-release-version", "build-bundler-audit-docker-tag-release-latest"]
