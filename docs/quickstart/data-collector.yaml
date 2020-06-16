@@ -18,7 +18,7 @@ spec:
         app.kubernetes.io/component: data-collector
     spec:
       containers:
-        - image: kiln/data-collector:master-latest
+        - image: kiln/data-collector:git-latest
           imagePullPolicy: "Always"
           name: data-collector
           env:

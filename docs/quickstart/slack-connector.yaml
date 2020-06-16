@@ -15,7 +15,7 @@ spec:
         app.kubernetes.io/name: slack-connector
     spec:
       containers:
-        - image: kiln/slack-connector:master-latest
+        - image: kiln/slack-connector:git-latest
           imagePullPolicy: "Always"
           name: slack-connector
           env:
