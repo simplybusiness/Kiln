@@ -84,14 +84,14 @@ pW+dkjGd7r5rGCFvytGBgFSH/aQ1P54Hy+HoBQ==
 
 # Releasing Kiln
 
-* Open a release branch from master
+* Open a release branch from main
 * Update version number in all crates Cargo.toml files with next semver version number based on changes
-* Swap dependencies on Kiln_lib from git-master to git-tag
+* Swap dependencies on Kiln_lib from git-main to git-tag
 * Update CHANGELOG.md
 * Tag commit with SemVer version number and sign using your GPG key
 * Push commits and tag
-* Revert kiln_lib dependencies from git-tag back to git-master
-* Merge to master
+* Revert kiln_lib dependencies from git-tag back to git-main
+* Merge to main
 
 Once you have completed these steps, Github Actions will trigger the release workflow, which will do the following:
 * Checkout the repo to the latest release tag
