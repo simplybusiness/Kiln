@@ -2,7 +2,7 @@ name: Build Git Docker Images
 on:
     push:
         branches:
-            - git
+            - main 
 
 jobs:
     data-collector:
