@@ -26,24 +26,24 @@ script = [
 command = "docker"
 args = ["build", "-t", "kiln/report-parser:${GIT_BRANCH}-${GIT_SHA}", "."]
 
-[tasks.build-report-parser-master-docker]
-dependencies = ["musl-build", "build-report-parser-docker-tag-master-version", "build-report-parser-docker-tag-master-latest"]
+[tasks.build-report-parser-git-docker]
+dependencies = ["musl-build", "build-report-parser-docker-tag-git-version", "build-report-parser-docker-tag-git-latest"]
 
-[tasks.build-report-parser-docker-tag-master-version]
+[tasks.build-report-parser-docker-tag-git-version]
 command = "docker"
-args = ["build", "-t", "kiln/report-parser:master-${GIT_SHA}", "."]
+args = ["build", "-t", "kiln/report-parser:git-${GIT_SHA}", "."]
 
-[tasks.push-report-parser-docker-master-version]
+[tasks.push-report-parser-docker-git-version]
 command = "docker"
-args = ["push", "kiln/report-parser:master-${GIT_SHA}"]
+args = ["push", "kiln/report-parser:git-${GIT_SHA}"]
 
-[tasks.build-report-parser-docker-tag-master-latest]
+[tasks.build-report-parser-docker-tag-git-latest]
 command = "docker"
-args = ["tag", "kiln/report-parser:master-${GIT_SHA}", "kiln/report-parser:master-latest"]
+args = ["tag", "kiln/report-parser:git-${GIT_SHA}", "kiln/report-parser:git-latest"]
 
-[tasks.push-report-parser-docker-master-latest]
+[tasks.push-report-parser-docker-git-latest]
 command = "docker"
-args = ["push", "kiln/report-parser:master-latest"]
+args = ["push", "kiln/report-parser:git-latest"]
 
 [tasks.build-report-parser-release-docker]
 dependencies = ["musl-build", "build-report-parser-docker-tag-release-version", "build-report-parser-docker-tag-release-latest"]
