@@ -1,6 +1,6 @@
 # Kiln Data Analysis 
 
-This document aims to help you understand how to analyse the data being gathered by Kiln with a practical example using Jupyterhub and Python. The question we will be trying to answer is this: "What is the average time to remediate a vulnerability in an open source dependency of a given project?". We'll be generating our test data set by running Kiln on every commit to the `master` branch of three open source Ruby projects: [OWASP RailsGoat](https://github.com/OWASP/railsgoat), [Mastodon](https://github.com/tootsuite/mastodon) & [GitLab](https://gitlab.com/gitlab-org/gitlab). 
+This document aims to help you understand how to analyse the data being gathered by Kiln with a practical example using Jupyterhub and Python. The question we will be trying to answer is this: "What is the average time to remediate a vulnerability in an open source dependency of a given project?". We'll be generating our test data set by running Kiln on every commit to the default branch of three open source Ruby projects: [OWASP RailsGoat](https://github.com/OWASP/railsgoat), [Mastodon](https://github.com/tootsuite/mastodon) & [GitLab](https://gitlab.com/gitlab-org/gitlab).
 
 Jupyterhub is a browser-based, multi-user interactive computing environment that supports dozens of languages, which makes it ideal for exploratory data analysis. By deploying Jupyterhub to the Kubernetes cluster we're hosting, we will have access to an environment with plenty of computing resources, available on-demand for performing exploration of the events stored in Kafka.
 
@@ -98,7 +98,7 @@ After a few minutes, you should now be able to visit https://kiln-jupyterhub.my-
 
 ## Generating Test Data
 
-In order to generate test data for analysis, we need to run Kiln over every commit on the master branch of several git repositories. To automate this process, the repo-analyser.py python script is provided. This script will checkout each commit to master in reverse chronological order, write the required kiln.toml file to the repo, then use the Kiln CLI to run bundler-audit over the project and send the results to your Kiln stack. The script assumes you have the Kiln CLI in your PATH.
+In order to generate test data for analysis, we need to run Kiln over every commit on the default branch of several git repositories. To automate this process, the repo-analyser.py python script is provided. This script will checkout each commit to the default branch in reverse chronological order, write the required kiln.toml file to the repo, then use the Kiln CLI to run bundler-audit over the project and send the results to your Kiln stack. The script assumes you have the Kiln CLI in your PATH.
 
 Before you can run the script, you will need to install it's dependencies by running: `pipenv sync`. Then you will need to run the script three times, once each for RailsGoat, Mastodon and GitLab.
 
