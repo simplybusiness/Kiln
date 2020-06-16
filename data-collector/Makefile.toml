@@ -26,24 +26,24 @@ script = [
 command = "docker"
 args = ["build", "-t", "kiln/data-collector:${GIT_BRANCH}-${GIT_SHA}", "."]
 
-[tasks.build-data-collector-master-docker]
-dependencies = ["musl-build", "build-data-collector-docker-tag-master-version", "build-data-collector-docker-tag-master-latest"]
+[tasks.build-data-collector-git-docker]
+dependencies = ["musl-build", "build-data-collector-docker-tag-git-version", "build-data-collector-docker-tag-git-latest"]
 
-[tasks.build-data-collector-docker-tag-master-version]
+[tasks.build-data-collector-docker-tag-git-version]
 command = "docker"
-args = ["build", "-t", "kiln/data-collector:master-${GIT_SHA}", "."]
+args = ["build", "-t", "kiln/data-collector:git-${GIT_SHA}", "."]
 
-[tasks.push-data-collector-docker-master-version]
+[tasks.push-data-collector-docker-git-version]
 command = "docker"
-args = ["push", "kiln/data-collector:master-${GIT_SHA}"]
+args = ["push", "kiln/data-collector:git-${GIT_SHA}"]
 
-[tasks.build-data-collector-docker-tag-master-latest]
+[tasks.build-data-collector-docker-tag-git-latest]
 command = "docker"
-args = ["tag", "kiln/data-collector:master-${GIT_SHA}", "kiln/data-collector:master-latest"]
+args = ["tag", "kiln/data-collector:git-${GIT_SHA}", "kiln/data-collector:git-latest"]
 
-[tasks.push-data-collector-docker-master-latest]
+[tasks.push-data-collector-docker-git-latest]
 command = "docker"
-args = ["push", "kiln/data-collector:master-latest"]
+args = ["push", "kiln/data-collector:git-latest"]
 
 [tasks.build-data-collector-release-docker]
 dependencies = ["musl-build", "build-data-collector-docker-tag-release-version", "build-data-collector-docker-tag-release-latest"]
