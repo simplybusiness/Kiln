@@ -1,8 +1,8 @@
-name: Build Master Docker Images
+name: Build Git Docker Images
 on:
     push:
         branches:
-            - master
+            - git
 
 jobs:
     data-collector:
@@ -30,7 +30,7 @@ jobs:
                 path: data-collector/target
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Build
-              run: cargo make build-data-collector-master-docker
+              run: cargo make build-data-collector-git-docker
               working-directory: data-collector/
             - name: docker login
               uses: azure/docker-login@v1
@@ -38,10 +38,10 @@ jobs:
                 password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
                 username: kilnautomation
             - name: Docker push version
-              run: cargo make push-data-collector-docker-master-version
+              run: cargo make push-data-collector-docker-git-version
               working-directory: data-collector/
             - name: Docker push latest
-              run: cargo make push-data-collector-docker-master-latest
+              run: cargo make push-data-collector-docker-git-latest
               working-directory: data-collector/
     data-forwarder:
         name: Data-forwarder build
@@ -91,7 +91,7 @@ jobs:
                 name: data-forwarder
                 path: tool-images/ruby/bundler-audit/
             - name: Build bundler-audit
-              run: cargo make build-bundler-audit-master-docker
+              run: cargo make build-bundler-audit-git-docker
               working-directory: tool-images/ruby/bundler-audit
             - name: docker login
               uses: azure/docker-login@v1
@@ -99,10 +99,10 @@ jobs:
                 password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
                 username: kilnautomation
             - name: Docker push version
-              run: cargo make bundler-audit-docker-push-master-version
+              run: cargo make bundler-audit-docker-push-git-version
               working-directory: tool-images/ruby/bundler-audit
             - name: Docker push latest
-              run: cargo make bundler-audit-docker-push-master-latest
+              run: cargo make bundler-audit-docker-push-git-latest
               working-directory: tool-images/ruby/bundler-audit
     report-parser:
         name: Report-parser build
@@ -129,7 +129,7 @@ jobs:
                 path: report-parser/target
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('report-parser/Cargo.lock') }}
             - name: Build
-              run: cargo make build-report-parser-master-docker
+              run: cargo make build-report-parser-git-docker
               working-directory: report-parser/
             - name: docker login
               uses: azure/docker-login@v1
@@ -137,10 +137,10 @@ jobs:
                 password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
                 username: kilnautomation
             - name: Docker push version
-              run: cargo make push-report-parser-docker-master-version
+              run: cargo make push-report-parser-docker-git-version
               working-directory: report-parser/
             - name: Docker push latest
-              run: cargo make push-report-parser-docker-master-latest
+              run: cargo make push-report-parser-docker-git-latest
               working-directory: report-parser/
     slack-connector:
         name: Slack-connector build
@@ -167,7 +167,7 @@ jobs:
                 path: slack-connector/target
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('slack-connector/Cargo.lock') }}
             - name: Build
-              run: cargo make build-slack-connector-master-docker
+              run: cargo make build-slack-connector-git-docker
               working-directory: slack-connector/
             - name: docker login
               uses: azure/docker-login@v1
@@ -175,8 +175,8 @@ jobs:
                 password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
                 username: kilnautomation
             - name: Docker push version
-              run: cargo make push-slack-connector-docker-master-version
+              run: cargo make push-slack-connector-docker-git-version
               working-directory: slack-connector/
             - name: Docker push latest
-              run: cargo make push-slack-connector-docker-master-latest
+              run: cargo make push-slack-connector-docker-git-latest
               working-directory: slack-connector/
