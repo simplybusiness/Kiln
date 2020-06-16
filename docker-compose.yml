@@ -35,7 +35,7 @@ services:
   data-collector:
     depends_on: 
       - kafka
-    image: kiln/data-collector:master-latest
+    image: kiln/data-collector:git-latest
     ports:
       - "8081:8080"
     environment:
@@ -46,7 +46,7 @@ services:
   report-parser:
     depends_on:
       - kafka
-    image: kiln/report-parser:master-latest
+    image: kiln/report-parser:git-latest
     environment:
       - KAFKA_BOOTSTRAP_TLS=kafka:9092
       - RUST_LOG=info
@@ -56,7 +56,7 @@ services:
   slack-connector:
     depends_on:
       - kafka
-    image: kiln/slack-connector:master-latest
+    image: kiln/slack-connector:git-latest
     environment:
       - KAFKA_BOOTSTRAP_TLS=kafka:9092
       - RUST_LOG=info
