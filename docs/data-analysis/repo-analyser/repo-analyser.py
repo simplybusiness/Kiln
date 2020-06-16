@@ -38,7 +38,7 @@ for commit in all_commits:
         f.writelines([f'app_name="{app_name}"\n', 'data_collector_url="{url}"'])
         f.flush()
     try:
-        subprocess.check_output(["kiln-cli", "--use-local-image", "ruby", "dependencies"], cwd=proj_dir)
+        subprocess.check_output(["kiln-cli", "--offline", "ruby", "dependencies"], cwd=proj_dir)
     except subprocess.CalledProcessError as err:
         print("Something went wrong when running Kiln on commit ", rev.id)
         raise
