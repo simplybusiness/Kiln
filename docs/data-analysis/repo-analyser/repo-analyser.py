@@ -5,7 +5,7 @@ import os
 import subprocess
 import itertools
 
-parser = argparse.ArgumentParser(description='Run Kiln for every commit on a master branch in a git repo')
+parser = argparse.ArgumentParser(description='Run Kiln for every commit on the default branch in a git repo')
 parser.add_argument('dir')
 parser.add_argument('app_name')
 parser.add_argument('data_collector_url')
@@ -19,7 +19,8 @@ if repo_path == None:
     raise Exception("Project directory isn't a git repo. Exiting!")
 
 repo = Repository(repo_path)
-walker = repo.walk(repo.branches['master'].peel().id, GIT_SORT_REVERSE | GIT_SORT_TIME)
+default_branch = repo.resolve_refish('origin/HEAD')[1].shorthand
+walker = repo.walk(repo.branches[default_branch].peel().id, GIT_SORT_REVERSE | GIT_SORT_TIME)
 walker.simplify_first_parent()
 all_commits = [x.id for x in walker]
 kiln_config_path = os.path.abspath(os.path.join(proj_dir, "kiln.toml"))
