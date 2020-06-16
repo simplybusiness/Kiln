@@ -153,7 +153,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Some("dependencies") => {
                 let tool_image = matches
                     .value_of("tool-image-name")
-                    .unwrap_or_else(|| "kiln/bundler-audit:master-latest");
+                    .unwrap_or_else(|| "kiln/bundler-audit:git-latest");
                 let image_name_regex = Regex::new(r#"(?:(?P<r>[a-zA-Z0-9_-]+)/)?(?P<i>[a-zA-Z0-9_-]+)(?::(?P<t>[a-zA-Z0-9_-]+))?"#).unwrap();
                 let image_name_matches = image_name_regex.captures(tool_image).expect(
                     "Error parsing tool image name, ensure name is in format REPO/IMAGE:TAG",
@@ -169,7 +169,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let tool_image_tag = image_name_matches
                     .name("t")
                     .map(|capture| capture.as_str())
-                    .unwrap_or_else(|| "master-latest");
+                    .unwrap_or_else(|| "git-latest");
 
                 let test_tool_name = String::from("bundler-audit-kiln-container");
 
