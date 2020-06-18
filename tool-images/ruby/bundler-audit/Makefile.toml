@@ -12,6 +12,7 @@ command = "rm"
 args = ["data-forwarder"]
 
 [tasks.build-bundler-audit-docker]
+dependencies = ["pre-build-bundler-audit-docker"]
 command = "docker"
 args = ["build", "-t", "kiln/bundler-audit:${GIT_BRANCH}-${GIT_SHA}", "--build-arg", "BUNDLER_AUDIT_VERSION=${TOOL_VERSION_BUNDLER_AUDIT}", "."]
 
