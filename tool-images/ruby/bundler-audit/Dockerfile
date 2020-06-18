@@ -1,4 +1,5 @@
-FROM ruby:2-alpine
+ARG BASE_IMAGE=ruby:2-alpine
+FROM $BASE_IMAGE
 RUN apk --no-cache add ca-certificates
 RUN apk --no-cache add git
 RUN gem install bundler -v "~>1.0" && \
