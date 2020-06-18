@@ -1,4 +1,5 @@
-FROM alpine:3.10
+ARG BASE_IMAGE=alpine:3.10
+FROM $BASE_IMAGE
 WORKDIR /app
 RUN apk add --no-cache ca-certificates su-exec
 COPY entrypoint.sh /app
