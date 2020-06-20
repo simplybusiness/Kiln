@@ -118,8 +118,7 @@ mod tests {
     fn creating_kafka_producer_does_not_return_a_client_config_error() {
         let config =
             KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
-        let path = std::path::Path::new(&std::env::current_dir().unwrap()).join("ca-cert");
-        build_kafka_producer(config, &path).unwrap();
+        build_kafka_producer(config).unwrap();
     }
 
     #[allow(unused_must_use)]
@@ -127,8 +126,7 @@ mod tests {
     fn creating_kafka_consumer_does_not_return_a_client_config_error() {
         let config =
             KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
-        let path = std::path::Path::new(&std::env::current_dir().unwrap()).join("ca-cert");
-        build_kafka_consumer(config, "TestConsumerGroup".to_string(), &path).unwrap();
+        build_kafka_consumer(config, "TestConsumerGroup".to_string()).unwrap();
     }
 
     #[test]
