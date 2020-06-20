@@ -19,6 +19,7 @@ addr = { version = "0.2", optional = true }
 url = "2.1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 toml_crate = { version = "0.5", package = "toml", optional = true }
+openssl-probe = "0.1"
 
 [features]
 
