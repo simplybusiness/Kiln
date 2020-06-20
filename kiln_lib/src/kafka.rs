@@ -3,6 +3,7 @@ use rdkafka::config::ClientConfig;
 use rdkafka::consumer::stream_consumer::StreamConsumer;
 use rdkafka::error::KafkaError;
 use rdkafka::producer::future_producer::FutureProducer;
+use openssl_probe::ProbeResult;
 
 #[derive(Debug, Clone)]
 pub struct KafkaBootstrapTlsConfig(Vec<String>);
@@ -70,29 +71,41 @@ where
 
 pub fn build_kafka_producer(
     config: KafkaBootstrapTlsConfig,
-    ca_cert_location: &std::path::Path,
 ) -> Result<FutureProducer, KafkaError> {
+    let cert_probe_result = openssl_probe::probe();
+    let cert_location = match cert_probe_result {
+        ProbeResult{cert_file, ..} if cert_file.is_some() => cert_file,
+        ProbeResult{cert_dir, ..} if cert_dir.is_some() => cert_dir,
+        _ => panic!("Could not find TLS Certificate Store")
+    };
+
     ClientConfig::new()
         .set("metadata.broker.list", &config.0.join(","))
         .set("compression.type", "gzip")
         .set("security.protocol", "SSL")
-        .set("ssl.ca.location", ca_cert_location.to_str().unwrap())
         .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
+        .set("ssl.ca.location", &cert_location.unwrap().to_string_lossy())
         .create()
 }
 
 pub fn build_kafka_consumer(
     config: KafkaBootstrapTlsConfig,
     consumer_group_name: String,
-    ca_cert_location: &std::path::Path,
 ) -> Result<StreamConsumer, KafkaError> {
+    let cert_probe_result = openssl_probe::probe();
+    let cert_location = match cert_probe_result {
+        ProbeResult{cert_file, ..} if cert_file.is_some() => cert_file,
+        ProbeResult{cert_dir, ..} if cert_dir.is_some() => cert_dir,
+        _ => panic!("Could not find TLS Certificate Store")
+    };
+
     ClientConfig::new()
         .set("metadata.broker.list", &config.0.join(","))
         .set("group.id", &consumer_group_name)
         .set("compression.type", "gzip")
         .set("security.protocol", "SSL")
-        .set("ssl.ca.location", ca_cert_location.to_str().unwrap())
         .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
+        .set("ssl.ca.location", &cert_location.unwrap().to_string_lossy())
         .create()
 }
 
