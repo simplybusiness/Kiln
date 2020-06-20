@@ -8,9 +8,7 @@ use std::boxed::Box;
 use std::convert::TryFrom;
 use std::env;
 use std::error::Error;
-use std::path::PathBuf;
 use std::str;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use log::warn;
@@ -25,12 +23,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    let tls_cert_path = PathBuf::from_str("/etc/ssl/certs/ca-certificates.crt").unwrap();
-
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
-    let producer = build_kafka_producer(config, &tls_cert_path)
+    let producer = build_kafka_producer(config)
         .map_err(|err| err_msg(format!("Kafka Error: {}", err.to_string())))?;
 
     let shared_producer = Arc::from(producer);
