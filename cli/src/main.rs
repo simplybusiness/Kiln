@@ -171,8 +171,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .map(|capture| capture.as_str())
                     .unwrap_or_else(|| "git-latest");
 
-                let test_tool_name = String::from("bundler-audit-kiln-container");
-
                 let mut image_filters = HashMap::new();
                 let reference_filter = format!("{}/{}", tool_image_repo, tool_image_name);
                 image_filters.insert("reference", vec![reference_filter.as_str()]);
@@ -225,10 +223,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let tool_image_name_full =
                     format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
 
-                let create_container_options = Some(CreateContainerOptions {
-                    name: test_tool_name.clone(),
-                });
-
                 let container_config = container::Config {
                     attach_stdout: Some(true),
                     attach_stderr: Some(true),
@@ -253,23 +247,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 };
 
                 let create_container_result = docker
-                    .create_container(create_container_options, container_config)
+                    .create_container(None::<CreateContainerOptions::<String>>, container_config)
                     .await;
-                match create_container_result {
+                match &create_container_result {
                     Err(err) => {
                         eprintln!("Error creating tool container: {}", err);
                         panic!();
                     }
                     Ok(CreateContainerResults { warnings, .. }) if warnings.is_some() => {
-                        warnings.unwrap().iter().for_each(|item| {
+                        warnings.as_ref().unwrap().iter().for_each(|item| {
                             println!("Warning occured while creating tool container: {}", item);
                         });
                     }
                     _ => (),
-                }
+                };
+
+                let container_id = create_container_result.unwrap().id;
 
                 let container_start_result = docker
-                    .start_container(&test_tool_name, None::<StartContainerOptions<String>>)
+                    .start_container(&container_id, None::<StartContainerOptions<String>>)
                     .await;
                 if let Err(err) = container_start_result {
                     eprintln!("Error start tool container: {}", err);
@@ -277,7 +273,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 let mut container_result =
-                    docker.wait_container(&test_tool_name, None::<WaitContainerOptions<String>>);
+                    docker.wait_container(&container_id, None::<WaitContainerOptions<String>>);
 
                 let logs_options = Some(LogsOptions {
                     follow: true,
@@ -286,7 +282,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     tail: "all".to_string(),
                     ..Default::default()
                 });
-                let mut logs_stream = docker.logs(&test_tool_name, logs_options).fuse();
+                let mut logs_stream = docker.logs(&container_id, logs_options).fuse();
 
                 loop {
                     if logs_stream.is_done() {
