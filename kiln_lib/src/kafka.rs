@@ -1,9 +1,9 @@
 use addr::DomainName;
+use openssl_probe::ProbeResult;
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::stream_consumer::StreamConsumer;
 use rdkafka::error::KafkaError;
 use rdkafka::producer::future_producer::FutureProducer;
-use openssl_probe::ProbeResult;
 
 #[derive(Debug, Clone)]
 pub struct KafkaBootstrapTlsConfig(Vec<String>);
@@ -69,14 +69,12 @@ where
     Ok(KafkaBootstrapTlsConfig(kafka_bootstrap_tls))
 }
 
-pub fn build_kafka_producer(
-    config: KafkaBootstrapTlsConfig,
-) -> Result<FutureProducer, KafkaError> {
+pub fn build_kafka_producer(config: KafkaBootstrapTlsConfig) -> Result<FutureProducer, KafkaError> {
     let cert_probe_result = openssl_probe::probe();
     let cert_location = match cert_probe_result {
-        ProbeResult{cert_file, ..} if cert_file.is_some() => cert_file,
-        ProbeResult{cert_dir, ..} if cert_dir.is_some() => cert_dir,
-        _ => panic!("Could not find TLS Certificate Store")
+        ProbeResult { cert_file, .. } if cert_file.is_some() => cert_file,
+        ProbeResult { cert_dir, .. } if cert_dir.is_some() => cert_dir,
+        _ => panic!("Could not find TLS Certificate Store"),
     };
 
     ClientConfig::new()
@@ -94,9 +92,9 @@ pub fn build_kafka_consumer(
 ) -> Result<StreamConsumer, KafkaError> {
     let cert_probe_result = openssl_probe::probe();
     let cert_location = match cert_probe_result {
-        ProbeResult{cert_file, ..} if cert_file.is_some() => cert_file,
-        ProbeResult{cert_dir, ..} if cert_dir.is_some() => cert_dir,
-        _ => panic!("Could not find TLS Certificate Store")
+        ProbeResult { cert_file, .. } if cert_file.is_some() => cert_file,
+        ProbeResult { cert_dir, .. } if cert_dir.is_some() => cert_dir,
+        _ => panic!("Could not find TLS Certificate Store"),
     };
 
     ClientConfig::new()
