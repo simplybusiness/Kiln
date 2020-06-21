@@ -101,20 +101,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Kiln CLI")
         .setting(AppSettings::SubcommandRequired)
         .version(clap::crate_version!())
-        .arg(Arg::with_name("offline")
-            .long("offline")
-            .help("Do not make any network requests to pull images or update scanning databases etc"))
-        .arg(Arg::with_name("tool-image-name")
-            .long("tool-image-name")
-            .takes_value(true)
-            .help("Override the default docker image and tag for a tool."))
-        .subcommand(SubCommand::with_name("ruby")
-            .about("perform security testing of Ruby based projects")
-            .setting(AppSettings::SubcommandRequired)
-            .subcommand(SubCommand::with_name("dependencies")
-                .about("Use Bundler-audit to find known vulnerabilities in project dependencies")
-            )
-        ).get_matches();
+        .arg(Arg::with_name("offline").long("offline").help(
+            "Do not make any network requests to pull images or update scanning databases etc",
+        ))
+        .arg(
+            Arg::with_name("tool-image-name")
+                .long("tool-image-name")
+                .takes_value(true)
+                .help("Override the default docker image and tag for a tool."),
+        )
+        .subcommand(
+            SubCommand::with_name("ruby")
+                .about("perform security testing of Ruby based projects")
+                .setting(AppSettings::SubcommandRequired)
+                .subcommand(SubCommand::with_name("dependencies").about(
+                    "Use Bundler-audit to find known vulnerabilities in project dependencies",
+                )),
+        )
+        .get_matches();
 
     let offline = matches.is_present("offline");
 
@@ -122,7 +126,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut env_app_name = "APP_NAME=".to_string();
     let mut env_scan_env = "SCAN_ENV=".to_string();
     let mut env_df_url = "DATA_COLLECTOR_URL=".to_string();
-    let env_offline = format!("OFFLINE={}", offline).to_string();
+    let env_offline = format!("OFFLINE={}", offline);
 
     match parse_kiln_toml_file() {
         Err(e) => {
@@ -202,9 +206,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         !item
                             .repo_tags
                             .as_ref()
-                            .map(|tags| {
-                                tags.iter().any(|tag| tag.as_str().contains("latest"))
-                            })
+                            .map(|tags| tags.iter().any(|tag| tag.as_str().contains("latest")))
                             .unwrap_or(false)
                     })
                     .map(|item| item.id.clone())
@@ -247,7 +249,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 };
 
                 let create_container_result = docker
-                    .create_container(None::<CreateContainerOptions::<String>>, container_config)
+                    .create_container(None::<CreateContainerOptions<String>>, container_config)
                     .await;
                 match &create_container_result {
                     Err(err) => {
