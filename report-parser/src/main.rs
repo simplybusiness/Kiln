@@ -42,9 +42,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
 
-    let consumer =
-        build_kafka_consumer(config.clone(), "report-parser".to_string())
-            .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?;
+    let consumer = build_kafka_consumer(config.clone(), "report-parser".to_string())
+        .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?;
 
     consumer.subscribe(&["ToolReports"])?;
 
@@ -52,7 +51,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .map_err(|err| err_msg(format!("Kafka Producer Error: {}", err.to_string())))?;
 
     let base_url = Url::parse(
-        &env::var("NVD_BASE_URL").unwrap_or_else(|_| "https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()),
+        &env::var("NVD_BASE_URL")
+            .unwrap_or_else(|_| "https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()),
     )?;
     let mut last_updated_time = None;
     let client_builder = Client::builder();
@@ -184,41 +184,45 @@ fn download_and_parse_vulns(
     let last_mod_timestamp = META_LAST_MOD_RE
         .captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
-        .ok_or_else(|| Box::new(
-            err_msg(format!(
-                "Error reading lastModifiedDate from {}",
-                meta_filename
-            ))
-            .compat(),
-        ))
+        .ok_or_else(|| {
+            Box::new(
+                err_msg(format!(
+                    "Error reading lastModifiedDate from {}",
+                    meta_filename
+                ))
+                .compat(),
+            )
+        })
         .map(|capture| capture.as_str())?;
 
     let uncompressed_size = META_UNCOMPRESSED_SIZE_RE
         .captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
-        .ok_or_else(|| Box::new(
-            err_msg(format!("Error reading size from {}", meta_filename)).compat(),
-        ))
+        .ok_or_else(|| {
+            Box::new(err_msg(format!("Error reading size from {}", meta_filename)).compat())
+        })
         .map(|capture| capture.as_str())?;
 
     let compressed_size = META_COMPRESSED_GZ_SIZE_RE
         .captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
-        .ok_or_else(|| Box::new(
-            err_msg(format!(
-                "Error reading compressed size from {}",
-                meta_filename
-            ))
-            .compat(),
-        ))
+        .ok_or_else(|| {
+            Box::new(
+                err_msg(format!(
+                    "Error reading compressed size from {}",
+                    meta_filename
+                ))
+                .compat(),
+            )
+        })
         .map(|capture| capture.as_str())?;
 
     let hash = META_SHA256_RE
         .captures(&meta_resp_text)
         .and_then(|captures| captures.get(1))
-        .ok_or_else(|| Box::new(
-            err_msg(format!("Error reading sha256 hash from {}", meta_filename)).compat(),
-        ))
+        .ok_or_else(|| {
+            Box::new(err_msg(format!("Error reading sha256 hash from {}", meta_filename)).compat())
+        })
         .map(|capture| capture.as_str())?;
 
     if last_updated_time.is_none()
