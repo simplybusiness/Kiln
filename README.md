@@ -24,6 +24,13 @@ If you're interested in trying Kiln out, there is a [Quickstart](docs/quickstart
 ## Contributing
 Please note that this project is released with a Contributor Code of Conduct. By participating in this project, you agree to abide by its terms. The Code of Conduct can be found [here](CODE_OF_CONDUCT.md).
 
+There are many ways you can contribute to Kiln, and writing Rust is only one of them. You could:
+- Try Kiln out on your own projects and file bug reports
+- Write documentation or raise issues with the documentation
+- Review current test coverage (both unit and integration testing) and raise issues for gaps in coverage
+- Suggest new tools or service connectors
+- Write about interesting ways to use the data Kiln generates
+
 To contribute to Kiln, you'll need the following tools installed:
 - Rust (stable channel, assuming 1.40 as minimum)
 - Clippy (For linting)
