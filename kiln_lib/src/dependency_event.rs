@@ -474,8 +474,8 @@ pub struct CvssBuilder {
     score: Option<f32>,
 }
 
- impl Default for CvssBuilder {
-     fn default() -> Self {
+impl Default for CvssBuilder {
+    fn default() -> Self {
         Self::new()
     }
 }
