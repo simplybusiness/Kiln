@@ -26,6 +26,12 @@ jobs:
               with:
                 path: data-collector/target
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Check formatting
+              run: cargo fmt -- --check
+              working-directory: data-collector/
+            - name: Clippy
+              run: cargo clippy
+              working-directory: data-collector/
             - name: Build
               run: cargo make build-data-collector
               working-directory: data-collector/
@@ -53,6 +59,12 @@ jobs:
               with:
                 path: data-forwarder/target
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
+            - name: Check formatting
+              run: cargo fmt -- --check
+              working-directory: data-forwarder/
+            - name: Clippy
+              run: cargo clippy
+              working-directory: data-forwarder/
             - name: Build data-forwarder
               run: cargo make build-data-forwarder-musl
               working-directory: data-forwarder/
@@ -80,6 +92,12 @@ jobs:
               with:
                 path: cli/target
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('cli/Cargo.lock') }}
+            - name: Check formatting
+              run: cargo fmt -- --check
+              working-directory: cli/
+            - name: Clippy
+              run: cargo clippy
+              working-directory: cli/
             - name: Build kiln-cli-tool
               run: cargo make build-kiln-cli
               working-directory: cli/
@@ -107,6 +125,12 @@ jobs:
               with:
                 path: report-parser/target
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('report-parser/Cargo.lock') }}
+            - name: Check formatting
+              run: cargo fmt -- --check
+              working-directory: report-parser/
+            - name: Clippy
+              run: cargo clippy
+              working-directory: report-parser/
             - name: Build
               run: cargo make build-report-parser
               working-directory: report-parser/
@@ -134,6 +158,12 @@ jobs:
               with:
                 path: slack-connector/target
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('slack-connector/Cargo.lock') }}
+            - name: Check formatting
+              run: cargo fmt -- --check
+              working-directory: slack-connector/
+            - name: Clippy
+              run: cargo clippy
+              working-directory: slack-connector/
             - name: Build
               run: cargo make build-slack-connector
               working-directory: slack-connector/
@@ -158,14 +188,17 @@ jobs:
               with:
                 path: kiln_lib/target
                 key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('kiln_lib/Cargo.lock') }}
+            - name: Check formatting
+              run: cargo fmt -- --check
+              working-directory: kiln_lib/
+            - name: Lint
+              run: cargo clippy --all-features
+              working-directory: kiln_lib/
             - name: Build
               run: cargo build --all-features
               working-directory: kiln_lib/
             - name: Test
               run: cargo test --all-features
-              working-directory: kiln_lib/
-            - name: Lint
-              run: cargo clippy --all-features
               working-directory: kiln_lib/
     check-cargo-makefile-syntax:
         name: Check cargo Makefile syntax is valid
