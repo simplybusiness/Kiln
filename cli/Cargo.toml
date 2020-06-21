@@ -5,13 +5,13 @@ edition = "2018"
 
 [dependencies]
 clap = "2"
-bollard = "0.5"
+bollard = "0.6"
 tokio = { version = "0.2", features = ["macros", "stream", "rt-threaded"] }
 futures = "0.3"
 toml = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-indicatif = "0.13"
+indicatif = "0.15"
 reqwest = { version = "0.10", features = ["json"] }
 regex = "1"
 failure = "0.1"
