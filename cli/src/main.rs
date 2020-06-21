@@ -1,12 +1,13 @@
 use bollard::{
     container::{
-        self, CreateContainerOptions, CreateContainerResults, HostConfig, LogOutput, LogsOptions,
-        MountPoint, StartContainerOptions, WaitContainerOptions,
+        self, CreateContainerOptions, LogOutput, LogsOptions, StartContainerOptions,
+        WaitContainerOptions,
     },
     image::{
         CreateImageOptions, CreateImageProgressDetail, CreateImageResults, ListImagesOptions,
         RemoveImageOptions,
     },
+    service::{ContainerCreateResponse, HostConfig, Mount, MountTypeEnum},
     Docker,
 };
 use clap::{App, AppSettings, Arg, SubCommand};
@@ -205,9 +206,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .filter(|item| {
                         !item
                             .repo_tags
-                            .as_ref()
-                            .map(|tags| tags.iter().any(|tag| tag.as_str().contains("latest")))
-                            .unwrap_or(false)
+                            .iter()
+                            .any(|tag| tag.as_str().contains("latest"))
                     })
                     .map(|item| item.id.clone())
                     .collect();
@@ -233,14 +233,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     env: Some(env_vec),
                     host_config: Some(HostConfig {
                         auto_remove: Some(true),
-                        mounts: Some(vec![MountPoint {
-                            target: "/code".to_string(),
-                            source: std::env::current_dir()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string(),
-                            type_: "bind".to_string(),
+                        mounts: Some(vec![Mount {
+                            target: Some("/code".to_string()),
+                            source: Some(
+                                std::env::current_dir()
+                                    .unwrap()
+                                    .to_str()
+                                    .unwrap()
+                                    .to_string(),
+                            ),
+                            _type: Some(MountTypeEnum::BIND),
                             ..Default::default()
                         }]),
                         ..Default::default()
@@ -256,12 +258,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         eprintln!("Error creating tool container: {}", err);
                         panic!();
                     }
-                    Ok(CreateContainerResults { warnings, .. }) if warnings.is_some() => {
-                        warnings.as_ref().unwrap().iter().for_each(|item| {
+                    Ok(ContainerCreateResponse { warnings, .. }) => {
+                        warnings.iter().for_each(|item| {
                             println!("Warning occured while creating tool container: {}", item);
                         });
                     }
-                    _ => (),
                 };
 
                 let container_id = create_container_result.unwrap().id;
@@ -309,7 +310,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         container_exit_details.status_code,
                         container_exit_details
                             .error
-                            .map(|e| e.message)
+                            .and_then(|e| e.message)
                             .unwrap_or_else(|| "No error message".to_string())
                     )
                 }
