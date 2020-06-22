@@ -35,6 +35,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         App::new()
             .data(shared_producer.clone())
             .route("/", web::post().to(handler))
+            .route("/health", web::get().to(health_handler))
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
     })
@@ -42,6 +43,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     .run()
     .await
     .map_err(|err| err.into())
+}
+async fn health_handler() -> HttpResponse {
+    HttpResponse::Ok().finish()
 }
 
 async fn handler(
