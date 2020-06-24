@@ -1,7 +1,7 @@
 #!/bin/sh
 START_TIME=$(date -I'seconds' | sed "s/\(.*\)\(.\{2\}\)$/\1:\2/")
-FILE_NAME=$(mktemp -t ./tool-output)
-if [[ $OFFLINE == true ]]; then
+FILE_NAME=$(mktemp -t -p . tool-output.XXXXXXXXXX)
+if [[ ! -z "$OFFLINE" && $OFFLINE=="true" ]]; then
     bundle audit check | tee $FILE_NAME
 else
     bundle audit check --update | tee $FILE_NAME
