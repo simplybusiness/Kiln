@@ -1,0 +1,61 @@
+[env]
+GIT_SHA = { script = ["git rev-parse --short HEAD"] }
+GIT_BRANCH = { script = ["git rev-parse --abbrev-ref HEAD"] }
+TOOL_VERSION_YARN_AUDIT="1.22.4"
+
+[tasks.pre-build-yarn-audit-docker]
+command = "cp"
+args = ["../../../bin/data-forwarder", "data-forwarder"]
+
+[tasks.post-build-yarn-audit-docker]
+command = "rm"
+args = ["data-forwarder"]
+
+[tasks.build-yarn-audit-docker]
+dependencies = ["pre-build-yarn-audit-docker"]
+command = "docker"
+args = ["build", "-t", "kiln/yarn-audit:${GIT_BRANCH}-${GIT_SHA}", "--build-arg", "YARN_AUDIT_VERSION=${TOOL_VERSION_YARN_AUDIT}", "."]
+
+[tasks.build-yarn-audit-git-docker]
+dependencies = ["build-yarn-audit-docker-tag-git-version", "build-yarn-audit-docker-tag-git-latest"]
+
+[tasks.build-yarn-audit-docker-tag-git-version]
+command = "docker"
+args = ["build", "-t", "kiln/yarn-audit:git-${GIT_SHA}-${TOOL_VERSION_YARN_AUDIT}", "--build-arg", "YARN_AUDIT_VERSION=${TOOL_VERSION_YARN_AUDIT}", "."]
+
+[tasks.yarn-audit-docker-push-git-version]
+command = "docker"
+args = ["push", "kiln/yarn-audit:git-${GIT_SHA}-${TOOL_VERSION_YARN_AUDIT}"]
+
+[tasks.build-yarn-audit-docker-tag-git-latest]
+command = "docker"
+args = ["tag", "kiln/yarn-audit:git-${GIT_SHA}-${TOOL_VERSION_YARN_AUDIT}", "kiln/yarn-audit:git-latest"]
+
+[tasks.yarn-audit-docker-push-git-latest]
+command = "docker"
+args = ["push", "kiln/yarn-audit:git-latest"]
+
+[tasks.build-yarn-audit-release-docker]
+dependencies = ["build-yarn-audit-docker-tag-release-version", "build-yarn-audit-docker-tag-release-latest"]
+
+[tasks.build-yarn-audit-docker-tag-release-version]
+script = [
+	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
+	"docker build -t kiln/yarn-audit:$GIT_TAG-$TOOL_VERSION_YARN_AUDIT --build-arg YARN_AUDIT_VERSION=$TOOL_VERSION_YARN_AUDIT ."
+]
+
+[tasks.yarn-audit-docker-push-release-version]
+script = [
+	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
+	"docker push kiln/yarn-audit:$GIT_TAG-$TOOL_VERSION_YARN_AUDIT"
+]
+
+[tasks.build-yarn-audit-docker-tag-release-latest]
+script = [
+	"GIT_TAG=git rev-parse --abbrev-ref HEAD",
+	"docker tag kiln/yarn-audit:$GIT_TAG-$TOOL_VERSION_YARN_AUDIT kiln/yarn-audit:latest"
+]
+
+[tasks.yarn-audit-docker-push-release-latest]
+command = "docker"
+args = ["push", "kiln/yarn-audit:latest"]

@@ -6,4 +6,5 @@ bin
 target
 tls
 tool-images/ruby/bundler-audit/data-forwarder
+tool-images/javascript/yarn-audit/data-forwarder
 .env
