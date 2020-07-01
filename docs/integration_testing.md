@@ -11,25 +11,20 @@ Currently, there is no automated integration testing of Kiln, but it is possible
 Parts of this process have been automated using Cargo-make, which is the task runner for the Kiln build process.
 
 ## Building the Data-forwarder binary for musl-libc
-There is a Cargo-make target for building this component for musl-libc which will also run linting and unit tests. `cd` to the project root directory and run `cargo make build-data-forwarder-musl`.
+There is a Cargo-make target for building this component for musl-libc which will also run linting and unit tests.
+```
+cd data-forwarder
+cargo make build-data-forwarder-musl
+```
 
 ## Building the tool docker image
-This step assumes you have already built the Data-forwarder using the previously mentioned Cargo-make target. The Bundler-audit `Makefile.toml` includes a set of tasks that can be used as a starting point for building new tool images. `cd` to the directory containing your tool image, then run:
+This step assumes you have already built the Data-forwarder using the previously mentioned Cargo-make target and are in the project root. The Bundler-audit `Makefile.toml` includes a set of tasks that can be used as a starting point for building new tool images.
 ```
-cargo make pre-build-bundler-audit-docker
-cargo make build-bundler-audit-git-docker
+cargo make tools
 ```
 
-The first task will ensure that the Data-forwarder binary is available for the Docker image build to copy it into the image, while the second one will actually build the image.
-
-## Building the Data-collector docker image
-To build the data-collector Docker image, run `cargo make build-docker-images` from the project root. This target will be kept updated with all of the docker image targets. It also includes linting and unit testing of the code being built. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-data-collector-git-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/data-collector:git-latest`.
-
-## Building the report-parser docker image
-This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-report-parser-git-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/report-parser:git-latest`.
-
-## Building the slack-connector docker image
-This image should have been built by the previous step that built the data-collector image. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-slack-connector-git-docker`. These commands make use of build caching, so while the first build will be slow as dependencies need to be built for the `musl` target, subsequent builds should be much faster. Running that command will result in a tagged docker image: `kiln/slack-connector:git-latest`.
+## Building the Server Components
+To build the data-collector Docker image, run `cargo make server-components` from the project root. This target will be kept updated with all of the docker image targets. If you want a faster iteration cycle, you can cd into the directory of the component you're working on and run `cargo make build-COMPONENT-NAME-git-docker`. 
 
 ## Configuring the slack-connector docker container
 You will need to create a `.env` file in the root of the project. This path is ignored by Git, because it will contain a Slack OAuth2 token. Find the information needed by following the instructions in the Slack-connector component README.
