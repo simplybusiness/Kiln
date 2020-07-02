@@ -1,8 +1,8 @@
 [tasks.server-components]
 dependencies = [
-    "build-data-collector-docker",
-	"build-report-parser-docker",
-	"build-slack-connector-docker"
+    "build-data-collector-git-docker",
+	"build-report-parser-git-docker",
+	"build-slack-connector-git-docker"
 ]
 
 [tasks.tools]
