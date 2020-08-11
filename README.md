@@ -38,6 +38,7 @@ To contribute to Kiln, you'll need the following tools installed:
 - Docker
 - Docker-compose (For integration testing)
 - OpenSSL 1.1.0 or higher
+- CMake  (For building Kafka native dependencies)
 
 Kiln is still in it's early stages and isn't ready for production use. However, contributions are welcome! If you want to make a change to the project:
 - Open an issue to discuss the change (if the change is significant)
