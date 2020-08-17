@@ -19,6 +19,9 @@ env_logger = "0.7"
 log = "0.4"
 tokio = { version = "0.2", features = ["full"] }
 rdkafka = { version = "0.23", features = ["cmake-build", "ssl-vendored"] }
+slog = "2.5"
+slog-json = "2.3"
+slog-async = "2.5"
 
 [dev-dependencies]
 serial_test = "0.1"
