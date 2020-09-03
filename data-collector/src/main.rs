@@ -1,4 +1,3 @@
-use actix_web::middleware::Logger;
 use actix_web::Error as ActixError;
 use actix_web::{web, App, HttpResponse, HttpServer};
 use avro_rs::{Schema, Writer};
@@ -11,17 +10,51 @@ use std::error::Error;
 use std::str;
 use std::sync::Arc;
 
-use log::warn;
+use slog::o;
+use slog::Drain;
+use slog::{FnValue, PushFnValue};
+use slog_json::Json;
+use chrono::{Utc, SecondsFormat};
+
+use crate::lib::StructuredLogger;
 
 use kiln_lib::avro_schema::TOOL_REPORT_SCHEMA;
 use kiln_lib::kafka::*;
 use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
 
+pub mod lib;
+
+const SERVICE_NAME: &str = "data-collector";
+
 #[actix_rt::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    std::env::set_var("RUST_LOG", "info");
-    env_logger::init();
+    let drain = Json::new(std::io::stdout())
+        .build()
+        .fuse();
+
+    let drain = slog_async::Async::new(drain).build().fuse();
+
+    let root_logger = slog::Logger::root(
+        drain,
+        o!(
+            "@timestamp" => PushFnValue(move |_, ser| {
+                ser.emit(Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true))
+            }),
+            "log.level" => FnValue(move |rinfo| {
+                rinfo.level().as_str()
+            }),
+            "message" => PushFnValue(move |record, ser| {
+                ser.emit(record.msg())
+            }),
+            "ecs.version" => "1.5",
+            "service.version" => env!("CARGO_PKG_VERSION"),
+            "service.name" => SERVICE_NAME,
+            "service.type" => "kiln",
+            "event.kind" => "event",
+            "event.category" => "web",
+        ),
+    );
 
     let config = get_bootstrap_config(&mut env::vars())
         .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
@@ -34,10 +67,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     HttpServer::new(move || {
         App::new()
             .data(shared_producer.clone())
+            .wrap(
+                StructuredLogger::new(root_logger.clone())
+                    .exclude("/health")
+            )
             .route("/", web::post().to(handler))
             .route("/health", web::get().to(health_handler))
-            .wrap(Logger::default())
-            .wrap(Logger::new("%a %{User-Agent}i"))
     })
     .bind("0.0.0.0:8080")?
     .run()
@@ -51,23 +86,9 @@ async fn health_handler() -> HttpResponse {
 async fn handler(
     body: web::Bytes,
     producer: web::Data<Arc<FutureProducer>>,
-) -> Result<HttpResponse, ActixError> {
-    let report_result = parse_payload(&body);
+) -> Result<HttpResponse, actix_web::error::Error> {
+    let report = parse_payload(&body)?;
 
-    if let Err(err) = report_result {
-        if let Some(field_name) = &err.json_field_name {
-            warn!("Request did not pass validation. Error message: {}. JSON field name: {}. Request body: {}\n", err.error_message, field_name, str::from_utf8(&body).unwrap());
-        } else {
-            warn!(
-                "Request did not pass validation. Error message: {}. Request body: {}\n",
-                err.error_message,
-                str::from_utf8(&body).unwrap()
-            );
-        }
-        return Ok(err.into());
-    }
-
-    let report = report_result.unwrap();
     let app_name = report.application_name.to_string();
 
     let serialised_record = serialise_to_avro(report)?;
