@@ -101,7 +101,7 @@ async fn handler(
 
     match delivery_result {
         Ok(_) => Ok(HttpResponse::Ok().finish()),
-        Err(err) => Err(err_msg(format!("Error publishing to Kafka: {}", err.0)).into()),
+        Err(err) => Err(failure::Error::from(Box::new(err.0)).into()),
     }
 }
 
