@@ -187,27 +187,59 @@ where
                             ResponseBody::Body(resp_body_bytes.clone().into()).into_body()
                         });
                         let event_end = Utc::now();
-                        info!(logger, "Tool report received";
-                            o!(
-                                "http.version" => http_version,
-                                "url.domain" => url_domain,
-                                "source.ip" => source_ip,
-                                "user_agent.original" => user_agent,
-                                "http.request.method" => http_request_method,
-                                "http.request.body.bytes" => req_body_bytes.len(),
-                                "http.request.body.content" => req_body,
-                                "http.response.body.bytes" => resp_body_bytes_len,
-                                "http.response.body.content" => resp_body,
-                                "http.response.status_code" => resp.status().as_str(),
-                                "url.path" => url_path,
-                                "url.query" => format!("?{}", url_query),
-                                "event.start" => event_start.to_rfc3339_opts(SecondsFormat::Secs, true),
-                                "event.end" => event_end.to_rfc3339_opts(SecondsFormat::Secs, true),
-                                "event.duration" => event_end.signed_duration_since(event_start).num_nanoseconds(),
-                                "event.type" => EventType(vec!("access".to_string())),
-                            )
-                        );
-                        return Ok(resp);
+                        if let Some(err) = resp.response().error() {
+                            let validation_err: Option<&ValidationError> = err.as_error();
+                            let error_code = validation_err.map_or(0, |v| v.error_code);
+                            let error_message = validation_err.map_or_else(|| err.to_string(), |v| v.error_message.to_string());
+
+                            let event_end = Utc::now();
+                            error!(logger, "Error processing Tool report";
+                                o!(
+                                    "http.version" => http_version,
+                                    "url.domain" => url_domain,
+                                    "source.ip" => source_ip,
+                                    "user_agent.original" => user_agent,
+                                    "http.request.method" => http_request_method,
+                                    "http.request.body.bytes" => req_body_bytes.len(),
+                                    "http.request.body.content" => req_body,
+                                    "http.response.body.bytes" => resp_body_bytes_len,
+                                    "http.response.body.content" => resp_body,
+                                    "http.response.status_code" => resp.status().as_str(),
+                                    "url.path" => url_path,
+                                    "url.query" => format!("?{}", url_query),
+                                    "event.start" => event_start.to_rfc3339_opts(SecondsFormat::Secs, true),
+                                    "event.end" => event_end.to_rfc3339_opts(SecondsFormat::Secs, true),
+                                    "event.duration" => event_end.signed_duration_since(event_start).num_nanoseconds(),
+                                    "event.type" => EventType(vec!("access".to_string(), "error".to_string())),
+                                    "error.code" => error_code,
+                                    "error.message" => error_message,
+                                )
+                            );
+                            return Ok(resp);
+
+                        } else {
+                            info!(logger, "Tool report received";
+                                o!(
+                                    "http.version" => http_version,
+                                    "url.domain" => url_domain,
+                                    "source.ip" => source_ip,
+                                    "user_agent.original" => user_agent,
+                                    "http.request.method" => http_request_method,
+                                    "http.request.body.bytes" => req_body_bytes.len(),
+                                    "http.request.body.content" => req_body,
+                                    "http.response.body.bytes" => resp_body_bytes_len,
+                                    "http.response.body.content" => resp_body,
+                                    "http.response.status_code" => resp.status().as_str(),
+                                    "url.path" => url_path,
+                                    "url.query" => format!("?{}", url_query),
+                                    "event.start" => event_start.to_rfc3339_opts(SecondsFormat::Secs, true),
+                                    "event.end" => event_end.to_rfc3339_opts(SecondsFormat::Secs, true),
+                                    "event.duration" => event_end.signed_duration_since(event_start).num_nanoseconds(),
+                                    "event.type" => EventType(vec!("access".to_string())),
+                                )
+                            );
+                            return Ok(resp);
+                        }
                     } else {
                         Ok(resp)
                     }
