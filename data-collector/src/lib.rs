@@ -1,23 +1,23 @@
-use actix_web::HttpMessage;
 use actix_web::dev::{
     MessageBody, ResponseBody, Service, ServiceRequest, ServiceResponse, Transform,
 };
 use actix_web::error::{Error, Result};
 use actix_web::http::header::{HOST, USER_AGENT};
+use actix_web::HttpMessage;
+use chrono::{SecondsFormat, Utc};
 use futures::future::{ok, Ready};
 use futures::stream::StreamExt;
-use slog::{info, error, o, Logger};
+use kiln_lib::validation::ValidationError;
+use serde::{Deserialize, Serialize};
+use slog::{error, info, o, Logger};
 use slog_derive::SerdeValue;
-use serde::{Serialize, Deserialize};
 use std::borrow::ToOwned;
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::cell::RefCell;
 use std::task::{Context, Poll};
-use chrono::{Utc, SecondsFormat};
-use kiln_lib::validation::ValidationError;
 
 #[derive(Clone, SerdeValue, Serialize, Deserialize)]
 struct EventType(Vec<String>);
@@ -75,14 +75,14 @@ pub struct StructuredLoggerMiddleware<S> {
 
 impl<S, B> Service for StructuredLoggerMiddleware<S>
 where
-        S: Service<Request=ServiceRequest, Response=ServiceResponse<B>, Error=Error> + 'static,
-        S::Future: 'static,
-        B: MessageBody + 'static,
+    S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S::Future: 'static,
+    B: MessageBody + 'static,
 {
     type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output=Result<Self::Response, Self::Error>>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
@@ -144,7 +144,8 @@ where
                     println!("Err!");
                     let validation_err: Option<&ValidationError> = err.as_error();
                     let error_code = validation_err.map_or(0, |v| v.error_code);
-                    let error_message = validation_err.map_or_else(|| err.to_string(), |v| v.error_message.to_string());
+                    let error_message = validation_err
+                        .map_or_else(|| err.to_string(), |v| v.error_message.to_string());
 
                     let event_end = Utc::now();
                     error!(logger, "Error processing Tool Report";
@@ -161,14 +162,14 @@ where
                             "event.start" => event_start.to_rfc3339_opts(SecondsFormat::Secs, true),
                             "event.end" => event_end.to_rfc3339_opts(SecondsFormat::Secs, true),
                             "event.duration" => event_end.signed_duration_since(event_start).num_nanoseconds(),
-                            "event.type" => EventType(vec!("access".to_string(), "error".to_string())), 
+                            "event.type" => EventType(vec!("access".to_string(), "error".to_string())),
                             "error.code" => error_code,
                             "error.message" => error_message,
                         )
                     );
-                    
+
                     Err(err)
-                },
+                }
                 Ok(mut resp) => {
                     if !is_exclude {
                         // read response body
@@ -180,7 +181,8 @@ where
                         }
                         let resp_body_bytes = resp_body_bytes_mut.freeze();
                         let resp_body_bytes_len = resp_body_bytes.len();
-                        let resp_body = String::from_utf8(resp_body_bytes.clone().to_vec()).unwrap();
+                        let resp_body =
+                            String::from_utf8(resp_body_bytes.clone().to_vec()).unwrap();
 
                         // put bytes back into response body
                         let resp: Self::Response = resp.map_body(move |_, _| {
@@ -190,7 +192,8 @@ where
                         if let Some(err) = resp.response().error() {
                             let validation_err: Option<&ValidationError> = err.as_error();
                             let error_code = validation_err.map_or(0, |v| v.error_code);
-                            let error_message = validation_err.map_or_else(|| err.to_string(), |v| v.error_message.to_string());
+                            let error_message = validation_err
+                                .map_or_else(|| err.to_string(), |v| v.error_message.to_string());
 
                             let event_end = Utc::now();
                             error!(logger, "Error processing Tool report";
@@ -216,7 +219,6 @@ where
                                 )
                             );
                             return Ok(resp);
-
                         } else {
                             info!(logger, "Tool report received";
                                 o!(

@@ -10,11 +10,11 @@ use std::error::Error;
 use std::str;
 use std::sync::Arc;
 
+use chrono::{SecondsFormat, Utc};
 use slog::o;
 use slog::Drain;
 use slog::{FnValue, PushFnValue};
 use slog_json::Json;
-use chrono::{Utc, SecondsFormat};
 
 use crate::lib::StructuredLogger;
 
@@ -29,9 +29,7 @@ const SERVICE_NAME: &str = "data-collector";
 
 #[actix_rt::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let drain = Json::new(std::io::stdout())
-        .build()
-        .fuse();
+    let drain = Json::new(std::io::stdout()).build().fuse();
 
     let drain = slog_async::Async::new(drain).build().fuse();
 
@@ -67,10 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     HttpServer::new(move || {
         App::new()
             .data(shared_producer.clone())
-            .wrap(
-                StructuredLogger::new(root_logger.clone())
-                    .exclude("/health")
-            )
+            .wrap(StructuredLogger::new(root_logger.clone()).exclude("/health"))
             .route("/", web::post().to(handler))
             .route("/health", web::get().to(health_handler))
     })
