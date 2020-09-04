@@ -630,8 +630,28 @@ impl ValidationError {
 use actix_web::HttpResponse;
 
 #[cfg(feature = "web")]
+use actix_web::dev::Body;
+
+#[cfg(feature = "web")]
+use actix_web::error::ResponseError;
+
+#[cfg(feature = "web")]
+use actix_web::http::StatusCode;
+
+#[cfg(feature = "web")]
 impl Into<HttpResponse> for ValidationError {
     fn into(self) -> HttpResponse {
+        HttpResponse::BadRequest().json(self)
+    }
+}
+
+#[cfg(feature = "web")]
+impl actix_web::ResponseError for ValidationError {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
+    }
+
+    fn error_response(&self) -> HttpResponse<Body> {
         HttpResponse::BadRequest().json(self)
     }
 }
