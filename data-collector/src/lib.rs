@@ -131,8 +131,9 @@ where
                 let mut req_extensions = req_http.extensions_mut();
                 req_extensions.insert(transaction_id);
             }
-            req = ServiceRequest::from_parts(req_http, req_payload)
-                .map_err(|_| failure::err_msg("Unable to reconstitute request after attaching transaction id"))?;
+            req = ServiceRequest::from_parts(req_http, req_payload).map_err(|_| {
+                failure::err_msg("Unable to reconstitute request after attaching transaction id")
+            })?;
 
             // read request body
             let mut stream = req.take_payload();
