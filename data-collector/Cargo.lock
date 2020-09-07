@@ -515,6 +515,7 @@ dependencies = [
  "slog-json 2.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog_derive 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "uuid 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
