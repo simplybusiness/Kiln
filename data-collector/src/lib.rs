@@ -18,6 +18,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll};
+use uuid::Uuid;
 
 #[derive(Clone, SerdeValue, Serialize, Deserialize)]
 struct EventType(Vec<String>);
@@ -122,6 +123,17 @@ where
             let url_path = req.path().to_owned();
             let url_query = req.query_string().to_string();
 
+            let transaction_id = Uuid::new_v4();
+            let event_id = Uuid::new_v4();
+
+            let (req_http, req_payload) = req.into_parts();
+            {
+                let mut req_extensions = req_http.extensions_mut();
+                req_extensions.insert(transaction_id);
+            }
+            req = ServiceRequest::from_parts(req_http, req_payload)
+                .map_err(|_| failure::err_msg("Unable to reconstitute request after attaching transaction id"))?;
+
             // read request body
             let mut stream = req.take_payload();
 
@@ -165,6 +177,8 @@ where
                             "event.type" => EventType(vec!("access".to_string(), "error".to_string())),
                             "error.code" => error_code,
                             "error.message" => error_message,
+                            "transaction.id" => transaction_id.to_hyphenated().to_string(),
+                            "event.id" => event_id.to_hyphenated().to_string(),
                         )
                     );
 
@@ -216,6 +230,8 @@ where
                                     "event.type" => EventType(vec!("access".to_string(), "error".to_string())),
                                     "error.code" => error_code,
                                     "error.message" => error_message,
+                                    "transaction.id" => transaction_id.to_hyphenated().to_string(),
+                                    "event.id" => event_id.to_hyphenated().to_string(),
                                 )
                             );
                             return Ok(resp);
@@ -238,6 +254,8 @@ where
                                     "event.end" => event_end.to_rfc3339_opts(SecondsFormat::Secs, true),
                                     "event.duration" => event_end.signed_duration_since(event_start).num_nanoseconds(),
                                     "event.type" => EventType(vec!("access".to_string())),
+                                    "transaction.id" => transaction_id.to_hyphenated().to_string(),
+                                    "event.id" => event_id.to_hyphenated().to_string(),
                                 )
                             );
                             return Ok(resp);
