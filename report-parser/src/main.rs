@@ -226,57 +226,49 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         if let Some(Ok(message)) = messages.next().await {
             if let Some(body) = message.payload() {
-                let reader = Reader::new(body)
-                    .map_err(|err| {
-                        error!(error_logger, "Error creating Avro reader from message bytes";
-                "event.type" => EventType(vec!("error".to_string())),
+                let reader = Reader::new(body).map_err(|err| {
+                    error!(error_logger, "Error creating Avro reader from message bytes";
+                        o!(
+                            "error.message" => err.to_string(),
+                        )
+                    );
+                    err
+                })?;
+                for value in reader {
+                    let report = ToolReport::try_from(value?).map_err(|err| {
+                        error!(error_logger, "Error parsing Avro to ToolReport";
                             o!(
                                 "error.message" => err.to_string(),
                             )
                         );
                         err
                     })?;
-                for value in reader {
-                    let report = ToolReport::try_from(value?)
-                        .map_err(|err| {
-                            error!(error_logger, "Error parsing Avro to ToolReport";
-                                o!(
-                                    "error.message" => err.to_string(),
-                                )
-                            );
-                            err
-                        }
-                    )?;
                     let app_name = report.application_name.to_string();
-                    let records = parse_tool_report(&report, &vulns)
-                        .map_err(|err| {
-                            error!(error_logger, "Error parsing tool output in ToolReport";
-                                o!(
-                                    "error.message" => err.to_string(),
-                                )
-                            );
-                            err
-                        }
-                    )?;
+                    let records = parse_tool_report(&report, &vulns).map_err(|err| {
+                        error!(error_logger, "Error parsing tool output in ToolReport";
+                            o!(
+                                "error.message" => err.to_string(),
+                            )
+                        );
+                        err
+                    })?;
                     for record in records.into_iter() {
                         let kafka_payload = FutureRecord::to("DependencyEvents")
                             .payload(&record)
                             .key(&app_name);
-                        producer
-                            .send(kafka_payload, 5000)
-                            .await?
-                            .map_err(|err| {
-                                error!(error_logger, "Error publishing DependencyEvent to Kafka";
-                                    o!(
-                                        "error.message" => err.0.to_string(),
-                                    )
-                                );
-                                err.0
-                            })?;
+                        producer.send(kafka_payload, 5000).await?.map_err(|err| {
+                            error!(error_logger, "Error publishing DependencyEvent to Kafka";
+                                o!(
+                                    "error.message" => err.0.to_string(),
+                                )
+                            );
+                            err.0
+                        })?;
                     }
                 }
             }
-            consumer.commit_message(&message, CommitMode::Async)
+            consumer
+                .commit_message(&message, CommitMode::Async)
                 .map_err(|err| {
                     error!(error_logger, "Error committing consumed offset to Kafka";
                         o!(
