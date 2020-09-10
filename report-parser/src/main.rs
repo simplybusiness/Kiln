@@ -76,19 +76,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
     );
 
-    let config = get_bootstrap_config(&mut env::vars())
-        .map_err(|err| {
-            error!(root_logger, "Error building Kafka configuration";
-                o!(
-                    "error.message" => err.to_string(),
-                    "event.type" => EventType(vec!("error".to_string())),
-                )
-            );
-            err
-        })?;
+    let config = get_bootstrap_config(&mut env::vars()).map_err(|err| {
+        error!(root_logger, "Error building Kafka configuration";
+            o!(
+                "error.message" => err.to_string(),
+                "event.type" => EventType(vec!("error".to_string())),
+            )
+        );
+        err
+    })?;
 
-    let consumer = build_kafka_consumer(config.clone(), "report-parser".to_string())
-        .map_err(|err| {
+    let consumer =
+        build_kafka_consumer(config.clone(), "report-parser".to_string()).map_err(|err| {
             error!(root_logger, "Error building Kafka consumer";
                 o!(
                     "error.message" => err.to_string(),
@@ -98,27 +97,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
             err
         })?;
 
-    consumer.subscribe(&["ToolReports"])
-        .map_err(|err| {
-            error!(root_logger, "Error subscribing to ToolReports Kafka topic";
-                o!(
-                    "error.message" => err.to_string(),
-                    "event.type" => EventType(vec!("error".to_string())),
-                )
-            );
-            err
-        })?;
+    consumer.subscribe(&["ToolReports"]).map_err(|err| {
+        error!(root_logger, "Error subscribing to ToolReports Kafka topic";
+            o!(
+                "error.message" => err.to_string(),
+                "event.type" => EventType(vec!("error".to_string())),
+            )
+        );
+        err
+    })?;
 
-    let producer = build_kafka_producer(config.clone())
-        .map_err(|err| {
-            error!(root_logger, "Error building Kafka producer";
-                o!(
-                    "error.message" => err.to_string(),
-                    "event.type" => EventType(vec!("error".to_string())),
-                )
-            );
-            err
-        })?;
+    let producer = build_kafka_producer(config.clone()).map_err(|err| {
+        error!(root_logger, "Error building Kafka producer";
+            o!(
+                "error.message" => err.to_string(),
+                "event.type" => EventType(vec!("error".to_string())),
+            )
+        );
+        err
+    })?;
 
     let base_url = Url::parse(
         &env::var("NVD_BASE_URL")
@@ -134,7 +131,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for year in 2002..=2020 {
         download_and_parse_vulns(year.to_string(), last_updated_time, &base_url, &client)
             .map_err(|err| {
-                error!(root_logger, "Error downloading vulns for {}", year; 
+                error!(root_logger, "Error downloading vulns for {}", year;
                     o!(
                         "error.message" => err.to_string(),
                         "event.type" => EventType(vec!("error".to_string())),
@@ -143,12 +140,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 err
             })
             .and_then(|parsed_vulns| {
-                parsed_vulns.into_iter().fold(&mut vulns, |acc, mut values| {
-                    for (k, v) in values.drain() {
-                        acc.insert(k, v);
-                    }
-                    acc
-                });
+                parsed_vulns
+                    .into_iter()
+                    .fold(&mut vulns, |acc, mut values| {
+                        for (k, v) in values.drain() {
+                            acc.insert(k, v);
+                        }
+                        acc
+                    });
                 info!(root_logger, "Successfully got vulns for {}", year;
                     o!(
                         "event.type" => EventType(vec!("info".to_string())),
@@ -164,29 +163,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &base_url,
         &client,
     )
-        .map_err(|err| {
-            error!(root_logger, "Error downloading modified vulns info";
-                o!(
-                    "error.message" => err.to_string(),
-                    "event.type" => EventType(vec!("error".to_string())),
-                )
-            );
-            err
-        })
-        .and_then(|modified_vulns| {
-            modified_vulns.into_iter().fold(&mut vulns, |acc, mut values| {
+    .map_err(|err| {
+        error!(root_logger, "Error downloading modified vulns info";
+            o!(
+                "error.message" => err.to_string(),
+                "event.type" => EventType(vec!("error".to_string())),
+            )
+        );
+        err
+    })
+    .and_then(|modified_vulns| {
+        modified_vulns
+            .into_iter()
+            .fold(&mut vulns, |acc, mut values| {
                 for (k, v) in values.drain() {
                     acc.insert(k, v);
                 }
                 acc
             });
-            info!(root_logger, "Successfully got latest vulns";
-                o!(
-                    "event.type" => EventType(vec!("info".to_string())),
-                )
-            );
-            Ok(())
-        })?;
+        info!(root_logger, "Successfully got latest vulns";
+            o!(
+                "event.type" => EventType(vec!("info".to_string())),
+            )
+        );
+        Ok(())
+    })?;
 
     last_updated_time = Some(Utc::now());
 
@@ -203,30 +204,30 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 &base_url,
                 &client,
             )
-                .map_err(|err| {
-                    error!(root_logger, "Error updating vuln info";
-                        o!(
-                            "error.message" => err.to_string(),
-                            "event.type" => EventType(vec!("error".to_string())),
-                        )
-                    );
-                    err
-                })
-                .and_then(|modified_vulns| {
-                    if let Some(mut modified_vulns) = modified_vulns {
-                        for (k, v) in modified_vulns.drain() {
-                            vulns.insert(k, v);
-                        }
+            .map_err(|err| {
+                error!(root_logger, "Error updating vuln info";
+                    o!(
+                        "error.message" => err.to_string(),
+                        "event.type" => EventType(vec!("error".to_string())),
+                    )
+                );
+                err
+            })
+            .and_then(|modified_vulns| {
+                if let Some(mut modified_vulns) = modified_vulns {
+                    for (k, v) in modified_vulns.drain() {
+                        vulns.insert(k, v);
                     }
-                    last_updated_time = Some(Utc::now());
-                    info!(root_logger, "Successfully got latest vulns";
-                        o!(
-                            "event.type" => EventType(vec!("info".to_string())),
-                        )
-                    );
-                    Ok(())
-                })?;
-            }
+                }
+                last_updated_time = Some(Utc::now());
+                info!(root_logger, "Successfully got latest vulns";
+                    o!(
+                        "event.type" => EventType(vec!("info".to_string())),
+                    )
+                );
+                Ok(())
+            })?;
+        }
 
         if let Some(Ok(message)) = messages.next().await {
             if let Some(body) = message.payload() {
