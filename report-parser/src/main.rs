@@ -76,11 +76,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
     );
 
+    let error_logger = root_logger.new(o!("event.type" => EventType(vec!("error".to_string()))));
+
     let config = get_bootstrap_config(&mut env::vars()).map_err(|err| {
-        error!(root_logger, "Error building Kafka configuration";
+        error!(error_logger, "Error building Kafka configuration";
             o!(
                 "error.message" => err.to_string(),
-                "event.type" => EventType(vec!("error".to_string())),
             )
         );
         err
@@ -88,30 +89,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let consumer =
         build_kafka_consumer(config.clone(), "report-parser".to_string()).map_err(|err| {
-            error!(root_logger, "Error building Kafka consumer";
+            error!(error_logger, "Error building Kafka consumer";
                 o!(
                     "error.message" => err.to_string(),
-                    "event.type" => EventType(vec!("error".to_string())),
                 )
             );
             err
         })?;
 
     consumer.subscribe(&["ToolReports"]).map_err(|err| {
-        error!(root_logger, "Error subscribing to ToolReports Kafka topic";
+        error!(error_logger, "Error subscribing to ToolReports Kafka topic";
             o!(
                 "error.message" => err.to_string(),
-                "event.type" => EventType(vec!("error".to_string())),
             )
         );
         err
     })?;
 
     let producer = build_kafka_producer(config.clone()).map_err(|err| {
-        error!(root_logger, "Error building Kafka producer";
+        error!(error_logger, "Error building Kafka producer";
             o!(
                 "error.message" => err.to_string(),
-                "event.type" => EventType(vec!("error".to_string())),
             )
         );
         err
@@ -131,10 +129,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     for year in 2002..=2020 {
         download_and_parse_vulns(year.to_string(), last_updated_time, &base_url, &client)
             .map_err(|err| {
-                error!(root_logger, "Error downloading vulns for {}", year;
+                error!(error_logger, "Error downloading vulns for {}", year;
                     o!(
                         "error.message" => err.to_string(),
-                        "event.type" => EventType(vec!("error".to_string())),
                     )
                 );
                 err
@@ -164,10 +161,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &client,
     )
     .map_err(|err| {
-        error!(root_logger, "Error downloading modified vulns info";
+        error!(error_logger, "Error downloading modified vulns info";
             o!(
                 "error.message" => err.to_string(),
-                "event.type" => EventType(vec!("error".to_string())),
             )
         );
         err
@@ -205,10 +201,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 &client,
             )
             .map_err(|err| {
-                error!(root_logger, "Error updating vuln info";
+                error!(error_logger, "Error updating vuln info";
                     o!(
                         "error.message" => err.to_string(),
-                        "event.type" => EventType(vec!("error".to_string())),
                     )
                 );
                 err
@@ -233,10 +228,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             if let Some(body) = message.payload() {
                 let reader = Reader::new(body)
                     .map_err(|err| {
-                        error!(root_logger, "Error creating Avro reader from message bytes";
+                        error!(error_logger, "Error creating Avro reader from message bytes";
+                "event.type" => EventType(vec!("error".to_string())),
                             o!(
                                 "error.message" => err.to_string(),
-                                "event.type" => EventType(vec!("error".to_string())),
                             )
                         );
                         err
@@ -244,10 +239,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 for value in reader {
                     let report = ToolReport::try_from(value?)
                         .map_err(|err| {
-                            error!(root_logger, "Error parsing Avro to ToolReport";
+                            error!(error_logger, "Error parsing Avro to ToolReport";
                                 o!(
                                     "error.message" => err.to_string(),
-                                    "event.type" => EventType(vec!("error".to_string())),
                                 )
                             );
                             err
@@ -256,10 +250,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let app_name = report.application_name.to_string();
                     let records = parse_tool_report(&report, &vulns)
                         .map_err(|err| {
-                            error!(root_logger, "Error parsing tool output in ToolReport";
+                            error!(error_logger, "Error parsing tool output in ToolReport";
                                 o!(
                                     "error.message" => err.to_string(),
-                                    "event.type" => EventType(vec!("error".to_string())),
                                 )
                             );
                             err
@@ -273,10 +266,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             .send(kafka_payload, 5000)
                             .await?
                             .map_err(|err| {
-                                error!(root_logger, "Error publishing DependencyEvent to Kafka";
+                                error!(error_logger, "Error publishing DependencyEvent to Kafka";
                                     o!(
                                         "error.message" => err.0.to_string(),
-                                        "event.type" => EventType(vec!("error".to_string())),
                                     )
                                 );
                                 err.0
@@ -286,10 +278,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             consumer.commit_message(&message, CommitMode::Async)
                 .map_err(|err| {
-                    error!(root_logger, "Error committing consumed offset to Kafka";
+                    error!(error_logger, "Error committing consumed offset to Kafka";
                         o!(
                             "error.message" => err.to_string(),
-                            "event.type" => EventType(vec!("error".to_string())),
                         )
                     );
                     err
