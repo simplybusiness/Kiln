@@ -49,7 +49,6 @@ services:
     image: kiln/report-parser:git-latest
     environment:
       - KAFKA_BOOTSTRAP_TLS=kafka:9092
-      - RUST_LOG=info
       - DISABLE_KAFKA_DOMAIN_VALIDATION=true
     volumes:
       - ./tls:/tls
