@@ -1,11 +1,12 @@
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
-extern crate log;
+extern crate slog;
 
 use avro_rs::{Reader, Schema, Writer};
 use chrono::prelude::*;
 use chrono::Duration;
+use chrono::{SecondsFormat, Utc};
 use data_encoding::HEXUPPER;
 use failure::err_msg;
 use flate2::read::GzDecoder;
@@ -25,6 +26,7 @@ use rdkafka::producer::future_producer::FutureRecord;
 use regex::Regex;
 use reqwest::blocking::Client;
 use ring::digest;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -34,21 +36,89 @@ use std::error::Error;
 use std::io::Read;
 use std::str::FromStr;
 use url::Url;
+
+use slog::o;
+use slog::Drain;
+use slog::{FnValue, PushFnValue};
+use slog_derive::SerdeValue;
+use slog_json::Json;
 use uuid::Uuid;
+
+const SERVICE_NAME: &str = "report-parser";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    let drain = Json::new(std::io::stdout()).build().fuse();
+
+    let drain = slog_async::Async::new(drain).build().fuse();
+
+    let root_logger = slog::Logger::root(
+        drain,
+        o!(
+            "@timestamp" => PushFnValue(move |_, ser| {
+                ser.emit(Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true))
+            }),
+            "log.level" => FnValue(move |rinfo| {
+                rinfo.level().as_str()
+            }),
+            "message" => PushFnValue(move |record, ser| {
+                ser.emit(record.msg())
+            }),
+            "ecs.version" => "1.5",
+            "service.version" => env!("CARGO_PKG_VERSION"),
+            "service.name" => SERVICE_NAME,
+            "service.type" => "kiln",
+            "event.kind" => "event",
+            "event.category" => "web",
+            "event.id" => FnValue(move |_| {
+                Uuid::new_v4().to_hyphenated().to_string()
+            }),
+        ),
+    );
+
     let config = get_bootstrap_config(&mut env::vars())
-        .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
+        .map_err(|err| {
+            error!(root_logger, "Error building Kafka configuration";
+                o!(
+                    "error.message" => err.to_string(),
+                    "event.type" => EventType(vec!("error".to_string())),
+                )
+            );
+            err
+        })?;
 
     let consumer = build_kafka_consumer(config.clone(), "report-parser".to_string())
-        .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?;
+        .map_err(|err| {
+            error!(root_logger, "Error building Kafka consumer";
+                o!(
+                    "error.message" => err.to_string(),
+                    "event.type" => EventType(vec!("error".to_string())),
+                )
+            );
+            err
+        })?;
 
-    consumer.subscribe(&["ToolReports"])?;
+    consumer.subscribe(&["ToolReports"])
+        .map_err(|err| {
+            error!(root_logger, "Error subscribing to ToolReports Kafka topic";
+                o!(
+                    "error.message" => err.to_string(),
+                    "event.type" => EventType(vec!("error".to_string())),
+                )
+            );
+            err
+        })?;
 
     let producer = build_kafka_producer(config.clone())
-        .map_err(|err| err_msg(format!("Kafka Producer Error: {}", err.to_string())))?;
+        .map_err(|err| {
+            error!(root_logger, "Error building Kafka producer";
+                o!(
+                    "error.message" => err.to_string(),
+                    "event.type" => EventType(vec!("error".to_string())),
+                )
+            );
+            err
+        })?;
 
     let base_url = Url::parse(
         &env::var("NVD_BASE_URL")
@@ -62,44 +132,61 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut vulns = HashMap::new();
     for year in 2002..=2020 {
-        let parsed_vulns =
-            download_and_parse_vulns(year.to_string(), last_updated_time, &base_url, &client);
-        if let Err(err) = parsed_vulns {
-            error!("{}", err);
-            return Err(err);
-        } else {
-            parsed_vulns.into_iter().fold(&mut vulns, |acc, values| {
-                if let Some(mut values) = values {
+        download_and_parse_vulns(year.to_string(), last_updated_time, &base_url, &client)
+            .map_err(|err| {
+                error!(root_logger, "Error downloading vulns for {}", year; 
+                    o!(
+                        "error.message" => err.to_string(),
+                        "event.type" => EventType(vec!("error".to_string())),
+                    )
+                );
+                err
+            })
+            .and_then(|parsed_vulns| {
+                parsed_vulns.into_iter().fold(&mut vulns, |acc, mut values| {
                     for (k, v) in values.drain() {
                         acc.insert(k, v);
                     }
-                }
-                acc
-            });
-            info!("Successfully got vulns for {}", year);
-        }
+                    acc
+                });
+                info!(root_logger, "Successfully got vulns for {}", year;
+                    o!(
+                        "event.type" => EventType(vec!("info".to_string())),
+                    )
+                );
+                Ok(())
+            })?;
     }
 
-    let modified_vulns = download_and_parse_vulns(
+    download_and_parse_vulns(
         "modified".to_string(),
         last_updated_time,
         &base_url,
         &client,
-    );
-    if let Err(err) = modified_vulns {
-        error!("{}", err);
-        return Err(err);
-    } else {
-        modified_vulns.into_iter().fold(&mut vulns, |acc, values| {
-            if let Some(mut values) = values {
+    )
+        .map_err(|err| {
+            error!(root_logger, "Error downloading modified vulns info";
+                o!(
+                    "error.message" => err.to_string(),
+                    "event.type" => EventType(vec!("error".to_string())),
+                )
+            );
+            err
+        })
+        .and_then(|modified_vulns| {
+            modified_vulns.into_iter().fold(&mut vulns, |acc, mut values| {
                 for (k, v) in values.drain() {
                     acc.insert(k, v);
                 }
-            }
-            acc
-        });
-        info!("Successfully got latest vulns");
-    }
+                acc
+            });
+            info!(root_logger, "Successfully got latest vulns";
+                o!(
+                    "event.type" => EventType(vec!("info".to_string())),
+                )
+            );
+            Ok(())
+        })?;
 
     last_updated_time = Some(Utc::now());
 
@@ -110,24 +197,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
             .lt(&(Utc::now() - Duration::hours(2)))
         {
-            let modified_vulns = download_and_parse_vulns(
+            download_and_parse_vulns(
                 "modified".to_string(),
                 last_updated_time,
                 &base_url,
                 &client,
-            );
-            if let Err(err) = modified_vulns {
-                error!("{}", err);
-            } else {
-                if let Some(mut modified_vulns) = modified_vulns.unwrap() {
-                    for (k, v) in modified_vulns.drain() {
-                        vulns.insert(k, v);
+            )
+                .map_err(|err| {
+                    error!(root_logger, "Error updating vuln info";
+                        o!(
+                            "error.message" => err.to_string(),
+                            "event.type" => EventType(vec!("error".to_string())),
+                        )
+                    );
+                    err
+                })
+                .and_then(|modified_vulns| {
+                    if let Some(mut modified_vulns) = modified_vulns {
+                        for (k, v) in modified_vulns.drain() {
+                            vulns.insert(k, v);
+                        }
                     }
-                    info!("Successfully got new vuln information");
-                }
-                last_updated_time = Some(Utc::now());
+                    last_updated_time = Some(Utc::now());
+                    info!(root_logger, "Successfully got latest vulns";
+                        o!(
+                            "event.type" => EventType(vec!("info".to_string())),
+                        )
+                    );
+                    Ok(())
+                })?;
             }
-        }
 
         if let Some(Ok(message)) = messages.next().await {
             if let Some(body) = message.payload() {
@@ -430,6 +529,9 @@ fn parse_bundler_audit_plaintext(
     }
     Ok(events)
 }
+
+#[derive(Clone, SerdeValue, Serialize, Deserialize)]
+struct EventType(Vec<String>);
 
 fn should_issue_be_suppressed(
     issue_hash: &IssueHash,

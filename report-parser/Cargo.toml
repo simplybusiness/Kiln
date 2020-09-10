@@ -18,10 +18,13 @@ flate2 = "1"
 data-encoding = "2"
 ring = { version = "0.16", features = ["std"] }
 url = "2"
-log = "0.4"
-env_logger = "0.7"
 iter-read = "0.2"
 tokio = { version = "0.2", features = ["full"] }
 rdkafka = { version = "0.23", features = ["cmake-build", "ssl-vendored"] }
 futures-util = "0.3"
 hex = "0.4"
+slog = { version = "2.5", features = ["nested-values"] }
+slog-json = { version = "2.3", features = ["nested-values"] }
+slog-async = { version = "2.5", features = ["nested-values"] }
+slog_derive = "0.2"
+erased-serde = "0.3"
