@@ -1,6 +1,10 @@
+#[macro_use]
+extern crate slog;
+
 use avro_rs::Reader;
 use bytes::buf::ext::BufExt;
 use bytes::Bytes;
+use chrono::{SecondsFormat, Utc};
 use failure::err_msg;
 use futures::stream::{StreamExt, TryStreamExt};
 use futures_util::sink::SinkExt;
@@ -12,6 +16,7 @@ use rdkafka::message::Message;
 use rdkafka::Offset;
 use reqwest::Client;
 use reqwest::Method;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::boxed::Box;
 use std::convert::TryFrom;
@@ -20,42 +25,124 @@ use std::error::Error;
 use std::sync::Arc;
 use std::time::Duration;
 
+use slog::o;
+use slog::Drain;
+use slog::{FnValue, PushFnValue};
+use slog_derive::SerdeValue;
+use slog_json::Json;
+use uuid::Uuid;
+
+const SERVICE_NAME: &str = "slack-connector";
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    let drain = Json::new(std::io::stdout()).build().fuse();
 
-    let oauth_token =
-        env::var("OAUTH2_TOKEN").expect("Error: Required Env Var OAUTH2_TOKEN not provided");
-    let channel_id = env::var("SLACK_CHANNEL_ID")
-        .expect("Error: Required Env Var SLACK_CHANNEL_ID not provided");
-    let config = get_bootstrap_config(&mut env::vars())
-        .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
+    let drain = slog_async::Async::new(drain).build().fuse();
+
+    let root_logger = slog::Logger::root(
+        drain,
+        o!(
+            "@timestamp" => PushFnValue(move |_, ser| {
+                ser.emit(Utc::now().to_rfc3339_opts(SecondsFormat::Secs, true))
+            }),
+            "log.level" => FnValue(move |rinfo| {
+                rinfo.level().as_str()
+            }),
+            "message" => PushFnValue(move |record, ser| {
+                ser.emit(record.msg())
+            }),
+            "ecs.version" => "1.5",
+            "service.version" => env!("CARGO_PKG_VERSION"),
+            "service.name" => SERVICE_NAME,
+            "service.type" => "kiln",
+            "event.kind" => "event",
+            "event.category" => "web",
+            "event.id" => FnValue(move |_| {
+                Uuid::new_v4().to_hyphenated().to_string()
+            }),
+        ),
+    );
+
+    let error_logger = root_logger.new(o!("event.type" => EventType(vec!("error".to_string()))));
+
+    let oauth_token = env::var("OAUTH2_TOKEN").map_err(|err| {
+        error!(error_logger, "Required Env Var OAUTH2_TOKEN not provided";
+            o!(
+                "error.message" => err.to_string()
+            )
+        );
+        err
+    })?;
+
+    let channel_id = env::var("SLACK_CHANNEL_ID").map_err(|err| {
+        error!(error_logger, "Required Env Var SLACK_CHANNEL_ID not provided";
+            o!(
+                "error.message" => err.to_string()
+            )
+        );
+        err
+    })?;
+
+    let config = get_bootstrap_config(&mut env::vars()).map_err(|err| {
+        error!(error_logger, "Error building Kafka configuration";
+            o!(
+                "error.message" => err.to_string()
+            )
+        );
+        err
+    })?;
 
     let consumer = Arc::new(
-        build_kafka_consumer(config, "slack-connector".to_string())
-            .map_err(|err| err_msg(format!("Kafka Consumer Error: {}", err.to_string())))?,
+        build_kafka_consumer(config, "slack-connector".to_string()).map_err(|err| {
+            error!(error_logger, "Could not build Kafka consumer";
+                o!(
+                    "error.message" => err.to_string()
+                )
+            );
+            err
+        })?,
     );
 
     let client = Client::new();
     let (queue_tx, queue_rx) =
-        futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, _>>)>(10);
+        futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, failure::Error>>)>(10);
 
-    consumer.subscribe(&["DependencyEvents"])?;
+    consumer.subscribe(&["DependencyEvents"]).map_err(|err| {
+        error!(error_logger, "Could not subscribe to DependencyEvents Kafka topic";
+            o!(
+                "error.message" => err.to_string()
+            )
+        );
+        err
+    })?;
+
     let avro_bytes = consumer.start_with(Duration::from_secs(1), false);
+    let consumer_error_logger = &error_logger;
     let mut events = avro_bytes
         .map_ok(|message| message.detach())
         .map_err(|err| failure::Error::from_boxed_compat(Box::new(err)))
         .and_then(move |message| async move {
             message
                 .payload()
-                .ok_or_else(|| err_msg("Received empty payload from Kafka"))
+                .ok_or_else(|| {
+                    warn!(consumer_error_logger, "Received empty payload from Kafka");
+                    err_msg("Received empty payload from Kafka")
+                })
                 .map(|msg| (message.offset(), Bytes::copy_from_slice(msg)))
         })
         .and_then(|(offset, body_bytes)| async move {
             let reader_result = Reader::new(body_bytes.reader());
             match reader_result {
                 Ok(reader) => Ok((offset, reader)),
-                Err(_) => Err(err_msg("Could not parse avro value from bytes")),
+                Err(err) => {
+                    error!(consumer_error_logger, "Could not parse Avro value from message";
+                        o!(
+                            "error.message" => err.to_string()
+                        )
+                    );
+                    Err(err_msg("Could not parse Avro value from message"))
+                }
             }
         })
         .map_ok(|(offset, reader)| {
@@ -72,28 +159,40 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let dispatch_oauth_token = &oauth_token;
     let dispatch_client = &client;
     let dispatch_channel_id = &channel_id;
+    let dispatch_error_logger = &error_logger;
 
     let slack_dispatch = queue_rx
         .then(|(offset, events)| async move {
+            let trace_id = Uuid::new_v4().to_hyphenated().to_string();
+            let dispatch_error_logger = dispatch_error_logger.new(o!("trace.id" => trace_id));
             for event in events.iter() {
-                if let Err(err) = event {
-                    eprintln!("Offset: {}, {}", offset, err);
-                }
-                if let Ok(event) = event {
-                    if !event.suppressed {
-                        while let Err(err) = try_send_slack_message(dispatch_channel_id, event, dispatch_client, dispatch_oauth_token).await {
-                            match err {
-                                SlackSendError::RateLimited(delay) => {
-                                    eprintln!("Error sending slack message for EventID {}, Parent Event ID {}: Encountered rate limit, waiting {} seconds before trying again", event.event_id, event.parent_event_id, delay.as_secs());
-                                    futures_timer::Delay::new(delay).await;
-                                },
-                                SlackSendError::Unknown(err) => {
-                                    eprintln!("Error sending slack message for EventID {}, Parent Event ID {}: {}", event.event_id, event.parent_event_id, err);
-                                    futures_timer::Delay::new(Duration::from_secs(1)).await;
+                match event {
+                    Err(err) => {
+                        error!(dispatch_error_logger, "Error while processing events for offset {} in DependencyEvents topic", offset;
+                            o!(
+                                "error.message" => err.to_string(),
+                            )
+                        );
+                    },
+                    Ok(event) => {
+                        if !event.suppressed {
+                            while let Err(err) = try_send_slack_message(dispatch_channel_id, event, dispatch_client, dispatch_oauth_token).await {
+                                match err {
+                                    SlackSendError::RateLimited(delay) => {
+                                        error!(dispatch_error_logger, "Rate limited by Slack while sending message for EventID {} (Parent EventID {}), waiting {} seconds before retrying", event.event_id, event.parent_event_id, delay.as_secs());
+                                        futures_timer::Delay::new(delay).await;
+                                    },
+                                    SlackSendError::Unknown(err) => {
+                                        error!(dispatch_error_logger, "Could not send Slack message for EventID {} (Parent EventID {})", event.event_id, event.parent_event_id;
+                                            o!(
+                                                "error.message" => err.to_string()
+                                            ));
+                                        futures_timer::Delay::new(Duration::from_secs(1)).await;
+                                    }
                                 }
                             }
+                            futures_timer::Delay::new(Duration::from_secs(1)).await;
                         }
-                        futures_timer::Delay::new(Duration::from_secs(1)).await;
                     }
                 }
             }
@@ -113,6 +212,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+#[derive(Clone, SerdeValue, Serialize, Deserialize)]
+struct EventType(Vec<String>);
 
 trait ToSlackMessage {
     fn to_slack_message(&self) -> String;
@@ -170,12 +272,6 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
     let resp_body: Value = resp.json().await?;
     if !resp_body.get("ok").unwrap().as_bool().unwrap() {
         let cause = resp_body.get("error").unwrap().as_str().unwrap();
-        eprintln!(
-            "Error sending message for event {}, parent {}, {}",
-            event.event_id.to_string(),
-            event.parent_event_id.to_string(),
-            cause
-        );
         return if cause == "rate_limited" {
             Err(SlackSendError::RateLimited(
                 retry_delay.unwrap_or(Duration::from_secs(30)),
