@@ -419,7 +419,14 @@ pub async fn get_fs_layers_for_docker_image(
         .request(Method::GET, &docker_manifest_url)
         .bearer_auth(token)
         .build()?;
-    let manifest_resp = client.execute(manifest_req).await?.error_for_status().expect(&format!("Could not get information about docker image {}/{}:{}. Check that image exists", repo_name, image_name, tag));
+    let manifest_resp = client
+        .execute(manifest_req)
+        .await?
+        .error_for_status()
+        .expect(&format!(
+            "Could not get information about docker image {}/{}:{}. Check that image exists",
+            repo_name, image_name, tag
+        ));
     let manifest_resp_body: Value = manifest_resp.json().await?;
 
     let layers = manifest_resp_body["fsLayers"]
