@@ -155,11 +155,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match matches.subcommand() {
         ("ruby", Some(sub_m)) => match sub_m.subcommand_name() {
             Some("dependencies") => {
-                let tool_image = matches
-                    .value_of("tool-image-name")
-                    .unwrap_or_else(|| "kiln/bundler-audit:git-latest");
+                let tool_image = match matches.value_of("tool-image-name") {
+                    None => {
+                        let tag = get_tag_for_image("kiln".into(), "bundler-audit".into()).await.expect("Could not get tag for bundler-audit image");
+                        format!("kiln/bundler-audit:{}", tag)
+                    },
+                    Some(name) => name.into()
+                };
                 let image_name_regex = Regex::new(r#"(?:(?P<r>[a-zA-Z0-9_-]+)/)?(?P<i>[a-zA-Z0-9_-]+)(?::(?P<t>[a-zA-Z0-9_-]+))?"#).unwrap();
-                let image_name_matches = image_name_regex.captures(tool_image).expect(
+                let image_name_matches = image_name_regex.captures(&tool_image).expect(
                     "Error parsing tool image name, ensure name is in format REPO/IMAGE:TAG",
                 );
                 let tool_image_repo = image_name_matches
@@ -376,6 +380,21 @@ static DOCKER_AUTH_URL: &str =
     "https://auth.docker.io/token?service=registry.docker.io&scope=repository";
 
 static DOCKER_REGISTRY_URL: &str = "https://registry.hub.docker.com";
+
+// This layer of indirection exists because I want to add support for using the latest semver
+// compatible tag for a tool image when running a release build, but default to git-latest when
+// running a debug build. This was planned for 0.2.0, but turned out to be more complex than I
+// initially expected and I decided it shouldn't block the release
+pub async fn get_tag_for_image(
+    _repo_name: String,
+    _image_name: String,
+) -> Result<String, reqwest::Error> {
+    if cfg!(debug_assertions) {
+        Ok("git-latest".into())
+    } else {
+        Ok(env!("CARGO_PKG_VERSION").into())
+    }
+}
 
 pub async fn get_fs_layers_for_docker_image(
     repo_name: String,
