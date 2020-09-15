@@ -11,7 +11,6 @@ RUN ["chmod", "+x", "/entrypoint.sh"]
 COPY data-forwarder /data-forwarder
 RUN ["chmod", "+x", "/data-forwarder"]
 
-ARG BUNDLER_AUDIT_VERSION
-RUN gem install bundler-audit -v $BUNDLER_AUDIT_VERSION
+RUN gem install bundler-audit -v 0.6.1
 RUN bundler audit update
 CMD ["/entrypoint.sh"]
