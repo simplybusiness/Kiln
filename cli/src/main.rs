@@ -164,7 +164,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                     Some(name) => name.into(),
                 };
-                let image_name_regex = Regex::new(r#"(?:(?P<r>[a-zA-Z0-9_-]+)/)?(?P<i>[a-zA-Z0-9_-]+)(?::(?P<t>[a-zA-Z0-9_-]+))?"#).unwrap();
+                let image_name_regex = Regex::new(r#"(?:(?P<r>[a-zA-Z0-9_-]+)/)?(?P<i>[a-zA-Z0-9_-]+)(?::(?P<t>[a-zA-Z0-9_.-]+))?"#).unwrap();
                 let image_name_matches = image_name_regex.captures(&tool_image).expect(
                     "Error parsing tool image name, ensure name is in format REPO/IMAGE:TAG",
                 );
