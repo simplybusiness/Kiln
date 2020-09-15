@@ -54,11 +54,8 @@ Kiln is still in it's early stages and isn't ready for production use. However, 
 ## Versioning
 Kiln follows [SemVer 2.0](https://semver.org/) for versioning and all components are versioned in lockstep.
 
-Our Docker images follow this naming convention:
+Docker images use two sets of tags: git-$VERSION and $VERSION. The former is used for images built after a merge to the main branch, the latter is used for released versions of Kiln. Previously, images for tools also included the version of the tool in the image tag, but tool upgrades will now be handled in the same way as other Kiln updates using the semver tag.
 
-| /        | Main                                    | Release                             |
-| ---      | -------                                 | ---------                           |
-| Tool     | kiln/tool-name:git-GIT_SHA-TOOL_VERSION | kiln/tool-name:GIT_TAG-TOOL_VERSION |
-| Not Tool | kiln/component-name:git-GIT_SHA         | kiln/component-name:GIT_TAG         |
+When a version is released, it will also overwrite the less specific semver compatible tags. For example, in the 0.2 series, if version 0.2.1 was released, this would also overwrite the 0.2 and latest tags.
 
-The kiln/tool-name:git-latest, kiln/component-name:git-latest, kiln/tool-name:latest and kiln/component-name:latest are updated to point at the most recently published image for that channel.
+The CLI will attempt to pull and use the latest semver comptaible image for a given tool.
