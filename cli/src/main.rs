@@ -157,10 +157,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Some("dependencies") => {
                 let tool_image = match matches.value_of("tool-image-name") {
                     None => {
-                        let tag = get_tag_for_image("kiln".into(), "bundler-audit".into()).await.expect("Could not get tag for bundler-audit image");
+                        let tag = get_tag_for_image("kiln".into(), "bundler-audit".into())
+                            .await
+                            .expect("Could not get tag for bundler-audit image");
                         format!("kiln/bundler-audit:{}", tag)
-                    },
-                    Some(name) => name.into()
+                    }
+                    Some(name) => name.into(),
                 };
                 let image_name_regex = Regex::new(r#"(?:(?P<r>[a-zA-Z0-9_-]+)/)?(?P<i>[a-zA-Z0-9_-]+)(?::(?P<t>[a-zA-Z0-9_-]+))?"#).unwrap();
                 let image_name_matches = image_name_regex.captures(&tool_image).expect(
