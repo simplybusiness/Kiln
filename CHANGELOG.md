@@ -1,6 +1,9 @@
+# UNRELEASED
+* Nothing... yet
+
 # 0.2.0 - 2020/09/16
 
-h2. CLI
+## CLI
 * Added progress bars to show tool image pull progress
 * Added support for providing a custom tool image for CLI to use 
 * Added support for issue suppression
@@ -10,26 +13,26 @@ h2. CLI
 * Changed how tool containers are named to support multiple concurrent tool executions for CI environments
 * Changed what image tag the CLI uses by default for tools. When built in Release mode, it will use an image tag with the same version as the CLI. When built in debug mode, it will use git-latest.
 
-h2. Data-Collector
+## Data-Collector
 * Replace `Kafka` crate with `rdkafka`
 * Upgraded to Actix_web 2.0
 * Changed how custom CA Certificates are handled by including certificates at `/tls` in system CA bundle
-* Added a /health endpoint that returns an HTTP 200 to support loadbalancer health checks
+* Added a /health endpoint that returns an HTTP 200 to support load balancer health checks
 * Added Elastic Common Schema compatible JSON logging output
 
-h2. Data-forwarder
+## Data-forwarder
 * Added probe for CA bundle
 * Added support for reading suppressed issues from kiln.toml in project root
-* Added retry logic using fibbonacci backoff to be more resilient to transient network issues
+* Added retry logic using fibonacci backoff to be more resilient to transient network issues
 
-h2. Report-parser
+## Report-parser
 * Replace `Kafka` crate with `rdkafka`
 * Changed how custom CA Certificates are handled by including certificates at `/tls` in system CA bundle
 * Added support for suppressed issues. If an issue should be suppressed, it will still be produced to Kafka, but with a flag indicating whether it should be suppressed
 * Added support for customising the URL used to fetch NIST NVD data to support mirroring
 * Added Elastic Common Schema compatible JSON logging output
 
-h2. Slack-connector
+## Slack-connector
 * Replace `Kafka` crate with `rdkafka`
 * Changed how custom CA Certificates are handled by including certificates at `/tls` in system CA bundle
 * Issues that should be suppressed won't be posted to Slack
@@ -37,13 +40,13 @@ h2. Slack-connector
 * Added support for queueing messages to respect Slack rate limits and retry on failure
 * Added Elastic Common Schema compatible JSON logging output
 
-h2. Tools
-h3. Bundler-audit
+## Tools
+### Bundler-audit
 * Add CA Certificates package to Docker image
 * If offline flag is provided by CLI, the vulnerability database won't be updated before running
 * Changed docker tags used to remove tool version, which will be handled by changing the semver compatible version used in the tag
 
-h2. Kiln_lib
+## Kiln_lib
 * Replace `Kafka` crate with `rdkafka`
 * Changed OpenSSL to use vendored version and static linking
 * Upgraded to Actix_web 2.0
