@@ -1,10 +1,10 @@
 [package]
 name = "data-forwarder"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 
 [dependencies]
-kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "main", features = ["json", "toml"] }
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", rev = "12f983e9933258dd96c7057ae9bf736dd6608c99", features = ["json", "toml"] }
 clap = "2"  
 chrono = "0.4"
 reqwest = "0.9" 
