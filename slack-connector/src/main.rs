@@ -127,8 +127,8 @@ impl ToSlackMessage for DependencyEvent {
             self.affected_package.to_string(),
             self.installed_version.to_string(),
             self.advisory_description.to_string(),
-            self.cvss.to_string(),
             self.advisory_url.to_string(),
+            self.cvss.to_string(),
             hex::encode(self.hash()),
         )
     }
@@ -152,8 +152,7 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
     oauth_token: T,
 ) -> Result<(), SlackSendError> {
     let payload = json!({
-        "channel": channel_id,
-        "blocks": [ 
+        "blocks": [
             { 
                 "type": "section",
                 "text": {
@@ -170,7 +169,8 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
                 "value": "click_me_123"
             }
         }
-    ]
+        ],
+        "channel": channel_id
     });
     let req = client
         .request(Method::POST, "https://slack.com/api/chat.postMessage")
