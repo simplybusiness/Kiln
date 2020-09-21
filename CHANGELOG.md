@@ -1,6 +1,10 @@
 # UNRELEASED
 * Nothing... yet
 
+# 0.2.1 - 2020/09/21
+## Report-parser
+* Fixed an issue from 0.2.0 where the crate version upgrade was not propagated to Cargo.lock
+
 # 0.2.0 - 2020/09/16
 
 ## CLI
