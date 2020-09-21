@@ -120,7 +120,26 @@ trait ToSlackMessage {
 
 impl ToSlackMessage for DependencyEvent {
     fn to_slack_message(&self) -> String {
-        format!("{{\"blocks\": [{{\"type\": \"section\",\"text\": {{\"type\": \"mrkdwn\",\"text\": \"HI!!!  Vulnerable package(s) found in: *{}*\n*Commit Scanned:* {}\n*Branch:* {}\n*Package Affected:* {} {}\n     *Issue*: {}\n    *Vulnerability Details:* {}\n    *CVSS v3 Score:* {} \n  *Hash:* {}\n \"}},\"accessory\": {{\"type\": \"button\",\"text\": {{\"type\": \"plain_text\",\"text\": \"Surpress Issue\",\"emoji\": true}},\"value\": \"click_me_123\"}} }}",
+        format!("{{
+            \"blocks\": [
+                {{
+                    \"type\": \"section\",
+                    \"text\": {{
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"Vulnerable package(s) found in: *{}*\n*Commit Scanned:* {}\n*Branch:* {}\n*Package Affected:* {} {}\n     *Issue*: {}\n    *Vulnerability Details:* {}\n    *CVSS v3 Score:* {} \n  *Hash:* {}\n \"
+                    }},
+                        \"accessory\": {{
+                            \"type\": \"button\",
+                            \"text\": {{
+                                \"type\": \"plain_text\",
+                                \"text\": \"Surpress Issue\",
+                                \"emoji\": true
+                            }},
+                            \"value\": \"click_me_123\"
+                        }} 
+                }}
+                ]
+                }}",
             self.application_name.to_string(),
             self.git_commit_hash.to_string(),
             self.git_branch.to_string(),
