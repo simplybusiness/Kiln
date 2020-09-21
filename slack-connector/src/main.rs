@@ -157,7 +157,7 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
             { 
                 "text": {
                     "type": "mrkdwn",
-                    "text": event.to_slack_message()
+                    "text": "hi"
             },
             "accessory": {
                 "type": "button",
