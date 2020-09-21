@@ -120,7 +120,7 @@ trait ToSlackMessage {
 
 impl ToSlackMessage for DependencyEvent {
     fn to_slack_message(&self) -> String {
-        format!("Vulnerable package(s) found in: *{}*\n*Commit Scanned:* {}\n*Branch:* {}\n*Package Affected:* {} {}\n     *Issue*: {}\n    *Vulnerability Details:* {}\n    *CVSS v3 Score:* {} \n  *Hash:* {}\n"
+        format!("Vulnerable package(s) found in: *{}*\n*Commit Scanned:* {}\n*Branch:* {}\n*Package Affected:* {} {}\n     *Issue*: {}\n    *Vulnerability Details:* {}\n    *CVSS v3 Score:* {} \n  *Hash:* {}\n",
             self.application_name.to_string(),
             self.git_commit_hash.to_string(),
             self.git_branch.to_string(),
