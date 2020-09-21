@@ -152,9 +152,9 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
     oauth_token: T,
 ) -> Result<(), SlackSendError> {
     let payload = json!({
+        "channel": channel_id,
         "blocks": [
             { 
-                "type": "section",
                 "text": {
                     "type": "mrkdwn",
                     "text": event.to_slack_message()
@@ -168,9 +168,15 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
                     },
                 "value": "click_me_123"
             }
+        },
+        {
+            "text": {
+                "type": "mrkdwn",
+                "text": "hi"
+            }
         }
-        ],
-        "channel": channel_id
+        ]
+        
     });
     let req = client
         .request(Method::POST, "https://slack.com/api/chat.postMessage")
