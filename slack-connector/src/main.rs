@@ -120,26 +120,7 @@ trait ToSlackMessage {
 
 impl ToSlackMessage for DependencyEvent {
     fn to_slack_message(&self) -> String {
-        format!("{{
-            \"blocks\": [
-                {{
-                    \"type\": \"section\",
-                    \"text\": {{
-                        \"type\": \"mrkdwn\",
-                        \"text\": \"Vulnerable package(s) found in: *{}*\n*Commit Scanned:* {}\n*Branch:* {}\n*Package Affected:* {} {}\n     *Issue*: {}\n    *Vulnerability Details:* {}\n    *CVSS v3 Score:* {} \n  *Hash:* {}\n \"
-                    }},
-                        \"accessory\": {{
-                            \"type\": \"button\",
-                            \"text\": {{
-                                \"type\": \"plain_text\",
-                                \"text\": \"Surpress Issue\",
-                                \"emoji\": true
-                            }},
-                            \"value\": \"click_me_123\"
-                        }} 
-                }}
-                ]
-                }}",
+        format!("Vulnerable package(s) found in: *{}*\n*Commit Scanned:* {}\n*Branch:* {}\n*Package Affected:* {} {}\n     *Issue*: {}\n    *Vulnerability Details:* {}\n    *CVSS v3 Score:* {} \n  *Hash:* {}\n"
             self.application_name.to_string(),
             self.git_commit_hash.to_string(),
             self.git_branch.to_string(),
@@ -172,7 +153,26 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
 ) -> Result<(), SlackSendError> {
     let payload = json!({
         "channel": channel_id,
-        "text": event.to_slack_message()
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": event.to_slack_message()
+                },
+                "accessory": {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "Surpress Issue",
+                        "emoji": true,
+                    },
+                    "value": "click_me_123"
+                    }
+                }
+            
+        ]
+    
     });
     let req = client
         .request(Method::POST, "https://slack.com/api/chat.postMessage")
