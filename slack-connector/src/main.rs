@@ -168,13 +168,8 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
                     },
                 "value": "click_me_123"
             }
-        },
-        {
-            "text": {
-                "type": "mrkdwn",
-                "text": "hi"
-            }
         }
+    
         ]
         
     });
