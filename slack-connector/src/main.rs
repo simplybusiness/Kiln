@@ -14,6 +14,7 @@ use reqwest::Client;
 use reqwest::Method;
 use serde_json::{json, Value};
 use std::boxed::Box;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::error::Error;
@@ -22,7 +23,6 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    //env_logger::init();
 
     let oauth_token =
         env::var("OAUTH2_TOKEN").expect("Error: Required Env Var OAUTH2_TOKEN not provided");
@@ -72,7 +72,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let dispatch_oauth_token = &oauth_token;
     let dispatch_client = &client;
     let dispatch_channel_id = &channel_id;
-
+    let mut event_dict: HashMap<String,Vec<DependencyEvent>> = HashMap::new();
+    
     let slack_dispatch = queue_rx
         .then(|(offset, events)| async move {
             for event in events.iter() {
@@ -81,7 +82,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
                 if let Ok(event) = event {
                     if !event.suppressed {
-                        while let Err(err) = try_send_slack_message(dispatch_channel_id, event, dispatch_client, dispatch_oauth_token).await {
+                        match &event_dict.get_mut(&event.parent_event_id.to_string()){
+                            Some(eventval) => *eventval.push(event.clone()),
+                            None => {
+                                &event_dict.insert(event.parent_event_id.to_string(), vec!(event.clone()));
+                                
+                        }
+                    };
+                    if event_dict.get(&event.parent_event_id.to_string()).unwrap().len() >= 20{
+
+                        while let Err(err) = try_send_slack_message(dispatch_channel_id, event_dict.get(&event.parent_event_id.to_string()).unwrap(), dispatch_client, dispatch_oauth_token).await {
                             match err {
                                 SlackSendError::RateLimited(delay) => {
                                     eprintln!("Error sending slack message for EventID {}, Parent Event ID {}: Encountered rate limit, waiting {} seconds before trying again", event.event_id, event.parent_event_id, delay.as_secs());
@@ -93,8 +103,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 }
                             }
                         }
+                    }
                         futures_timer::Delay::new(Duration::from_secs(1)).await;
                     }
+                
                 }
             }
             dispatch_consumer.assignment().unwrap().set_all_offsets(Offset::from_raw(offset));
@@ -117,13 +129,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 trait ToSlackMessage {
     fn to_slack_message(&self) -> String;
 }
-
 impl ToSlackMessage for DependencyEvent {
     fn to_slack_message(&self) -> String {
-        format!("Vulnerable package(s) found in: *{}*\n*Commit Scanned:* {}\n*Branch:* {}\n*Package Affected:* {} {}\n     *Issue*: {}\n    *Vulnerability Details:* {}\n    *CVSS v3 Score:* {} \n  *Hash:* {}\n",
-            self.application_name.to_string(),
-            self.git_commit_hash.to_string(),
-            self.git_branch.to_string(),
+        format!("*Package Affected:* {} {}\n     *Issue*: {}\n    *Vulnerability Details:* {}\n    *CVSS v3 Score:* {} \n  *Hash:* {}\n",
             self.affected_package.to_string(),
             self.installed_version.to_string(),
             self.advisory_description.to_string(),
@@ -147,32 +155,71 @@ impl From<reqwest::Error> for SlackSendError {
 
 async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt::Display>(
     channel_id: T,
-    event: &DependencyEvent,
+    event: &Vec<DependencyEvent>,
     client: &reqwest::Client,
     oauth_token: T,
 ) -> Result<(), SlackSendError> {
-    let payload = json!({
-        "channel": channel_id,
-        "blocks": [
-            { 
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "hi"
-            },
-            "accessory": {
-                "type": "button",
-                "text": {
-                    "type": "plain_text",
-                    "text": "Surpress Issue",
-                    "emoji": true
-                    },
-                "value": "click_me_123"
-            }
-        }
-    
-        ]
-        
-    });
+    let mut single_event = event.remove(0);
+    let mut payload: String = format!("{{
+        \"channel\": {},
+        \"blocks\": [
+            {{ 
+                \"type\": \"section\",
+                \"text\": {{
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"Vulnerabilities have been found in: *{}*\nCommit Scanned: *{}*\nBranch: *{}*\"
+                    
+                }},
+                {{
+                    \"type\": \"divider\",
+                }},
+                {{
+                    \"type\": \"section\",
+                    \"text\": {{
+                        \"type\": \"mrkdwn\",
+                        \"text\": {}
+                    }},
+                    \"accessory\": {{ 
+                        \"type\": \"button\", 
+                        \"text\": {{ 
+                            \"type\": \"plain_text\", 
+                            \"text\": \"Surpress Issue\", 
+                            \"emoji\": true
+                            }}, 
+                        \"value\": {}
+                    }}
+                }}",
+    channel_id,
+    single_event.application_name.to_string(),
+    single_event.git_commit_hash.to_string(),
+    single_event.git_branch.to_string(),
+    single_event.to_slack_message(),
+    hex::encode(single_event.hash())).to_owned();
+
+    for single_event in event.iter(){
+        let new_payload: String = format!(",
+        {{
+            \"type\": \"section\",
+            \"text\": {{
+                \"type\": \"mrkdwn\",
+                \"text\": {}
+            }},
+            \"accessory\": {{ 
+                \"type\": \"button\", 
+                \"text\": {{ 
+                    \"type\": \"plain_text\", 
+                    \"text\": \"Surpress Issue\", 
+                    \"emoji\": true
+                    }}, 
+                \"value\": {}
+        }}",
+        single_event.to_slack_message(),
+        hex::encode(single_event.hash())).to_owned();
+        payload.push_str(&new_payload);
+    }
+    let closing_json: String = "}]}".to_string();
+    payload.push_str(&closing_json);
+    let json_payload = json!(payload);
     let req = client
         .request(Method::POST, "https://slack.com/api/chat.postMessage")
         .bearer_auth(&oauth_token)
@@ -189,9 +236,8 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
     if !resp_body.get("ok").unwrap().as_bool().unwrap() {
         let cause = resp_body.get("error").unwrap().as_str().unwrap();
         eprintln!(
-            "Error sending message for event {}, parent {}, {}",
-            event.event_id.to_string(),
-            event.parent_event_id.to_string(),
+            "Error sending message for event, {}, {}",
+            event[0].parent_event_id.to_string(),
             cause
         );
         return if cause == "rate_limited" {
