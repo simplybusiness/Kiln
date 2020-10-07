@@ -65,7 +65,15 @@ echo "[+] Generating certificates..."
 echo "[+] Making tools."
 cargo make tools
 echo "[+] Making server components...  This may take some time. You should get some coffee or play solitaire for a bit."
-cargo make server-components
+cd data-collector
+cargo make build-data-collector-git-docker
+cd ../report-parser
+cargo make build-report-parser-docker
+cd ../slack-connector
+cargo make build-slack-connector-docker
+cd ../data-forwarder
+cargo make build-data-forwarder-musl
+cd ..
 echo "[+] Making kiln-cli binary"
 cargo make cli
 echo "[+] Installation complete."
