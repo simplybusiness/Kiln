@@ -1,6 +1,10 @@
 # UNRELEASED
 * Nothing... yet
 
+# 0.3.0 - 2020/10/07
+## CLI
+* Added support for overriding the directory to scan with tools with the `--work-dir=path/to/directory` option. This defaults to the current directory if unspecified. Relative and absolute paths are supported.
+
 # 0.2.1 - 2020/09/21
 ## Report-parser
 * Fixed an issue from 0.2.0 where the crate version upgrade was not propagated to Cargo.lock
