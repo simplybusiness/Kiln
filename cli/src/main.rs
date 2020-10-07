@@ -110,6 +110,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .takes_value(true)
                 .help("Override the default docker image and tag for a tool."),
         )
+        .arg(
+            Arg::with_name("work-dir")
+                .long("work-dir")
+                .takes_value(true)
+                .help("Path to be scanned. Defaults to current directory."),
+        )
         .subcommand(
             SubCommand::with_name("ruby")
                 .about("perform security testing of Ruby based projects")
@@ -231,6 +237,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let tool_image_name_full =
                     format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
 
+                let container_work_dir = matches.value_of("work-dir")
+                    .map(|path| std::path::PathBuf::from(path))
+                    .or_else(|| std::env::current_dir().ok())
+                    .map(|path| path.to_str().unwrap().to_string())
+                    .expect("Work directory not provided and current directory either does not exist or we do not have permission to access. EXITING!");
+
                 let container_config = container::Config {
                     attach_stdout: Some(true),
                     attach_stderr: Some(true),
@@ -241,11 +253,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         auto_remove: Some(true),
                         mounts: Some(vec![MountPoint {
                             target: "/code".to_string(),
-                            source: std::env::current_dir()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string(),
+                            source: container_work_dir,
                             type_: "bind".to_string(),
                             ..Default::default()
                         }]),
