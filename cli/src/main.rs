@@ -126,6 +126,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .get_matches();
 
+    let tool_work_dir = matches.value_of("work-dir")
+        .map(|path| std::path::PathBuf::from(path).canonicalize().expect("Work directory does not exist. EXITING!"))
+        .or_else(|| std::env::current_dir().ok())
+        .map(|path| path.to_str().unwrap().to_string())
+        .expect("Work directory not provided and current directory either does not exist or we do not have permission to access. EXITING!");
+
     let offline = matches.is_present("offline");
 
     let mut env_vec = Vec::new();
@@ -134,7 +140,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut env_df_url = "DATA_COLLECTOR_URL=".to_string();
     let env_offline = format!("OFFLINE={}", offline);
 
-    match parse_kiln_toml_file() {
+    match parse_kiln_toml_file(&tool_work_dir) {
         Err(e) => {
             eprintln!("{}", e);
             process::exit(1);
@@ -237,12 +243,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let tool_image_name_full =
                     format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
 
-                let container_work_dir = matches.value_of("work-dir")
-                    .map(|path| std::path::PathBuf::from(path))
-                    .or_else(|| std::env::current_dir().ok())
-                    .map(|path| path.to_str().unwrap().to_string())
-                    .expect("Work directory not provided and current directory either does not exist or we do not have permission to access. EXITING!");
-
                 let container_config = container::Config {
                     attach_stdout: Some(true),
                     attach_stderr: Some(true),
@@ -253,7 +253,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         auto_remove: Some(true),
                         mounts: Some(vec![MountPoint {
                             target: "/code".to_string(),
-                            source: container_work_dir,
+                            source: tool_work_dir,
                             type_: "bind".to_string(),
                             ..Default::default()
                         }]),
@@ -335,14 +335,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn parse_kiln_toml_file() -> Result<CliConfigOptions, ConfigFileError> {
+fn parse_kiln_toml_file(tool_work_dir: &str) -> Result<CliConfigOptions, ConfigFileError> {
     /* Read default kiln config file */
-    let kiln_config_file_name = std::env::current_dir()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string()
-        + "/kiln.toml";
+    let kiln_config_file_name =
+        std::path::PathBuf::from(tool_work_dir.to_owned()).join("kiln.toml");
     let mut kiln_config_file = match File::open(kiln_config_file_name) {
         Ok(f) => f,
         Err(e) => {
