@@ -16,9 +16,9 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use path_clean::PathClean;
 
 #[cfg(target_os = "linux")]
-use procfs::process::Process;
-#[cfg(target_os = "linux")]
 use bollard::container::InspectContainerOptions;
+#[cfg(target_os = "linux")]
+use procfs::process::Process;
 
 use regex::Regex;
 use reqwest::Client;
@@ -138,7 +138,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .or_else(|| std::env::current_dir().ok())
         .map(|path| path.to_str().unwrap().to_string())
         .expect("Work directory not provided and current directory either does not exist or we do not have permission to access. EXITING!");
-    let mapped_tool_work_dir = get_mapped_tool_work_dir(&tool_work_dir).await.unwrap_or(tool_work_dir.clone());
+    let mapped_tool_work_dir = get_mapped_tool_work_dir(&tool_work_dir)
+        .await
+        .unwrap_or(tool_work_dir.clone());
 
     let offline = matches.is_present("offline");
 
@@ -626,7 +628,8 @@ async fn get_mapped_tool_work_dir(tool_work_dir: &str) -> Option<String> {
         .ok()
         .and_then(|path| {
             let path_regex = Regex::new(r"/docker/([a-f0-9]+)").unwrap();
-            path_regex.captures(&path)
+            path_regex
+                .captures(&path)
                 .and_then(|regex_captures| regex_captures.get(1))
                 .and_then(|capture| Some(capture.as_str().to_owned()))
         });
@@ -635,14 +638,23 @@ async fn get_mapped_tool_work_dir(tool_work_dir: &str) -> Option<String> {
         Some(id) => {
             let docker = Docker::connect_with_local_defaults();
             if docker.is_err() {
-                return None
+                return None;
             }
-            let inspection = docker.unwrap().inspect_container(&id, None::<InspectContainerOptions>).await;
-            inspection.ok()
+            let inspection = docker
+                .unwrap()
+                .inspect_container(&id, None::<InspectContainerOptions>)
+                .await;
+            inspection
+                .ok()
                 .map(|container| container.mounts)
-                .and_then(|mounts| mounts.into_iter().find(|item| item.source == tool_work_dir && item.type_ == "bind").map(|item| item.destination))
-        },
-        None => None
+                .and_then(|mounts| {
+                    mounts
+                        .into_iter()
+                        .find(|item| item.source == tool_work_dir && item.type_ == "bind")
+                        .map(|item| item.destination)
+                })
+        }
+        None => None,
     }
 }
 
