@@ -14,6 +14,12 @@ use failure::err_msg;
 use futures::stream::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use path_clean::PathClean;
+
+#[cfg(target_os = "linux")]
+use procfs::process::Process;
+#[cfg(target_os = "linux")]
+use bollard::container::InspectContainerOptions;
+
 use regex::Regex;
 use reqwest::Client;
 use reqwest::Method;
@@ -132,6 +138,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .or_else(|| std::env::current_dir().ok())
         .map(|path| path.to_str().unwrap().to_string())
         .expect("Work directory not provided and current directory either does not exist or we do not have permission to access. EXITING!");
+    let mapped_tool_work_dir = get_mapped_tool_work_dir(&tool_work_dir).await.unwrap_or(tool_work_dir.clone());
 
     let offline = matches.is_present("offline");
 
@@ -141,7 +148,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut env_df_url = "DATA_COLLECTOR_URL=".to_string();
     let env_offline = format!("OFFLINE={}", offline);
 
-    match parse_kiln_toml_file(&tool_work_dir) {
+    match parse_kiln_toml_file(&mapped_tool_work_dir) {
         Err(e) => {
             eprintln!("{}", e);
             process::exit(1);
@@ -603,4 +610,43 @@ async fn prepare_tool_image(
         }
         Ok(())
     }
+}
+
+// If we're running inside a docker container and the tool work dir provided is a path on the host
+// that is the source of a bind mount into the container we're running in, return the destination
+// of that bind mount. Otherwise, return None. Used to help read kiln.toml before launching a tool
+// container when we're running in a container with docker.sock bind mounted into it, which will
+// result in the tool container being launched as a sibling to the container we're in.
+#[cfg(target_os = "linux")]
+async fn get_mapped_tool_work_dir(tool_work_dir: &str) -> Option<String> {
+    let container_id = Process::myself()
+        .and_then(|proc| proc.cgroups())
+        .map(|mut cgroups| cgroups.pop().unwrap())
+        .map(|cgroup| cgroup.pathname)
+        .ok()
+        .and_then(|path| {
+            let path_regex = Regex::new(r"/docker/([a-f0-9]+)").unwrap();
+            path_regex.captures(&path)
+                .and_then(|regex_captures| regex_captures.get(1))
+                .and_then(|capture| Some(capture.as_str().to_owned()))
+        });
+
+    match container_id {
+        Some(id) => {
+            let docker = Docker::connect_with_local_defaults();
+            if docker.is_err() {
+                return None
+            }
+            let inspection = docker.unwrap().inspect_container(&id, None::<InspectContainerOptions>).await;
+            inspection.ok()
+                .map(|container| container.mounts)
+                .and_then(|mounts| mounts.into_iter().find(|item| item.source == tool_work_dir && item.type_ == "bind").map(|item| item.destination))
+        },
+        None => None
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+async fn get_mapped_tool_work_dir(_tool_work_dir: &str) -> Option<String> {
+    None
 }
