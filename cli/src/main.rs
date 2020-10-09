@@ -13,6 +13,7 @@ use clap::{App, AppSettings, Arg, SubCommand};
 use failure::err_msg;
 use futures::stream::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use path_clean::PathClean;
 use regex::Regex;
 use reqwest::Client;
 use reqwest::Method;
@@ -127,7 +128,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .get_matches();
 
     let tool_work_dir = matches.value_of("work-dir")
-        .map(|path| std::path::PathBuf::from(path).canonicalize().expect("Work directory does not exist. EXITING!"))
+        .map(|path| std::path::PathBuf::from(path).clean())
         .or_else(|| std::env::current_dir().ok())
         .map(|path| path.to_str().unwrap().to_string())
         .expect("Work directory not provided and current directory either does not exist or we do not have permission to access. EXITING!");
