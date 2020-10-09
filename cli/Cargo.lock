@@ -610,7 +610,7 @@ dependencies = [
 
 [[package]]
 name = "kiln-cli"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bollard 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
