@@ -1,5 +1,8 @@
 # UNRELEASED
 * Nothing... yet
+# 0.3.1 - 2020/10/09
+## CLI
+* Fixed an issue that would cause the CLI to fail to read kiln.toml if run in a docker container and the `--work-dir=path/to/directory` option was used.
 
 # 0.3.0 - 2020/10/07
 ## CLI
