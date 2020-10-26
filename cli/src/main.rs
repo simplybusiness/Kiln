@@ -1,12 +1,11 @@
 use bollard::{
     container::{
-        self, CreateContainerOptions, CreateContainerResults, HostConfig, LogOutput, LogsOptions,
-        MountPoint, StartContainerOptions, WaitContainerOptions,
+        self, CreateContainerOptions, LogOutput, LogsOptions, StartContainerOptions,
+        WaitContainerOptions,
     },
-    image::{
-        CreateImageOptions, CreateImageProgressDetail, CreateImageResults, ListImagesOptions,
-        RemoveImageOptions,
-    },
+    image::{CreateImageOptions, ListImagesOptions, RemoveImageOptions},
+    models::{BuildInfo, HostConfig},
+    service::{ContainerCreateResponse, Mount, MountPoint, MountTypeEnum, ProgressDetail},
     Docker,
 };
 use clap::{App, AppSettings, Arg, SubCommand};
@@ -28,6 +27,7 @@ use serde_json::Value;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::convert::TryInto;
 use std::error::Error;
 use std::fmt::{self, Debug};
 use std::fs::File;
@@ -233,9 +233,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .filter(|item| {
                         !item
                             .repo_tags
-                            .as_ref()
-                            .map(|tags| tags.iter().any(|tag| tag.as_str().contains("latest")))
-                            .unwrap_or(false)
+                            .iter()
+                            .any(|tag| tag.as_str().contains("latest"))
                     })
                     .map(|item| item.id.clone())
                     .collect();
@@ -261,10 +260,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     env: Some(env_vec),
                     host_config: Some(HostConfig {
                         auto_remove: Some(true),
-                        mounts: Some(vec![MountPoint {
-                            target: "/code".to_string(),
-                            source: tool_work_dir,
-                            type_: "bind".to_string(),
+                        mounts: Some(vec![Mount {
+                            target: Some("/code".to_string()),
+                            source: Some(tool_work_dir),
+                            typ: Some(MountTypeEnum::BIND),
                             ..Default::default()
                         }]),
                         ..Default::default()
@@ -280,8 +279,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         eprintln!("Error creating tool container: {}", err);
                         panic!();
                     }
-                    Ok(CreateContainerResults { warnings, .. }) if warnings.is_some() => {
-                        warnings.as_ref().unwrap().iter().for_each(|item| {
+                    Ok(ContainerCreateResponse { warnings, .. }) if !warnings.is_empty() => {
+                        warnings.iter().for_each(|item| {
                             println!("Warning occured while creating tool container: {}", item);
                         });
                     }
@@ -317,9 +316,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     let log_line = logs_stream.next().await;
                     if let Some(log_line) = log_line {
                         match log_line {
-                            Ok(LogOutput::StdOut { message }) => println!("{}", message),
-                            Ok(LogOutput::Console { message }) => println!("{}", message),
-                            Ok(LogOutput::StdErr { message }) => eprintln!("{}", message),
+                            Ok(LogOutput::StdOut { message }) => {
+                                println!("{}", String::from_utf8_lossy(&message))
+                            }
+                            Ok(LogOutput::Console { message }) => {
+                                println!("{}", String::from_utf8_lossy(&message))
+                            }
+                            Ok(LogOutput::StdErr { message }) => {
+                                eprintln!("{}", String::from_utf8_lossy(&message))
+                            }
                             Err(err) => eprintln!("Error getting tool logs: {}", err),
                             _ => (),
                         }
@@ -333,7 +338,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         container_exit_details.status_code,
                         container_exit_details
                             .error
-                            .map(|e| e.message)
+                            .and_then(|e| e.message)
                             .unwrap_or_else(|| "No error message".to_string())
                     )
                 }
@@ -456,7 +461,7 @@ pub async fn get_fs_layers_for_docker_image(
     Ok(layers)
 }
 
-type ProgressChannelUpdate = (String, Option<CreateImageProgressDetail>, String);
+type ProgressChannelUpdate = (String, Option<ProgressDetail>, String);
 
 struct ProgressBarDisplay {
     prog_channels: HashMap<std::string::String, Arc<Mutex<mpsc::Sender<ProgressChannelUpdate>>>>,
@@ -505,11 +510,11 @@ impl ProgressBarDisplay {
                             pgbar.finish();
                         }
                         pgbar.set_message(format!("{}:{}", id, status).as_ref());
-                        let total = progress_detail.map(|pd| pd.total).flatten();
-                        let current = progress_detail.map(|pd| pd.current).flatten();
+                        let total = progress_detail.as_ref().and_then(|pd| pd.total);
+                        let current = progress_detail.as_ref().and_then(|pd| pd.current);
                         if let (Some(total), Some(current)) = (total, current) {
-                            pgbar.set_length(total);
-                            pgbar.set_position(current);
+                            pgbar.set_length(total.try_into().unwrap());
+                            pgbar.set_position(current.try_into().unwrap());
                         }
                     }
                 }
@@ -525,7 +530,7 @@ impl ProgressBarDisplay {
     pub fn update_progress_bar(
         &mut self,
         id: Option<String>,
-        progress_detail: Option<CreateImageProgressDetail>,
+        progress_detail: Option<ProgressDetail>,
         status: String,
     ) {
         if let Some(id) = id {
@@ -595,18 +600,21 @@ async fn prepare_tool_image(
                 break;
             }
             match item.unwrap() {
-                Ok(CreateImageResults::CreateImageProgressResponse {
+                Ok(BuildInfo {
                     status,
                     progress_detail,
                     id,
                     ..
                 }) => {
                     if let Some(prog_bar_disp) = prog_bar_disp.as_mut() {
-                        prog_bar_disp.update_progress_bar(id, progress_detail, status);
+                        prog_bar_disp.update_progress_bar(
+                            id,
+                            progress_detail,
+                            status.unwrap_or_default(),
+                        );
                     }
                     Ok(())
                 }
-                Ok(CreateImageResults::CreateImageError { error, .. }) => Err(error),
                 Err(err) => Err(err.to_string()),
             }?
         }
@@ -646,13 +654,17 @@ async fn get_mapped_tool_work_dir(tool_work_dir: &str) -> Option<String> {
                 .await;
             inspection
                 .ok()
-                .map(|container| container.mounts)
-                .and_then(|mounts| {
+                .and_then(|container| container.mounts)
+                .and_then(|mounts: Vec<MountPoint>| {
                     mounts
                         .into_iter()
-                        .find(|item| item.source == tool_work_dir && item.type_ == "bind")
+                        .find(|item| {
+                            item.source.as_deref().unwrap_or_default() == tool_work_dir
+                                && item.typ.as_deref().unwrap_or_default() == "bind"
+                        })
                         .map(|item| item.destination)
                 })
+                .flatten()
         }
         None => None,
     }
