@@ -1,5 +1,10 @@
 # UNRELEASED
 * Nothing... yet
+
+# 0.3.2 - 2020/10/27
+## CLI
+* Fixed an issue in the path mapping feature introduced in 0.3.1 that would fail to correctly map the path supplied with `--work-dir` to a path inside a container running the CLI in certain circumstances, caused by a bug in the version of the Bollard crate that was being used.
+
 # 0.3.1 - 2020/10/09
 ## CLI
 * Fixed an issue that would cause the CLI to fail to read kiln.toml if run in a docker container and the `--work-dir=path/to/directory` option was used.

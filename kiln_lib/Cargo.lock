@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "kiln_lib"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "actix-web 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "addr 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
