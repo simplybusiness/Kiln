@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "data-collector"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "actix-http 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "actix-rt 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
