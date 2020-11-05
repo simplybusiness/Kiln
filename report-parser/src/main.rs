@@ -19,7 +19,7 @@ use kiln_lib::dependency_event::{
 };
 use kiln_lib::kafka::*;
 use kiln_lib::log::NestedJsonFmt;
-use kiln_lib::tool_report::{EventID, EventVersion, IssueHash, SuppressedIssue, ToolReport};
+use kiln_lib::tool_report::{EventID, EventVersion, IssueHash, SuppressedIssue, ToolReport, GitBranch, ApplicationName, ToolName, ToolOutput, Environment, StartTime, EndTime, OutputFormat, GitCommitHash, ToolVersion};
 use kiln_lib::traits::Hashable;
 use rdkafka::consumer::{CommitMode, Consumer};
 use rdkafka::message::Message;
@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 Uuid::new_v4().to_hyphenated().to_string()
             }),
         ),
-    );
+        );
 
     let error_logger = root_logger.new(o!("event.type" => EventType(vec!("error".to_string()))));
 
@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let base_url = Url::parse(
         &env::var("NVD_BASE_URL")
-            .unwrap_or_else(|_| "https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()),
+        .unwrap_or_else(|_| "https://nvd.nist.gov/feeds/json/cve/1.1/".to_string()),
     )?;
     let mut last_updated_time = None;
     let client_builder = Client::builder();
@@ -136,23 +136,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 );
                 err
             })
-            .and_then(|parsed_vulns| {
-                parsed_vulns
-                    .into_iter()
-                    .fold(&mut vulns, |acc, mut values| {
-                        for (k, v) in values.drain() {
-                            acc.insert(k, v);
-                        }
-                        acc
-                    });
-                info!(root_logger, "Successfully got vulns for {}", year;
-                    o!(
-                        "event.type" => EventType(vec!("info".to_string())),
-                    )
-                );
-                Ok(())
-            })?;
-    }
+        .and_then(|parsed_vulns| {
+            parsed_vulns
+                .into_iter()
+                .fold(&mut vulns, |acc, mut values| {
+                    for (k, v) in values.drain() {
+                        acc.insert(k, v);
+                    }
+                    acc
+                });
+            info!(root_logger, "Successfully got vulns for {}", year;
+                o!(
+                    "event.type" => EventType(vec!("info".to_string())),
+                )
+            );
+            Ok(())
+        })?;
+            }
 
     download_and_parse_vulns(
         "modified".to_string(),
@@ -160,14 +160,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &base_url,
         &client,
     )
-    .map_err(|err| {
-        error!(error_logger, "Error downloading modified vulns info";
-            o!(
-                "error.message" => err.to_string(),
-            )
-        );
-        err
-    })
+        .map_err(|err| {
+            error!(error_logger, "Error downloading modified vulns info";
+                o!(
+                    "error.message" => err.to_string(),
+                )
+            );
+            err
+        })
     .and_then(|modified_vulns| {
         modified_vulns
             .into_iter()
@@ -192,7 +192,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         if last_updated_time
             .unwrap()
-            .lt(&(Utc::now() - Duration::hours(2)))
+                .lt(&(Utc::now() - Duration::hours(2)))
         {
             download_and_parse_vulns(
                 "modified".to_string(),
@@ -200,14 +200,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 &base_url,
                 &client,
             )
-            .map_err(|err| {
-                error!(error_logger, "Error updating vuln info";
-                    o!(
-                        "error.message" => err.to_string(),
-                    )
-                );
-                err
-            })
+                .map_err(|err| {
+                    error!(error_logger, "Error updating vuln info";
+                        o!(
+                            "error.message" => err.to_string(),
+                        )
+                    );
+                    err
+                })
             .and_then(|modified_vulns| {
                 if let Some(mut modified_vulns) = modified_vulns {
                     for (k, v) in modified_vulns.drain() {
@@ -303,13 +303,13 @@ fn download_and_parse_vulns(
         .map_err(|err| {
             Box::new(err_msg(format!("Error downloading {}: {}", meta_filename, err)).compat())
         })
-        .and_then(|resp| {
-            resp.text().map_err(|err| {
-                Box::new(
-                    err_msg(format!("Error reading body of {}: {}", meta_filename, err)).compat(),
-                )
-            })
-        })?;
+    .and_then(|resp| {
+        resp.text().map_err(|err| {
+            Box::new(
+                err_msg(format!("Error reading body of {}: {}", meta_filename, err)).compat(),
+            )
+        })
+    })?;
 
     let last_mod_timestamp = META_LAST_MOD_RE
         .captures(&meta_resp_text)
@@ -317,21 +317,21 @@ fn download_and_parse_vulns(
         .ok_or_else(|| {
             Box::new(
                 err_msg(format!(
-                    "Error reading lastModifiedDate from {}",
-                    meta_filename
+                        "Error reading lastModifiedDate from {}",
+                        meta_filename
                 ))
                 .compat(),
             )
         })
-        .map(|capture| capture.as_str())?;
+    .map(|capture| capture.as_str())?;
 
-    let uncompressed_size = META_UNCOMPRESSED_SIZE_RE
-        .captures(&meta_resp_text)
-        .and_then(|captures| captures.get(1))
-        .ok_or_else(|| {
-            Box::new(err_msg(format!("Error reading size from {}", meta_filename)).compat())
-        })
-        .map(|capture| capture.as_str())?;
+let uncompressed_size = META_UNCOMPRESSED_SIZE_RE
+    .captures(&meta_resp_text)
+    .and_then(|captures| captures.get(1))
+    .ok_or_else(|| {
+        Box::new(err_msg(format!("Error reading size from {}", meta_filename)).compat())
+    })
+.map(|capture| capture.as_str())?;
 
     let compressed_size = META_COMPRESSED_GZ_SIZE_RE
         .captures(&meta_resp_text)
@@ -339,21 +339,21 @@ fn download_and_parse_vulns(
         .ok_or_else(|| {
             Box::new(
                 err_msg(format!(
-                    "Error reading compressed size from {}",
-                    meta_filename
+                        "Error reading compressed size from {}",
+                        meta_filename
                 ))
                 .compat(),
             )
         })
-        .map(|capture| capture.as_str())?;
+    .map(|capture| capture.as_str())?;
 
-    let hash = META_SHA256_RE
-        .captures(&meta_resp_text)
-        .and_then(|captures| captures.get(1))
-        .ok_or_else(|| {
-            Box::new(err_msg(format!("Error reading sha256 hash from {}", meta_filename)).compat())
-        })
-        .map(|capture| capture.as_str())?;
+let hash = META_SHA256_RE
+    .captures(&meta_resp_text)
+    .and_then(|captures| captures.get(1))
+    .ok_or_else(|| {
+        Box::new(err_msg(format!("Error reading sha256 hash from {}", meta_filename)).compat())
+    })
+.map(|capture| capture.as_str())?;
 
     if last_updated_time.is_none()
         || last_updated_time
@@ -384,11 +384,11 @@ fn download_and_parse_vulns(
 
         if hash != computed_hash {
             return Err(Box::new(
-                err_msg(format!(
-                    "Hash mismatch for {}, expected {}, got {}",
-                    data_filename, hash, computed_hash
-                ))
-                .compat(),
+                    err_msg(format!(
+                            "Hash mismatch for {}, expected {}, got {}",
+                            data_filename, hash, computed_hash
+                    ))
+                    .compat(),
             ));
         }
 
@@ -427,15 +427,15 @@ fn download_and_parse_vulns(
 
                 (
                     vuln_info["cve"]["CVE_data_meta"]["ID"]
-                        .as_str()
-                        .unwrap()
-                        .to_string(),
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
                     cvss.unwrap(),
                 )
             })
-            .collect::<HashMap<_, _>>();
+        .collect::<HashMap<_, _>>();
 
-        return Ok(Some(cve_items));
+    return Ok(Some(cve_items));
     }
 
     Ok(None)
@@ -450,13 +450,35 @@ fn parse_tool_report(
             parse_bundler_audit_plaintext(&report, &vulns)
         } else {
             Err(Box::new(
-                err_msg(format!(
-                    "Unknown output format for Bundler-audit in ToolReport: {:?}",
-                    report
-                ))
-                .compat(),
+                    err_msg(format!(
+                            "Unknown output format for Bundler-audit in ToolReport: {:?}",
+                            report
+                    ))
+                    .compat(),
             )
-            .into())
+                .into())
+        }
+    } else if report.tool_name == "safety" { 
+        if report.output_format == "JSON" {
+            parse_safety_json(&report)
+        } else if report.output_format == "PlainText" { 
+            Err(Box::new(
+                    err_msg(format!(
+                            "PlainText output not supported for safety; re-run safety with --json option in ToolReport: {:?}",
+                            report
+                    ))
+                    .compat(),
+            )
+                .into())
+        } else {
+            Err(Box::new(
+                    err_msg(format!(
+                            "Unknown output format for safety in ToolReport: {:?}",
+                            report
+                    ))
+                    .compat(),
+            )
+                .into())
         }
     } else {
         Err(Box::new(err_msg(format!("Unknown tool in ToolReport: {:?}", report)).compat()).into())
@@ -492,11 +514,11 @@ fn parse_bundler_audit_plaintext(
             .collect::<HashMap<_, _>>();
         let advisory_id = AdvisoryId::try_from(
             fields
-                .get("Advisory")
-                .cloned()
-                .or_else(|| Some("".to_string()))
-                .unwrap()
-                .to_owned(),
+            .get("Advisory")
+            .cloned()
+            .or_else(|| Some("".to_string()))
+            .unwrap()
+            .to_owned(),
         )?;
 
         let default_cvss = Cvss::builder()
@@ -516,36 +538,36 @@ fn parse_bundler_audit_plaintext(
             timestamp: Timestamp::try_from(report.end_time.to_string())?,
             affected_package: AffectedPackage::try_from(
                 fields
-                    .get("Name")
-                    .cloned()
-                    .or_else(|| Some("".to_string()))
-                    .unwrap()
-                    .to_owned(),
+                .get("Name")
+                .cloned()
+                .or_else(|| Some("".to_string()))
+                .unwrap()
+                .to_owned(),
             )?,
             installed_version: InstalledVersion::try_from(
                 fields
-                    .get("Version")
-                    .cloned()
-                    .or_else(|| Some("".to_string()))
-                    .unwrap()
-                    .to_owned(),
+                .get("Version")
+                .cloned()
+                .or_else(|| Some("".to_string()))
+                .unwrap()
+                .to_owned(),
             )?,
             advisory_url: AdvisoryUrl::try_from(
                 fields
-                    .get("URL")
-                    .cloned()
-                    .or_else(|| Some("".to_string()))
-                    .unwrap()
-                    .to_owned(),
+                .get("URL")
+                .cloned()
+                .or_else(|| Some("".to_string()))
+                .unwrap()
+                .to_owned(),
             )?,
             advisory_id,
             advisory_description: AdvisoryDescription::try_from(
                 fields
-                    .get("Title")
-                    .cloned()
-                    .or_else(|| Some("".to_owned()))
-                    .unwrap()
-                    .to_owned(),
+                .get("Title")
+                .cloned()
+                .or_else(|| Some("".to_owned()))
+                .unwrap()
+                .to_owned(),
             )?,
             cvss: cvss.clone(),
             suppressed: false,
@@ -561,6 +583,156 @@ fn parse_bundler_audit_plaintext(
     Ok(events)
 }
 
+#[derive(Deserialize, Debug)]
+struct PythonSafety {
+    affected_package: String,
+    affected_versions: String,
+    installed_version: String,
+    advisory_description: String, 
+    advisory_id: String
+}
+
+#[derive(Deserialize, Debug)]
+struct MetaInfo { 
+    advisory: String,
+    timestamp: Value
+}
+
+#[derive(Deserialize, Debug)]
+struct SafetyPackageVulnInfo{ 
+    advisory: String,
+    cve: Value,
+    id: String,
+    specs: Vec<String>,
+    v: String,
+} 
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+enum SafetyJsonData{
+    Vuln(Vec<SafetyPackageVulnInfo>), 
+        Meta(MetaInfo),
+}
+
+
+fn download_and_parse_python_safety_vulns(
+    safety_json_db_url: &String,
+) -> Result<HashMap<String, Option<String>>, Box<dyn Error>>  {
+    /*let meta_resp_text = client
+      .get(safety_json_db_url)
+      .send()
+      .map_err(|err| {
+      println!("Error downloading python safety data from {}: {}",safety_json_db_url, err);
+      Box::new(err_msg(format!("Error downloading python safety data from {}: {}",safety_json_db_url, err)).compat())
+      })
+      .and_then(|resp| {
+      println! ("download_and_parse_python_safety_vulns2: {}", resp.text());
+      resp.text().map_err(|err| {
+      println!("Error reading body of JSON vuln data for Python Safety Tool: {}", err);
+      Box::new(
+      err_msg(format!("Error reading body of JSON vuln data for Python Safety Tool: {}", err)).compat(),
+      )
+      })
+      })?;*/ 
+    let meta_resp_text = reqwest::blocking::get(safety_json_db_url)?
+        .text()?;
+    let python_safety_vuln_info_json: HashMap<String,SafetyJsonData> = serde_json::from_str(meta_resp_text.as_ref())?; 
+    let cve_items = python_safety_vuln_info_json.values()
+        .filter(|ref s| match s {SafetyJsonData::Vuln(s) => true, _ => false })
+        .map(|s|  {
+            match s {
+                SafetyJsonData::Vuln(s) => s.iter(), 
+                _ => unreachable!()
+            }
+        })
+    .collect::<Vec<_>>()
+        .into_iter().flatten().collect::<Vec<_>>()
+        .iter()
+        .map(|p| {
+            match &p.cve {
+                Value::String(s) => (p.id.to_owned(), Some(s.to_owned())),
+                _ => (p.id.to_owned(), None)
+            }
+        })
+    .collect::<HashMap<_, _>>();
+    Ok(cve_items)
+}
+
+
+fn parse_safety_json(
+    report: &ToolReport,
+    vulns: &HashMap<String, Cvss>,
+) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+    let mut events = Vec::new();
+    let python_dep_vulns: Vec<PythonSafety> = serde_json::from_str(report.tool_output.as_ref())?;
+    for vuln in python_dep_vulns.iter() {
+        let advisory_id = AdvisoryId::try_from(
+            vuln.advisory_id
+            .to_owned(),
+        )?;
+
+        let default_cvss = Cvss::builder()
+            .with_version(CvssVersion::Unknown)
+            .build()
+            .unwrap();
+
+        /* MOVE THIS OUT */
+        let cve_map = download_and_parse_python_safety_vulns(&"https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json".to_string()).unwrap();
+        let cve_str = cve_map.get(&format!("pyup.io-{}", advisory_id.to_string())).unwrap();
+        let cvss = match cve_str {
+            
+            /*Some(s) =>  
+                s.split(',').collect::<Vec<&str>>().iter().
+                map(|v| { 
+                    vulns.get(v.to_owned())
+                }).collect::<Vec<Option<&Cvss>>>().into_iter().collect::<Vec<&Cvss>>().fold(
+                default_cvss,
+                |acc, x| {
+                    if acc.score < x.score { x } else { acc } 
+                }),
+            _ => default_cvss};*/
+            Some(s) => 
+
+            
+        let mut event = DependencyEvent {
+            event_version: EventVersion::try_from("1".to_string())?,
+            event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+            parent_event_id: report.event_id.clone(),
+            application_name: report.application_name.clone(),
+            git_branch: report.git_branch.clone(),
+            git_commit_hash: report.git_commit_hash.clone(),
+            timestamp: Timestamp::try_from(report.end_time.to_string())?,
+            affected_package: AffectedPackage::try_from(
+                vuln.affected_package
+                .to_owned(),
+            )?,
+            installed_version: InstalledVersion::try_from(
+                vuln.installed_version
+                .to_owned(),
+            )?,
+            advisory_url: AdvisoryUrl::try_from(
+                Some("https://github.com/pyupio/safety-db/blob/master/data/insecure_full.json".to_string())
+                .unwrap()
+                .to_owned(),
+            )?,
+            advisory_id,
+            advisory_description: AdvisoryDescription::try_from(
+                vuln.advisory_description
+                .to_owned(),
+            )?,
+            cvss: cvss.clone(),
+            suppressed: false,
+        };
+
+        let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+        event.suppressed =
+            should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
+
+        events.push(event);
+    }
+    Ok(events)
+}
 #[derive(Clone, SerdeValue, Serialize, Deserialize)]
 struct EventType(Vec<String>);
 
@@ -596,7 +768,7 @@ mod tests {
         let test_hash = IssueHash::try_from(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         )
-        .unwrap();
+            .unwrap();
         let suppressed_issues: Vec<SuppressedIssue> = vec![];
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
         assert_eq!(
@@ -610,15 +782,15 @@ mod tests {
         let test_hash = IssueHash::try_from(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         )
-        .unwrap();
+            .unwrap();
         let suppressed_issues: Vec<SuppressedIssue> = vec![SuppressedIssue {
             issue_hash: IssueHash::try_from(
-                "a441b688fb60942c701fbcee0f30c66c0f7b22da7f0b4c51488488d2a2b64197".to_owned(),
-            )
-            .unwrap(),
-            expiry_date: ExpiryDate::from(None),
-            suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
-            suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                            "a441b688fb60942c701fbcee0f30c66c0f7b22da7f0b4c51488488d2a2b64197".to_owned(),
+                        )
+                .unwrap(),
+                expiry_date: ExpiryDate::from(None),
+                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
         }];
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
         assert_eq!(
@@ -632,26 +804,26 @@ mod tests {
         let test_hash = IssueHash::try_from(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         )
-        .unwrap();
+            .unwrap();
         let suppressed_issues: Vec<SuppressedIssue> = vec![
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 20).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                            )
                     .unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 20).and_hms(12, 0, 0))),
+                    suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                        .unwrap(),
+                        suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "46a9d5bde718bf366178313019f04a753bad00685d38e3ec81c8628f35dfcb1b".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                                "46a9d5bde718bf366178313019f04a753bad00685d38e3ec81c8628f35dfcb1b".to_owned(),
+                            )
+                    .unwrap(),
+                    expiry_date: ExpiryDate::from(None),
+                    suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                    suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
         ];
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -667,26 +839,26 @@ mod tests {
         let test_hash = IssueHash::try_from(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         )
-        .unwrap();
+            .unwrap();
         let suppressed_issues: Vec<SuppressedIssue> = vec![
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 17).and_hms(0, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                            )
                     .unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 17).and_hms(0, 0, 0))),
+                    suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                        .unwrap(),
+                        suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "9cf8847d2992e7219e659cdde1969e0d567ebab39a7aba13b36f9916fa26f6ca".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                                "9cf8847d2992e7219e659cdde1969e0d567ebab39a7aba13b36f9916fa26f6ca".to_owned(),
+                            )
+                    .unwrap(),
+                    expiry_date: ExpiryDate::from(None),
+                    suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                    suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
         ];
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -702,26 +874,26 @@ mod tests {
         let test_hash = IssueHash::try_from(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         )
-        .unwrap();
+            .unwrap();
         let suppressed_issues: Vec<SuppressedIssue> = vec![
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 18).and_hms(10, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                            )
                     .unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 18).and_hms(10, 0, 0))),
+                    suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                        .unwrap(),
+                        suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "b100dabbadeedabbad1eadabbadeedabbad1edabbadeedabbad1eadabbadeeda".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                                "b100dabbadeedabbad1eadabbadeedabbad1edabbadeedabbad1eadabbadeeda".to_owned(),
+                            )
+                    .unwrap(),
+                    expiry_date: ExpiryDate::from(None),
+                    suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                    suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
         ];
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -737,26 +909,26 @@ mod tests {
         let test_hash = IssueHash::try_from(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         )
-        .unwrap();
+            .unwrap();
         let suppressed_issues: Vec<SuppressedIssue> = vec![
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                            )
                     .unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(None),
+                    suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                        .unwrap(),
+                        suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "a41f58ced5996b018dfbd697c1b16675f0cf864a3475d237cdd3f4d8c7160fdb".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(None),
-                suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                                "a41f58ced5996b018dfbd697c1b16675f0cf864a3475d237cdd3f4d8c7160fdb".to_owned(),
+                            )
+                    .unwrap(),
+                    expiry_date: ExpiryDate::from(None),
+                    suppression_reason: SuppressionReason::try_from("Test issue".to_owned()).unwrap(),
+                    suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
         ];
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
@@ -772,29 +944,29 @@ mod tests {
         let test_hash = IssueHash::try_from(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         )
-        .unwrap();
+            .unwrap();
         let suppressed_issues: Vec<SuppressedIssue> = vec![
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 19).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                            )
                     .unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 19).and_hms(12, 0, 0))),
+                    suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                        .unwrap(),
+                        suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 07, 19).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                            )
                     .unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 07, 19).and_hms(12, 0, 0))),
+                    suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                        .unwrap(),
+                        suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
-        ];
+            ];
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
         assert_eq!(
             true,
@@ -808,33 +980,145 @@ mod tests {
         let test_hash = IssueHash::try_from(
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
         )
-        .unwrap();
+            .unwrap();
         let suppressed_issues: Vec<SuppressedIssue> = vec![
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 17).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                            )
                     .unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 05, 17).and_hms(12, 0, 0))),
+                    suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                        .unwrap(),
+                        suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
             SuppressedIssue {
                 issue_hash: IssueHash::try_from(
-                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
-                )
-                .unwrap(),
-                expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 07, 19).and_hms(12, 0, 0))),
-                suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_owned(),
+                            )
                     .unwrap(),
-                suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
+                    expiry_date: ExpiryDate::from(Some(Utc.ymd(2020, 07, 19).and_hms(12, 0, 0))),
+                    suppression_reason: SuppressionReason::try_from("Matching issue".to_owned())
+                        .unwrap(),
+                        suppressed_by: SuppressedBy::try_from("Dan Murphy".to_owned()).unwrap(),
             },
-        ];
+            ];
         let test_date = Utc.ymd(2020, 05, 18).and_hms(12, 00, 00);
         assert_eq!(
             true,
             should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date)
         );
     }
+
+
+    #[test]
+    fn download_safety_vuln_db() { 
+        match download_and_parse_python_safety_vulns(&"https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json".to_string()){ 
+            Err(e) => println!("Error downloading safety vulns: {} \n", e),
+            Ok(vulnshash) => { 
+                match vulnshash 
+                { 
+                    Some(h) => 
+                        for (key,val) in &h {
+                            match val { 
+                                Some(cve) => 
+                                    println!("{} --> {}", key,cve), 
+                                None => () 
+                            } 
+                        },
+                    _ => println!("Unable to find hashmap of python safety vulns\n")
+                }
+            }
+        }
+
+    } 
+
+
+    #[test]
+    fn serde_parse_safety(){
+        let serde_json_data= r#"
+        {
+
+             "$meta": {
+                "advisory": "PyUp.io metadata",
+                "timestamp": 1601532001
+             }, 
+             "acqusition": [
+                {
+                    "advisory": "acqusition is a package affected by pytosquatting: http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/",
+                    "cve": null,
+                    "id": "pyup.io-34978",
+                    "specs": [
+                        ">0",
+                        "<0"
+                    ],
+                    "v": ">0,<0"
+                }
+            ], 
+            "aegea": [
+                {
+                    "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
+                    "cve": "CVE-2018-1000805",
+                    "id": "pyup.io-37611",
+                    "specs": [
+                        "<2.2.7"
+                    ],
+                    "v": "<2.2.7"
+                }
+            ]
+        }
+        "#;
+
+        let python_safety_vuln_info_json: HashMap<String,SafetyJsonData> = serde_json::from_str(serde_json_data.as_ref()).unwrap();
+        for (k,v) in python_safety_vuln_info_json { 
+            println! ("Keys = {}", k)
+        } 
+
+    }
+
+    #[test]
+    fn parse_python_safety_vulns() { 
+        let python_safety_vulns = r#"[
+    [
+        "rsa",
+        "<4.3",
+        "3.4.2",
+        "Rsa 4.3 includes two security fixes:\r\n- Choose blinding factor relatively prime to N.\r\n- Reject cyphertexts (when decrypting) and signatures (when verifying) that have  been modified by prepending zero bytes. This resolves CVE-2020-13757.",
+        "38414"
+    ],
+    [
+        "pyyaml",
+        "<5.3.1",
+        "5.1.2",
+        "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
+        "38100"
+    ]]"#;
+    let test_report = ToolReport {
+        event_version: EventVersion::try_from("1".to_owned()).unwrap(),
+        event_id: EventID::try_from("95130bee-95ae-4dac-aecf-5650ff646ea1".to_owned()).unwrap(),
+        application_name: ApplicationName::try_from("Test application".to_owned()).unwrap(),
+        git_branch: GitBranch::try_from(Some("git".to_owned())).unwrap(),
+        git_commit_hash: GitCommitHash::try_from(
+            "e99f715d0fe787cd43de967b8a79b56960fed3e5".to_owned(),
+        )
+            .unwrap(),
+            tool_name: ToolName::try_from("safety".to_owned()).unwrap(),
+            tool_output: ToolOutput::try_from(python_safety_vulns.to_owned()).unwrap(),
+            output_format: OutputFormat::JSON,
+            start_time: StartTime::from(DateTime::<Utc>::from(
+                    DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap(),
+            )),
+            end_time: EndTime::from(DateTime::<Utc>::from(
+                    DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap(),
+            )),
+            environment: Environment::Local,
+            tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
+            suppressed_issues: vec![],
+    };
+    let events = parse_safety_json(&test_report); 
+    for event in &events.unwrap() { 
+        println!("affected package: {}, installed version: {}, cvss: {},  advisory {}\n", event.affected_package, event.installed_version, event.cvss, event.advisory_description)
+    } 
+    }
+
 }
