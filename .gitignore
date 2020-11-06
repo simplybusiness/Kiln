@@ -1,3 +1,5 @@
+report-parser2
+tool-output*
 */node_modules
 */.serverless
 */target
