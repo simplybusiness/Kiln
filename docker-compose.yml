@@ -46,7 +46,7 @@ services:
   report-parser:
     depends_on:
       - kafka
-    image: kiln/report-parser:git-latest
+    image: kiln/report-parser:HEAD-adb7160
     environment:
       - KAFKA_BOOTSTRAP_TLS=kafka:9092
       - RUST_LOG=info

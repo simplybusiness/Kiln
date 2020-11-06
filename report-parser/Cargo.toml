@@ -5,6 +5,7 @@ edition = "2018"
 
 [dependencies]
 avro-rs = "0.6"
+cmake = "0.1"
 failure = "0.1"
 kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "main", features = ["avro", "streaming"] }
 regex = "1"
