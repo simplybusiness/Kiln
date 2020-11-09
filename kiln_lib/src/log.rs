@@ -174,3 +174,105 @@ where
         Ok(())
     }
 }
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use serde_json::json;
+    use slog::{debug, o, Drain, Error, Logger, Serializer, KV};
+    use std::io::Cursor;
+    use std::str::from_utf8;
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Clone, Default)]
+    struct LogCapture(Arc<Mutex<Cursor<Vec<u8>>>>);
+
+    impl LogCapture {
+        fn snapshot_buf(&self) -> Vec<u8> {
+            let guard = self.0.lock().unwrap();
+            (*guard).get_ref().clone()
+        }
+
+        fn snapshot_str(&self) -> String {
+            let buf = self.snapshot_buf();
+            from_utf8(&buf).unwrap().to_string()
+        }
+    }
+
+    impl io::Write for LogCapture {
+        fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
+            let mut guard = self.0.lock().unwrap();
+            (*guard).write(buf)
+        }
+
+        fn flush(&mut self) -> Result<(), io::Error> {
+            let mut guard = self.0.lock().unwrap();
+            (*guard).flush()
+        }
+    }
+
+    #[test]
+    fn logging_with_no_local_info_works() {
+        let output = LogCapture::default();
+        let drain = NestedJsonFmt::new(output.clone()).fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let logger = Logger::root(drain, o!("ecs.version" => "1.6"));
+        debug!(logger, "test msg";);
+
+        drop(logger);
+        assert_eq!(
+            output.snapshot_str(),
+            format!("{}\n", json!({"ecs": {"version": "1.6"}}).to_string())
+        );
+    }
+
+    #[test]
+    fn logging_with_local_info() {
+        let output = LogCapture::default();
+        let drain = NestedJsonFmt::new(output.clone()).fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let logger = Logger::root(drain, o!("ecs.version" => "1.6"));
+        debug!(logger, "test msg"; "event.kind" => "event");
+
+        drop(logger);
+        assert_eq!(
+            output.snapshot_str(),
+            format!(
+                "{}\n",
+                json!({"ecs": {"version": "1.6"}, "event":{"kind": "event"}}).to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn logging_with_same_info_twice_ignores_second_value() {
+        let output = LogCapture::default();
+        let drain = NestedJsonFmt::new(output.clone()).fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let logger = Logger::root(drain, o!("ecs.version" => "1.6"));
+        debug!(logger, "test msg"; "event.kind" => "event", "event.kind" => "error");
+
+        drop(logger);
+        assert_eq!(
+            output.snapshot_str(),
+            format!(
+                "{}\n",
+                json!({"ecs": {"version": "1.6"}, "event": {"kind": "event"}}).to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn adding_multiple_items_with_nesting_works() {
+        let output = LogCapture::default();
+        let drain = NestedJsonFmt::new(output.clone()).fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let logger = Logger::root(drain, o!("ecs.version" => "1.6"));
+        debug!(logger, "test msg"; "event.kind" => "event", "http.request.method" => "GET", "http.request.body.bytes" => "12345");
+
+        drop(logger);
+        assert_eq!(
+            output.snapshot_str(),
+            format!("{}\n", json!({"ecs": {"version": "1.6"}, "event": {"kind": "event"}, "http": {"request": {"method": "GET", "body": {"bytes": "12345"}}}}).to_string())
+        );
+    }
+}
