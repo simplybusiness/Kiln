@@ -33,3 +33,6 @@ web = ["actix-web", "http", "json", "log"]
 streaming = ["addr", "rdkafka"]
 toml = ["toml_crate"]
 log = ["json_dotpath", "slog"]
+
+[dev-dependencies]
+slog-async = "2"
