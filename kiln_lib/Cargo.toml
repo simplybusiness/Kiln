@@ -20,13 +20,16 @@ url = "2.1"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 toml_crate = { version = "0.5", package = "toml", optional = true }
 openssl-probe = "0.1"
+json_dotpath = { version = "1", optional = true }
+slog = { version = "2.5", optional = true }
 
 [features]
 
 default = []
-all = ["avro", "web", "json", "streaming", "toml"]
+all = ["avro", "web", "json", "streaming", "toml", "log"]
 avro = ["avro-rs"]
 json = ["serde_json"]
-web = ["actix-web", "http", "json"]
+web = ["actix-web", "http", "json", "log"]
 streaming = ["addr", "rdkafka"]
 toml = ["toml_crate"]
+log = ["json_dotpath", "slog"]
