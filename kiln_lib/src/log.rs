@@ -271,4 +271,21 @@ pub mod tests {
             format!("{}\n", json!({"ecs": {"version": "1.6"}, "event": {"kind": "event"}, "http": {"request": {"method": "GET", "body": {"bytes": "12345"}}}}).to_string())
         );
     }
+
+    #[test]
+    fn logging_from_a_child_logger_works() {
+        let output = LogCapture::default();
+        let drain = NestedJsonFmt::new(output.clone()).fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let logger = Logger::root(drain, o!("ecs.version" => "1.6"));
+        let child_logger = logger.new(o!("service.kind" => "kiln tests"));
+        debug!(child_logger, "test msg"; "event.kind" => "event", "http.request.method" => "GET", "http.request.body.bytes" => "12345");
+
+        drop(child_logger);
+        drop(logger);
+        assert_eq!(
+            output.snapshot_str(),
+            format!("{}\n", json!({"ecs": {"version": "1.6"}, "event": {"kind": "event"}, "service": {"kind": "kiln tests"}, "http": {"request": {"method": "GET", "body": {"bytes": "12345"}}}}).to_string())
+        );
+    }
 }
