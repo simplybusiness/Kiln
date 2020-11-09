@@ -1,6 +1,6 @@
 use json_dotpath::DotPaths;
 use serde_json::Value;
-use slog::{o, Error, Key, OwnedKVList, Record, Value as SlogValue, KV};
+use slog::{Error, OwnedKVList, Record, KV};
 use std::cell::RefCell;
 use std::fmt::Arguments;
 use std::io;
@@ -17,15 +17,11 @@ impl<W: io::Write> NestedJsonFmt<W> {
     }
 }
 
-struct NestedJsonFmtSerializer<'a, W: io::Write> {
-    writer: &'a mut W,
+struct NestedJsonFmtSerializer {
     initial_value: Value,
 }
 
-impl<'a, W> slog::Serializer for NestedJsonFmtSerializer<'a, W>
-where
-    W: io::Write,
-{
+impl slog::Serializer for NestedJsonFmtSerializer {
     fn emit_usize(&mut self, key: slog::Key, val: usize) -> Result<(), Error> {
         self.initial_value
             .dot_set(key, val)
@@ -162,7 +158,6 @@ where
     ) -> Result<Self::Ok, Self::Err> {
         let mut writer = self.writer.borrow_mut();
         let mut ser = NestedJsonFmtSerializer {
-            writer: &mut *writer,
             initial_value: Value::Null,
         };
         logger_values.serialize(record, &mut ser)?;
