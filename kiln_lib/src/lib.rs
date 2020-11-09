@@ -9,4 +9,6 @@ pub mod kafka;
 pub mod tool_report;
 pub mod validation;
 
+#[cfg(feature = "log")]
+pub mod log;
 pub mod traits;
