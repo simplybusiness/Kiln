@@ -165,6 +165,7 @@ where
             writer: &mut *writer,
             initial_value: Value::Null,
         };
+        logger_values.serialize(record, &mut ser)?;
         record.kv().serialize(record, &mut ser)?;
         let json = serde_json::to_vec(&ser.initial_value)?;
         writer.write_all(&json)?;
