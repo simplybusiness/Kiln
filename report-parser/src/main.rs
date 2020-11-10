@@ -18,6 +18,7 @@ use kiln_lib::dependency_event::{
     DependencyEvent, InstalledVersion, Timestamp,
 };
 use kiln_lib::kafka::*;
+use kiln_lib::log::NestedJsonFmt;
 use kiln_lib::tool_report::{EventID, EventVersion, IssueHash, SuppressedIssue, ToolReport};
 use kiln_lib::traits::Hashable;
 use rdkafka::consumer::{CommitMode, Consumer};
@@ -41,14 +42,13 @@ use slog::o;
 use slog::Drain;
 use slog::{FnValue, PushFnValue};
 use slog_derive::SerdeValue;
-use slog_json::Json;
 use uuid::Uuid;
 
 const SERVICE_NAME: &str = "report-parser";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let drain = Json::new(std::io::stdout()).build().fuse();
+    let drain = NestedJsonFmt::new(std::io::stdout()).fuse();
 
     let drain = slog_async::Async::new(drain).build().fuse();
 
