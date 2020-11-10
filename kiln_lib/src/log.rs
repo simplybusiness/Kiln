@@ -1,6 +1,6 @@
 use json_dotpath::DotPaths;
 use serde_json::Value;
-use slog::{Error, OwnedKVList, Record, KV};
+use slog::{Error, OwnedKVList, Record, SerdeValue, KV};
 use std::cell::RefCell;
 use std::fmt::Arguments;
 use std::io;
@@ -140,6 +140,13 @@ impl slog::Serializer for NestedJsonFmtSerializer {
         let val = format!("{}", val);
         self.initial_value
             .dot_set(key, val)
+            .map_err(|_| slog::Error::Other)
+    }
+
+    fn emit_serde(&mut self, key: slog::Key, val: &dyn SerdeValue) -> Result<(), Error> {
+        let val_ser = val.as_serde();
+        self.initial_value
+            .dot_set(key, val_ser)
             .map_err(|_| slog::Error::Other)
     }
 }
