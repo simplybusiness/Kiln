@@ -14,12 +14,12 @@ use chrono::{SecondsFormat, Utc};
 use slog::o;
 use slog::Drain;
 use slog::{FnValue, PushFnValue};
-use slog_json::Json;
 
 use crate::lib::StructuredLogger;
 
 use kiln_lib::avro_schema::TOOL_REPORT_SCHEMA;
 use kiln_lib::kafka::*;
+use kiln_lib::log::NestedJsonFmt;
 use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
 
@@ -29,7 +29,7 @@ const SERVICE_NAME: &str = "data-collector";
 
 #[actix_rt::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let drain = Json::new(std::io::stdout()).build().fuse();
+    let drain = NestedJsonFmt::new(std::io::stdout()).fuse();
 
     let drain = slog_async::Async::new(drain).build().fuse();
 
