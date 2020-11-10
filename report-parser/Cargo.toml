@@ -6,7 +6,7 @@ edition = "2018"
 [dependencies]
 avro-rs = "0.6"
 failure = "0.1"
-kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "main", features = ["avro", "streaming"] }
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "main", features = ["avro", "streaming", "json", "log"] }
 regex = "1"
 lazy_static = "1"
 uuid = { version = "0.8", features = ["v4"] }
@@ -24,7 +24,6 @@ rdkafka = { version = "0.23", features = ["cmake-build", "ssl-vendored"] }
 futures-util = "0.3"
 hex = "0.4"
 slog = { version = "2.5", features = ["nested-values"] }
-slog-json = { version = "2.3", features = ["nested-values"] }
 slog-async = { version = "2.5", features = ["nested-values"] }
 slog_derive = "0.2"
 erased-serde = "0.3"
