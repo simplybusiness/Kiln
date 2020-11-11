@@ -564,20 +564,17 @@ async fn prepare_tool_image(
     let tool_image_name_full =
         format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
 
-    if offline {
-        let mut filters = HashMap::new();
-        filters.insert("reference", vec![tool_image_name_full.as_ref()]);
-        let options = Some(ListImagesOptions {
-            filters,
-            ..Default::default()
-        });
-        let images = docker.list_images(options).await?;
-        if images.is_empty() {
-            Err(err_msg(format!("Could not find {} locally.", tool_image_name_full)).into())
-        } else {
-            Ok(())
-        }
-    } else {
+    let mut filters = HashMap::new();
+    filters.insert("reference", vec![tool_image_name_full.as_ref()]);
+    let options = Some(ListImagesOptions {
+        filters,
+        ..Default::default()
+    });
+    let images = docker.list_images(options).await?;
+
+    if offline && images.is_empty() {
+        Err(err_msg(format!("Could not find {} locally.", tool_image_name_full)).into())
+    } else if cfg!(debug_assertions) || images.is_empty() {
         let create_image_options = Some(CreateImageOptions {
             from_image: format!("{}/{}", tool_image_repo, tool_image_name),
             tag: tool_image_tag.clone(),
@@ -623,6 +620,9 @@ async fn prepare_tool_image(
                 Err(err) => Err(err.to_string()),
             }?
         }
+        Ok(())
+    } else {
+        println!("Tool image exists locally, skipping pull");
         Ok(())
     }
 }
