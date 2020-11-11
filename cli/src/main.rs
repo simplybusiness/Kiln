@@ -144,6 +144,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let offline = matches.is_present("offline");
 
+    let env_var_scan_env = std::env::var("KILN_SCAN_ENV").ok();
+
     let mut env_vec = Vec::new();
     let mut env_app_name = "APP_NAME=".to_string();
     let mut env_scan_env = "SCAN_ENV=".to_string();
@@ -155,13 +157,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             eprintln!("{}", e);
             process::exit(1);
         }
-        Ok(config_info) => {
-            env_app_name.push_str((config_info.app_name.unwrap()).as_ref());
+        Ok(mut config_info) => {
+            env_app_name.push_str((config_info.app_name.take().unwrap()).as_ref());
 
-            match config_info.scan_env {
-                Some(scan_env) => env_scan_env.push_str((scan_env).to_string().as_ref()),
-                None => env_scan_env.push_str("Local".to_string().as_ref()),
-            };
+            let scan_env_val = env_var_scan_env.unwrap_or_else(|| {
+                config_info
+                    .scan_env
+                    .take()
+                    .map_or_else(|| "Local".to_string(), |x| x.to_string())
+            });
+            env_scan_env.push_str(&scan_env_val);
 
             env_df_url.push_str((config_info.data_collector_url.unwrap()).as_ref());
 
