@@ -27,3 +27,4 @@ slog = { version = "2.5", features = [ "nested-values",] }
 slog-async = { version = "2.5", features = [ "nested-values",] }
 slog_derive = "0.2"
 erased-serde = "0.3"
+compressed_string = "1"

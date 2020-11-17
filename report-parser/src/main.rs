@@ -36,6 +36,7 @@ use std::env;
 use std::error::Error;
 use std::io::Read;
 use std::str::FromStr;
+use compressed_string::ComprString;
 use url::Url;
 
 use slog::o;
@@ -43,6 +44,7 @@ use slog::Drain;
 use slog::{FnValue, PushFnValue};
 use slog_derive::SerdeValue;
 use uuid::Uuid;
+
 
 const SERVICE_NAME: &str = "report-parser";
 
@@ -281,12 +283,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
+#[derive(Clone)]
+struct VulnData {
+    cvss : Cvss, 
+    advisory_str: ComprString, 
+    advisory_url: String 
+} 
+
 fn download_and_parse_vulns(
     index: String,
     last_updated_time: Option<DateTime<Utc>>,
     base_url: &Url,
     client: &Client,
-) -> Result<Option<HashMap<String, Cvss>>, Box<dyn Error>> {
+) -> Result<Option<HashMap<String, VulnData>>, Box<dyn Error>> {
     lazy_static! {
         static ref META_LAST_MOD_RE: Regex = Regex::new("lastModifiedDate:(.*)\r\n").unwrap();
         static ref META_COMPRESSED_GZ_SIZE_RE: Regex = Regex::new("gzSize:(.*)\r\n").unwrap();
@@ -425,12 +434,33 @@ let hash = META_SHA256_RE
                     Cvss::builder().with_version(CvssVersion::Unknown).build()
                 };
 
+
+                let adv_text = vuln_info
+                    .get("cve")
+                    .and_then(|cve| cve.get("description"))
+                    .and_then(|desc| desc.get("description_data"))
+                    .and_then(|desc_data| desc_data.get("value")).unwrap().to_string();
+
+                let compr_adv_text = ComprString::new(&adv_text); 
+
+                let adv_url = vuln_info
+                    .get("cve")
+                    .and_then(|cve| cve.get("reference"))
+                    .and_then(|refer| refer.get("reference_data"))
+                    .and_then(|refer_data| refer_data.get("url")).unwrap().to_string();
+
+
                 (
                     vuln_info["cve"]["CVE_data_meta"]["ID"]
                     .as_str()
                     .unwrap()
                     .to_string(),
-                    cvss.unwrap(),
+                    VulnData { 
+                        advisory_str: compr_adv_text, 
+                        advisory_url: adv_url, 
+                        cvss: cvss.unwrap()
+                    }
+                    ,
                 )
             })
         .collect::<HashMap<_, _>>();
@@ -443,7 +473,7 @@ let hash = META_SHA256_RE
 
 fn parse_tool_report(
     report: &ToolReport,
-    vulns: &HashMap<String, Cvss>,
+    vulns: &HashMap<String, VulnData>,
 ) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
     let events = if report.tool_name == "bundler-audit" {
         if report.output_format == "PlainText" {
@@ -460,7 +490,7 @@ fn parse_tool_report(
         }
     } else if report.tool_name == "safety" { 
         if report.output_format == "JSON" {
-            parse_safety_json(&report)
+            parse_safety_json(&report, vulns)
         } else if report.output_format == "PlainText" { 
             Err(Box::new(
                     err_msg(format!(
@@ -498,7 +528,7 @@ fn parse_tool_report(
 
 fn parse_bundler_audit_plaintext(
     report: &ToolReport,
-    vulns: &HashMap<String, Cvss>,
+    vulns: &HashMap<String, VulnData>,
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     lazy_static! {
         static ref BLOCK_RE: Regex = Regex::new("(Name: .*\nVersion: .*\nAdvisory: .*\nCriticality: .*\nURL: .*\nTitle: .*\nSolution:.*\n)").unwrap();
@@ -526,7 +556,7 @@ fn parse_bundler_audit_plaintext(
             .build()
             .unwrap();
 
-        let cvss = vulns.get(&advisory_id.to_string()).unwrap_or(&default_cvss);
+        let cvss = vulns.get(&advisory_id.to_string()).map_or(&default_cvss, |v| &v.cvss);
 
         let mut event = DependencyEvent {
             event_version: EventVersion::try_from("1".to_string())?,
@@ -618,22 +648,6 @@ enum SafetyJsonData{
 fn download_and_parse_python_safety_vulns(
     safety_json_db_url: &String,
 ) -> Result<HashMap<String, Option<String>>, Box<dyn Error>>  {
-    /*let meta_resp_text = client
-      .get(safety_json_db_url)
-      .send()
-      .map_err(|err| {
-      println!("Error downloading python safety data from {}: {}",safety_json_db_url, err);
-      Box::new(err_msg(format!("Error downloading python safety data from {}: {}",safety_json_db_url, err)).compat())
-      })
-      .and_then(|resp| {
-      println! ("download_and_parse_python_safety_vulns2: {}", resp.text());
-      resp.text().map_err(|err| {
-      println!("Error reading body of JSON vuln data for Python Safety Tool: {}", err);
-      Box::new(
-      err_msg(format!("Error reading body of JSON vuln data for Python Safety Tool: {}", err)).compat(),
-      )
-      })
-      })?;*/ 
     let meta_resp_text = reqwest::blocking::get(safety_json_db_url)?
         .text()?;
     let python_safety_vuln_info_json: HashMap<String,SafetyJsonData> = serde_json::from_str(meta_resp_text.as_ref())?; 
@@ -661,7 +675,7 @@ fn download_and_parse_python_safety_vulns(
 
 fn parse_safety_json(
     report: &ToolReport,
-    vulns: &HashMap<String, Cvss>,
+    vulns: &HashMap<String, VulnData>,
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     let mut events = Vec::new();
     let python_dep_vulns: Vec<PythonSafety> = serde_json::from_str(report.tool_output.as_ref())?;
@@ -679,57 +693,51 @@ fn parse_safety_json(
         /* MOVE THIS OUT */
         let cve_map = download_and_parse_python_safety_vulns(&"https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json".to_string()).unwrap();
         let cve_str = cve_map.get(&format!("pyup.io-{}", advisory_id.to_string())).unwrap();
-        let cvss = match cve_str {
-            
-            /*Some(s) =>  
-                s.split(',').collect::<Vec<&str>>().iter().
-                map(|v| { 
-                    vulns.get(v.to_owned())
-                }).collect::<Vec<Option<&Cvss>>>().into_iter().collect::<Vec<&Cvss>>().fold(
-                default_cvss,
-                |acc, x| {
-                    if acc.score < x.score { x } else { acc } 
-                }),
-            _ => default_cvss};*/
-            Some(s) => 
+        match cve_str {
+            Some(s) => { 
+                let cve_vec = s.split(',').collect::<Vec<&str>>(); 
+                for cve_str in cve_vec { 
+                    let cvss = vulns.get(cve_str).map_or(&default_cvss, |v| &v.cvss);
+                    let mut event = DependencyEvent {
+                    event_version: EventVersion::try_from("1".to_string())?,
+                    event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+                    parent_event_id: report.event_id.clone(),
+                    application_name: report.application_name.clone(),
+                    git_branch: report.git_branch.clone(),
+                    git_commit_hash: report.git_commit_hash.clone(),
+                    timestamp: Timestamp::try_from(report.end_time.to_string())?,
+                    affected_package: AffectedPackage::try_from(
+                        vuln.affected_package
+                        .to_owned(),
+                    )?,
+                    installed_version: InstalledVersion::try_from(
+                        vuln.installed_version
+                        .to_owned(),
+                    )?,
+                    advisory_url: AdvisoryUrl::try_from(
+                        Some("https://github.com/pyupio/safety-db/blob/master/data/insecure_full.json".to_string())
+                        .unwrap()
+                        .to_owned(),
+                    )?,
+                    advisory_id: advisory_id.clone(),
+                    advisory_description: AdvisoryDescription::try_from(
+                        vuln.advisory_description
+                        .to_owned(),
+                    )?,
+                    cvss: cvss.clone(),
+                    suppressed: false,
+                    };
 
-            
-        let mut event = DependencyEvent {
-            event_version: EventVersion::try_from("1".to_string())?,
-            event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
-            parent_event_id: report.event_id.clone(),
-            application_name: report.application_name.clone(),
-            git_branch: report.git_branch.clone(),
-            git_commit_hash: report.git_commit_hash.clone(),
-            timestamp: Timestamp::try_from(report.end_time.to_string())?,
-            affected_package: AffectedPackage::try_from(
-                vuln.affected_package
-                .to_owned(),
-            )?,
-            installed_version: InstalledVersion::try_from(
-                vuln.installed_version
-                .to_owned(),
-            )?,
-            advisory_url: AdvisoryUrl::try_from(
-                Some("https://github.com/pyupio/safety-db/blob/master/data/insecure_full.json".to_string())
-                .unwrap()
-                .to_owned(),
-            )?,
-            advisory_id,
-            advisory_description: AdvisoryDescription::try_from(
-                vuln.advisory_description
-                .to_owned(),
-            )?,
-            cvss: cvss.clone(),
-            suppressed: false,
-        };
+                    let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
 
-        let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+                    event.suppressed =
+                    should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
 
-        event.suppressed =
-            should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
-
-        events.push(event);
+                    events.push(event);
+                    } 
+            }, 
+            _ => ()
+        }
     }
     Ok(events)
 }
@@ -1016,17 +1024,12 @@ mod tests {
         match download_and_parse_python_safety_vulns(&"https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json".to_string()){ 
             Err(e) => println!("Error downloading safety vulns: {} \n", e),
             Ok(vulnshash) => { 
-                match vulnshash 
-                { 
-                    Some(h) => 
-                        for (key,val) in &h {
+                        for (key,val) in &vulnshash {
                             match val { 
                                 Some(cve) => 
                                     println!("{} --> {}", key,cve), 
                                 None => () 
                             } 
-                        },
-                    _ => println!("Unable to find hashmap of python safety vulns\n")
                 }
             }
         }
@@ -1093,6 +1096,21 @@ mod tests {
         "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
         "38100"
     ]]"#;
+    let timber_resources: HashMap<&str, i32> = [("Norway", 100), ("Denmark", 50), ("Iceland", 10)]
+    .iter().cloned().collect();
+
+    let compr_adv_text = ComprString::new("Some advsiory text"); 
+    let vulnshash: HashMap<String, VulnData> = 
+        [("CVE-2020-13757".to_string(), 
+            VulnData  {
+                advisory_str: compr_adv_text, 
+                advisory_url: "http://someurl.co.uk".to_string(), 
+                cvss: Cvss::builder()
+                    .with_version(CvssVersion::V2)
+                    .with_score(Some(7.5))
+                    .build().unwrap()
+            }
+        )].iter().cloned().collect();
     let test_report = ToolReport {
         event_version: EventVersion::try_from("1".to_owned()).unwrap(),
         event_id: EventID::try_from("95130bee-95ae-4dac-aecf-5650ff646ea1".to_owned()).unwrap(),
@@ -1115,7 +1133,7 @@ mod tests {
             tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
             suppressed_issues: vec![],
     };
-    let events = parse_safety_json(&test_report); 
+    let events = parse_safety_json(&test_report, &vulnshash); 
     for event in &events.unwrap() { 
         println!("affected package: {}, installed version: {}, cvss: {},  advisory {}\n", event.affected_package, event.installed_version, event.cvss, event.advisory_description)
     } 
