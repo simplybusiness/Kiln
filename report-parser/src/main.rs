@@ -283,6 +283,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
+
 #[derive(Clone)]
 struct VulnData {
     cvss : Cvss, 
@@ -698,6 +699,8 @@ fn parse_safety_json(
                 let cve_vec = s.split(',').collect::<Vec<&str>>(); 
                 for cve_str in cve_vec { 
                     let cvss = vulns.get(cve_str).map_or(&default_cvss, |v| &v.cvss);
+                    let advisory_str = vulns.get(cve_str).map_or(vuln.advisory_description.to_string(), |v| v.advisory_str.to_string());
+                    let advisory_url = vulns.get(cve_str).map_or("https://github.com/pyupio/safety-db/blob/master/data/insecure_full.json".to_string(), |v| v.advisory_url.to_string());
                     let mut event = DependencyEvent {
                     event_version: EventVersion::try_from("1".to_string())?,
                     event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
@@ -715,14 +718,11 @@ fn parse_safety_json(
                         .to_owned(),
                     )?,
                     advisory_url: AdvisoryUrl::try_from(
-                        Some("https://github.com/pyupio/safety-db/blob/master/data/insecure_full.json".to_string())
-                        .unwrap()
-                        .to_owned(),
+                        advisory_url,
                     )?,
                     advisory_id: advisory_id.clone(),
                     advisory_description: AdvisoryDescription::try_from(
-                        vuln.advisory_description
-                        .to_owned(),
+                        advisory_str,
                     )?,
                     cvss: cvss.clone(),
                     suppressed: false,
@@ -1096,10 +1096,9 @@ mod tests {
         "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
         "38100"
     ]]"#;
-    let timber_resources: HashMap<&str, i32> = [("Norway", 100), ("Denmark", 50), ("Iceland", 10)]
-    .iter().cloned().collect();
 
-    let compr_adv_text = ComprString::new("Some advsiory text"); 
+    let compr_adv_text = ComprString::new("Some advsiory text");
+
     let vulnshash: HashMap<String, VulnData> = 
         [("CVE-2020-13757".to_string(), 
             VulnData  {
@@ -1135,7 +1134,7 @@ mod tests {
     };
     let events = parse_safety_json(&test_report, &vulnshash); 
     for event in &events.unwrap() { 
-        println!("affected package: {}, installed version: {}, cvss: {},  advisory {}\n", event.affected_package, event.installed_version, event.cvss, event.advisory_description)
+        println!("affected package: {}, installed version: {}, cvss: {}, url: {},  advisory: {}\n", event.affected_package, event.installed_version, event.cvss, event.advisory_url, event.advisory_description)
     } 
     }
 
