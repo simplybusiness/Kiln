@@ -135,6 +135,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "compressed_string"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3191fb9cd59eb0195c223d4f1d8894d2078957ee44f4940f059d11060a6d0e7"
+dependencies = [
+ "flate2",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1225,6 +1234,7 @@ version = "0.4.3"
 dependencies = [
  "avro-rs",
  "chrono",
+ "compressed_string",
  "data-encoding",
  "erased-serde",
  "failure",
