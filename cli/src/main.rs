@@ -1,4 +1,5 @@
 use bollard::{
+    auth::DockerCredentials as BollardDockerCredentials,
     container::{
         self, CreateContainerOptions, LogOutput, LogsOptions, StartContainerOptions,
         WaitContainerOptions,
@@ -37,6 +38,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
+use url::Url;
 
 #[derive(Debug, Deserialize)]
 enum ScanEnv {
@@ -56,6 +58,89 @@ struct CliConfigOptions {
     app_name: Option<String>,
     scan_env: Option<ScanEnv>,
     tool_image_name: Option<String>,
+}
+
+#[derive(Debug, Default)]
+struct DockerImage {
+    registry: Option<Url>,
+    repo: String,
+    image: String,
+    tag: String,
+    credentials: Option<DockerCredentials>
+}
+
+impl DockerImage {
+    fn new() -> DockerImageBuilder {
+        DockerImageBuilder {
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug)]
+struct DockerCredentials {
+    username: String,
+    password: String
+}
+
+#[derive(Debug, Default)]
+struct DockerImageBuilder {
+    registry: Option<String>,
+    repo: Option<String>,
+    image: Option<String>,
+    tag: Option<String>,
+    credentials: Option<DockerCredentials>,
+}
+
+impl DockerImageBuilder {
+    fn with_registry<S: Into<String>>(mut self, registry_url: S) -> DockerImageBuilder {
+        self.registry = Some(registry_url.into());
+        self
+    }
+
+    fn with_repo<S: Into<String>>(mut self, repo: S) -> DockerImageBuilder {
+        self.repo = Some(repo.into());
+        self
+    }
+
+    fn with_image<S: Into<String>>(mut self, image: S) -> DockerImageBuilder {
+        self.image = Some(image.into());
+        self
+    }
+
+    fn with_tag<S: Into<String>>(mut self, tag: S) -> DockerImageBuilder {
+        self.tag = Some(tag.into());
+        self
+    }
+
+    fn with_credentials(mut self, credentials: DockerCredentials) -> DockerImageBuilder {
+        self.credentials = Some(credentials);
+        self
+    }
+
+    async fn build(self) -> Result<DockerImage, Box<dyn Error>> {
+        let parsed_registry = match self.registry {
+            None => Ok(None),
+            Some(registry) => {
+                Url::parse(&registry).and_then(|url| Ok(Some(url)))
+            }
+        }?;
+
+        let repo = self.repo.ok_or_else(|| err_msg("Tried to build a DockerImage but image repo wasn't provided"))?;
+
+        let image = self.image.ok_or_else(|| err_msg("Tried to build a DockerImage but image name wasn't provided"))?;
+
+        let default_tag = get_tag_for_image(repo.clone(), image.clone()).await?;
+        let tag = self.tag.unwrap_or(default_tag);
+
+        Ok(DockerImage {
+            registry: parsed_registry,
+            repo,
+            image,
+            tag,
+            credentials: self.credentials
+        })
+    }
 }
 
 #[derive(Debug)]
