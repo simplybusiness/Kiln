@@ -6,7 +6,7 @@ use bollard::{
     },
     image::{CreateImageOptions, ListImagesOptions, RemoveImageOptions},
     models::{BuildInfo, HostConfig},
-    service::{ContainerCreateResponse, Mount, MountPoint, MountTypeEnum, ProgressDetail},
+    service::{ContainerCreateResponse, Mount, MountTypeEnum, ProgressDetail},
     Docker,
 };
 use clap::{App, AppSettings, Arg, SubCommand};
@@ -20,7 +20,6 @@ use bollard::container::InspectContainerOptions;
 #[cfg(target_os = "linux")]
 use procfs::process::Process;
 
-use regex::Regex;
 use reqwest::Client;
 use reqwest::Method;
 use serde::Deserialize;
