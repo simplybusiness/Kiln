@@ -30,7 +30,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::error::Error;
-use std::fmt::{self, Debug};
+use std::fmt::{self, Debug, Display};
 use std::fs::File;
 use std::io::Read;
 use std::process;
@@ -39,6 +39,11 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use url::Url;
+
+static DOCKER_AUTH_URL: &str =
+    "https://auth.docker.io/token?service=registry.docker.io&scope=repository";
+
+static DOCKER_REGISTRY_URL: &str = "https://registry.hub.docker.com";
 
 #[derive(Debug, Deserialize)]
 enum ScanEnv {
@@ -60,13 +65,17 @@ struct CliConfigOptions {
     tool_image_name: Option<String>,
 }
 
-#[derive(Debug, Default)]
-struct DockerImage {
+enum Tool {
+    BundlerAudit,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct DockerImage {
     registry: Option<Url>,
     repo: String,
     image: String,
     tag: String,
-    credentials: Option<DockerCredentials>
+    credentials: Option<DockerCredentials>,
 }
 
 impl DockerImage {
@@ -75,15 +84,61 @@ impl DockerImage {
             ..Default::default()
         }
     }
+
+    fn manifest_url(&self) -> Url {
+        let mut url = self
+            .registry
+            .clone()
+            .unwrap_or_else(|| Url::parse(DOCKER_REGISTRY_URL).unwrap());
+        url.set_path(format!("/v2/{}/{}/manifests/{}", self.repo, self.image, self.tag).as_ref());
+        url
+    }
 }
 
-#[derive(Debug)]
+impl Display for DockerImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.registry.as_ref() {
+            Some(registry) => write!(f, "{}/{}/{}:{}", registry, self.repo, self.image, self.tag),
+            None => write!(f, "{}/{}:{}", self.repo, self.image, self.tag),
+        }
+    }
+}
+
+impl From<&DockerImage> for CreateImageOptions<String> {
+    fn from(image: &DockerImage) -> Self {
+        let image_name = match image.registry.as_ref() {
+            Some(registry) => format!("{}/{}/{}", registry, image.repo, image.image),
+            None => format!("{}/{}", image.repo, image.image),
+        };
+        CreateImageOptions {
+            from_image: image_name,
+            tag: image.tag.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<&DockerImage> for Option<BollardDockerCredentials> {
+    fn from(image: &DockerImage) -> Self {
+        image
+            .credentials
+            .clone()
+            .map(|creds| BollardDockerCredentials {
+                username: Some(creds.username),
+                password: Some(creds.password),
+                serveraddress: image.registry.clone().map(|url| url.to_string()),
+                ..Default::default()
+            })
+    }
+}
+
+#[derive(Clone, Debug)]
 struct DockerCredentials {
     username: String,
-    password: String
+    password: String,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct DockerImageBuilder {
     registry: Option<String>,
     repo: Option<String>,
@@ -93,27 +148,27 @@ struct DockerImageBuilder {
 }
 
 impl DockerImageBuilder {
-    fn with_registry<S: Into<String>>(mut self, registry_url: S) -> DockerImageBuilder {
+    fn with_registry<S: Into<String>>(&mut self, registry_url: S) -> &mut DockerImageBuilder {
         self.registry = Some(registry_url.into());
         self
     }
 
-    fn with_repo<S: Into<String>>(mut self, repo: S) -> DockerImageBuilder {
+    fn with_repo<S: Into<String>>(&mut self, repo: S) -> &mut DockerImageBuilder {
         self.repo = Some(repo.into());
         self
     }
 
-    fn with_image<S: Into<String>>(mut self, image: S) -> DockerImageBuilder {
+    fn with_image<S: Into<String>>(&mut self, image: S) -> &mut DockerImageBuilder {
         self.image = Some(image.into());
         self
     }
 
-    fn with_tag<S: Into<String>>(mut self, tag: S) -> DockerImageBuilder {
+    fn with_tag<S: Into<String>>(&mut self, tag: S) -> &mut DockerImageBuilder {
         self.tag = Some(tag.into());
         self
     }
 
-    fn with_credentials(mut self, credentials: DockerCredentials) -> DockerImageBuilder {
+    fn with_credentials(&mut self, credentials: DockerCredentials) -> &mut DockerImageBuilder {
         self.credentials = Some(credentials);
         self
     }
@@ -121,14 +176,16 @@ impl DockerImageBuilder {
     async fn build(self) -> Result<DockerImage, Box<dyn Error>> {
         let parsed_registry = match self.registry {
             None => Ok(None),
-            Some(registry) => {
-                Url::parse(&registry).and_then(|url| Ok(Some(url)))
-            }
+            Some(registry) => Url::parse(&registry).and_then(|url| Ok(Some(url))),
         }?;
 
-        let repo = self.repo.ok_or_else(|| err_msg("Tried to build a DockerImage but image repo wasn't provided"))?;
+        let repo = self.repo.ok_or_else(|| {
+            err_msg("Tried to build a DockerImage but image repo wasn't provided")
+        })?;
 
-        let image = self.image.ok_or_else(|| err_msg("Tried to build a DockerImage but image name wasn't provided"))?;
+        let image = self.image.ok_or_else(|| {
+            err_msg("Tried to build a DockerImage but image name wasn't provided")
+        })?;
 
         let default_tag = get_tag_for_image(repo.clone(), image.clone()).await?;
         let tag = self.tag.unwrap_or(default_tag);
@@ -138,7 +195,7 @@ impl DockerImageBuilder {
             repo,
             image,
             tag,
-            credentials: self.credentials
+            credentials: self.credentials,
         })
     }
 }
@@ -264,179 +321,210 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let docker = Docker::connect_with_local_defaults()?;
 
-    match matches.subcommand() {
-        ("ruby", Some(sub_m)) => match sub_m.subcommand_name() {
-            Some("dependencies") => {
-                let tool_image = match matches.value_of("tool-image-name") {
-                    None => {
-                        let tag = get_tag_for_image("kiln".into(), "bundler-audit".into())
-                            .await
-                            .expect("Could not get tag for bundler-audit image");
-                        format!("kiln/bundler-audit:{}", tag)
-                    }
-                    Some(name) => name.into(),
-                };
-                let image_name_regex = Regex::new(r#"(?:(?P<r>[a-zA-Z0-9_-]+)/)?(?P<i>[a-zA-Z0-9_-]+)(?::(?P<t>[a-zA-Z0-9_.-]+))?"#).unwrap();
-                let image_name_matches = image_name_regex.captures(&tool_image).expect(
-                    "Error parsing tool image name, ensure name is in format REPO/IMAGE:TAG",
-                );
-                let tool_image_repo = image_name_matches
-                    .name("r")
-                    .map(|capture| capture.as_str())
-                    .unwrap_or_else(|| "kiln");
-                let tool_image_name = image_name_matches
-                    .name("i")
-                    .map(|capture| capture.as_str())
-                    .unwrap_or_else(|| "bundler-audit");
-                let tool_image_tag = image_name_matches
-                    .name("t")
-                    .map(|capture| capture.as_str())
-                    .unwrap_or_else(|| "git-latest");
+    let env_var_docker_registry_username = std::env::var("KILN_DOCKER_USERNAME").ok();
+    let env_var_docker_registry_password = std::env::var("KILN_DOCKER_PASSWORD").ok();
+    let env_var_docker_registry_registry = std::env::var("KILN_DOCKER_REGISTRY").ok(); //Registry and Repo
 
-                let mut image_filters = HashMap::new();
-                let reference_filter = format!("{}/{}", tool_image_repo, tool_image_name);
-                image_filters.insert("reference", vec![reference_filter.as_str()]);
-                let list_image_options = Some(ListImagesOptions {
-                    filters: image_filters,
-                    ..Default::default()
-                });
+    let mut image_builder = DockerImage::new();
 
-                let pre_pull_images = docker.list_images(list_image_options.clone()).await?;
+    match (
+        env_var_docker_registry_username,
+        env_var_docker_registry_password,
+    ) {
+        (Some(username), Some(password)) => {
+            image_builder.with_credentials(DockerCredentials { username, password });
+        }
+        (None, None) => (),
+        _ => panic!("Provided only one of username and password"),
+    };
 
-                prepare_tool_image(
-                    tool_image_repo.to_owned(),
-                    tool_image_name.to_owned(),
-                    tool_image_tag.to_owned(),
-                    offline,
-                )
-                .await?;
-
-                let post_pull_images = docker.list_images(list_image_options).await?;
-
-                let images_to_delete: Vec<_> = post_pull_images
-                    .iter()
-                    .filter(|item| {
-                        pre_pull_images
-                            .iter()
-                            .any(|other_item| other_item.id == item.id)
-                    })
-                    .filter(|item| {
-                        !item
-                            .repo_tags
-                            .iter()
-                            .any(|tag| tag.as_str().contains("latest"))
-                    })
-                    .map(|item| item.id.clone())
-                    .collect();
-
-                for item in images_to_delete.iter() {
-                    if docker
-                        .remove_image(item, None::<RemoveImageOptions>, None)
-                        .await
-                        .is_err()
-                    {
-                        eprintln!("Warning: Error occured while trying to clean up old Kiln tool images for {}/{}", tool_image_repo, tool_image_name);
-                    }
-                }
-
-                let tool_image_name_full =
-                    format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
-
-                let container_config = container::Config {
-                    attach_stdout: Some(true),
-                    attach_stderr: Some(true),
-                    tty: Some(true),
-                    image: Some(tool_image_name_full),
-                    env: Some(env_vec),
-                    host_config: Some(HostConfig {
-                        auto_remove: Some(true),
-                        mounts: Some(vec![Mount {
-                            target: Some("/code".to_string()),
-                            source: Some(tool_work_dir),
-                            typ: Some(MountTypeEnum::BIND),
-                            ..Default::default()
-                        }]),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                };
-
-                let create_container_result = docker
-                    .create_container(None::<CreateContainerOptions<String>>, container_config)
-                    .await;
-                match &create_container_result {
-                    Err(err) => {
-                        eprintln!("Error creating tool container: {}", err);
-                        panic!();
-                    }
-                    Ok(ContainerCreateResponse { warnings, .. }) if !warnings.is_empty() => {
-                        warnings.iter().for_each(|item| {
-                            println!("Warning occured while creating tool container: {}", item);
-                        });
-                    }
-                    _ => (),
-                };
-
-                let container_id = create_container_result.unwrap().id;
-
-                let container_start_result = docker
-                    .start_container(&container_id, None::<StartContainerOptions<String>>)
-                    .await;
-                if let Err(err) = container_start_result {
-                    eprintln!("Error start tool container: {}", err);
-                    panic!();
-                }
-
-                let mut container_result =
-                    docker.wait_container(&container_id, None::<WaitContainerOptions<String>>);
-
-                let logs_options = Some(LogsOptions {
-                    follow: true,
-                    stdout: true,
-                    stderr: true,
-                    tail: "all".to_string(),
-                    ..Default::default()
-                });
-                let mut logs_stream = docker.logs(&container_id, logs_options).fuse();
-
-                loop {
-                    if logs_stream.is_done() {
-                        break;
-                    }
-                    let log_line = logs_stream.next().await;
-                    if let Some(log_line) = log_line {
-                        match log_line {
-                            Ok(LogOutput::StdOut { message }) => {
-                                println!("{}", String::from_utf8_lossy(&message))
-                            }
-                            Ok(LogOutput::Console { message }) => {
-                                println!("{}", String::from_utf8_lossy(&message))
-                            }
-                            Ok(LogOutput::StdErr { message }) => {
-                                eprintln!("{}", String::from_utf8_lossy(&message))
-                            }
-                            Err(err) => eprintln!("Error getting tool logs: {}", err),
-                            _ => (),
-                        }
-                    }
-                }
-
-                let container_exit_details = container_result.next().await.unwrap()?;
-                if container_exit_details.status_code != 0 {
-                    eprintln!(
-                        "Tool container exited with code {}, {}",
-                        container_exit_details.status_code,
-                        container_exit_details
-                            .error
-                            .and_then(|e| e.message)
-                            .unwrap_or_else(|| "No error message".to_string())
-                    )
-                }
+    match env_var_docker_registry_registry {
+        Some(registry) => {
+            let url = Url::parse(&registry)?;
+            let host = url
+                .host_str()
+                .expect("Docker registry does not contain a valid hostname");
+            let port = url.port();
+            match port {
+                None => image_builder.with_registry(host),
+                Some(port) => image_builder.with_registry(format!("{}:{}", host, port)),
+            };
+            let path = url.path();
+            if path != "/" {
+                image_builder.with_repo(path);
+            } else {
+                image_builder.with_repo("kiln");
             }
+        }
+        None => {
+            image_builder.with_repo("kiln");
+        }
+    };
+
+    let (tool, custom_image_name) = match matches.subcommand() {
+        ("ruby", Some(sub_m)) => match sub_m.subcommand_name() {
+            Some("dependencies") => (Tool::BundlerAudit, matches.value_of("tool-image-name")), //Image and tag
             _ => unreachable!(),
         },
         _ => unreachable!(),
     };
+
+    match custom_image_name {
+        Some(image_name) => {
+            let parts: Vec<&str> = image_name.splitn(2, ":").collect();
+            image_builder.with_image(parts[0]);
+            if parts.len() == 2 {
+                image_builder.with_tag(parts[1]);
+            }
+        }
+        None => {
+            match tool {
+                Tool::BundlerAudit => {
+                    image_builder.with_image("bundler-audit");
+                }
+            };
+        }
+    };
+
+    let docker_image = image_builder.build().await?;
+
+    let mut image_filters = HashMap::new();
+    let reference_filter = match docker_image.registry.as_ref() {
+        Some(registry) => format!("{}/{}/{}", registry, docker_image.repo, docker_image.image),
+        None => format!("{}/{}", docker_image.repo, docker_image.image),
+    };
+
+    image_filters.insert("reference", vec![reference_filter.as_str()]);
+    let list_image_options = Some(ListImagesOptions {
+        filters: image_filters,
+        ..Default::default()
+    });
+
+    let pre_pull_images = docker.list_images(list_image_options.clone()).await?;
+
+    prepare_tool_image(&docker_image, offline).await?;
+
+    let post_pull_images = docker.list_images(list_image_options).await?;
+
+    let images_to_delete: Vec<_> = post_pull_images
+        .iter()
+        .filter(|item| {
+            pre_pull_images
+                .iter()
+                .any(|other_item| other_item.id == item.id)
+        })
+        .filter(|item| {
+            !item
+                .repo_tags
+                .iter()
+                .any(|tag| tag.as_str().contains("git-latest") || tag.as_str().contains("latest"))
+        })
+        .map(|item| item.id.clone())
+        .collect();
+
+    for item in images_to_delete.iter() {
+        if docker
+            .remove_image(item, None::<RemoveImageOptions>, None)
+            .await
+            .is_err()
+        {
+            eprintln!(
+                "Warning: Error occured while trying to clean up old Kiln tool images for {}",
+                reference_filter
+            );
+        }
+    }
+
+    let container_config = container::Config {
+        attach_stdout: Some(true),
+        attach_stderr: Some(true),
+        tty: Some(true),
+        image: Some(docker_image.to_string()),
+        env: Some(env_vec),
+        host_config: Some(HostConfig {
+            auto_remove: Some(true),
+            mounts: Some(vec![Mount {
+                target: Some("/code".to_string()),
+                source: Some(tool_work_dir),
+                typ: Some(MountTypeEnum::BIND),
+                ..Default::default()
+            }]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let create_container_result = docker
+        .create_container(None::<CreateContainerOptions<String>>, container_config)
+        .await;
+    match &create_container_result {
+        Err(err) => {
+            eprintln!("Error creating tool container: {}", err);
+            panic!();
+        }
+        Ok(ContainerCreateResponse { warnings, .. }) if !warnings.is_empty() => {
+            warnings.iter().for_each(|item| {
+                println!("Warning occured while creating tool container: {}", item);
+            });
+        }
+        _ => (),
+    };
+
+    let container_id = create_container_result.unwrap().id;
+
+    let container_start_result = docker
+        .start_container(&container_id, None::<StartContainerOptions<String>>)
+        .await;
+    if let Err(err) = container_start_result {
+        eprintln!("Error start tool container: {}", err);
+        panic!();
+    }
+
+    let mut container_result =
+        docker.wait_container(&container_id, None::<WaitContainerOptions<String>>);
+
+    let logs_options = Some(LogsOptions {
+        follow: true,
+        stdout: true,
+        stderr: true,
+        tail: "all".to_string(),
+        ..Default::default()
+    });
+    let mut logs_stream = docker.logs(&container_id, logs_options).fuse();
+
+    loop {
+        if logs_stream.is_done() {
+            break;
+        }
+        let log_line = logs_stream.next().await;
+        if let Some(log_line) = log_line {
+            match log_line {
+                Ok(LogOutput::StdOut { message }) => {
+                    println!("{}", String::from_utf8_lossy(&message))
+                }
+                Ok(LogOutput::Console { message }) => {
+                    println!("{}", String::from_utf8_lossy(&message))
+                }
+                Ok(LogOutput::StdErr { message }) => {
+                    eprintln!("{}", String::from_utf8_lossy(&message))
+                }
+                Err(err) => eprintln!("Error getting tool logs: {}", err),
+                _ => (),
+            }
+        }
+    }
+
+    let container_exit_details = container_result.next().await.unwrap()?;
+    if container_exit_details.status_code != 0 {
+        eprintln!(
+            "Tool container exited with code {}, {}",
+            container_exit_details.status_code,
+            container_exit_details
+                .error
+                .and_then(|e| e.message)
+                .unwrap_or_else(|| "No error message".to_string())
+        )
+    }
     Ok(())
 }
 
@@ -487,11 +575,6 @@ fn validate_config_info(config_info: &CliConfigOptions) -> Result<(), ConfigFile
     Ok(())
 }
 
-static DOCKER_AUTH_URL: &str =
-    "https://auth.docker.io/token?service=registry.docker.io&scope=repository";
-
-static DOCKER_REGISTRY_URL: &str = "https://registry.hub.docker.com";
-
 // This layer of indirection exists because I want to add support for using the latest semver
 // compatible tag for a tool image when running a release build, but default to git-latest when
 // running a debug build. This was planned for 0.2.0, but turned out to be more complex than I
@@ -508,33 +591,43 @@ pub async fn get_tag_for_image(
 }
 
 pub async fn get_fs_layers_for_docker_image(
-    repo_name: String,
-    image_name: String,
-    tag: String,
+    docker_image: &DockerImage,
 ) -> Result<HashSet<String>, reqwest::Error> {
     let client = Client::new();
 
-    let docker_auth_url = format!("{}:{}/{}:pull", DOCKER_AUTH_URL, repo_name, image_name);
-    let req = client.request(Method::GET, &docker_auth_url).build()?;
-    let resp = client.execute(req).await?;
-    let resp_body: Value = resp.json().await?;
-    let token = resp_body["token"].as_str().unwrap();
+    let token = if docker_image.registry.is_none() {
+        let docker_auth_url = format!(
+            "{}:{}/{}:pull",
+            DOCKER_AUTH_URL, docker_image.repo, docker_image.image
+        );
+        let req = client.request(Method::GET, &docker_auth_url).build()?;
+        let resp = client.execute(req).await?;
+        let resp_body: Value = resp.json().await?;
+        Some(resp_body["token"].as_str().unwrap().to_owned())
+    } else {
+        None
+    };
 
-    let docker_manifest_url = format!(
-        "{}/v2/{}/{}/manifests/{}",
-        DOCKER_REGISTRY_URL, repo_name, image_name, tag
-    );
-    let manifest_req = client
-        .request(Method::GET, &docker_manifest_url)
-        .bearer_auth(token)
-        .build()?;
+    let manifest_req = match (token, docker_image.credentials.clone()) {
+        (Some(token), None) => client
+            .request(Method::GET, docker_image.manifest_url())
+            .bearer_auth(token)
+            .build()?,
+        (None, Some(creds)) => client
+            .request(Method::GET, docker_image.manifest_url())
+            .basic_auth(creds.username, Some(creds.password))
+            .build()?,
+        _ => client
+            .request(Method::GET, docker_image.manifest_url())
+            .build()?,
+    };
     let manifest_resp = client
         .execute(manifest_req)
         .await?
         .error_for_status()
         .expect(&format!(
-            "Could not get information about docker image {}/{}:{}. Check that image exists",
-            repo_name, image_name, tag
+            "Could not get information about docker image {}. Check that image exists",
+            docker_image.to_string()
         ));
     let manifest_resp_body: Value = manifest_resp.json().await?;
 
@@ -640,17 +733,13 @@ impl ProgressBarDisplay {
 }
 
 async fn prepare_tool_image(
-    tool_image_repo: String,
-    tool_image_name: String,
-    tool_image_tag: String,
+    docker_image: &DockerImage,
     offline: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let docker = Docker::connect_with_local_defaults()?;
-    let tool_image_name_full =
-        format!("{}/{}:{}", tool_image_repo, tool_image_name, tool_image_tag);
 
     let mut filters = HashMap::new();
-    filters.insert("reference", vec![tool_image_name_full.as_ref()]);
+    filters.insert("reference".to_string(), vec![docker_image.to_string()]);
     let options = Some(ListImagesOptions {
         filters,
         ..Default::default()
@@ -658,16 +747,15 @@ async fn prepare_tool_image(
     let images = docker.list_images(options).await?;
 
     if offline && images.is_empty() {
-        Err(err_msg(format!("Could not find {} locally.", tool_image_name_full)).into())
+        Err(err_msg(format!(
+            "Could not find {} locally.",
+            docker_image.to_string()
+        ))
+        .into())
     } else if cfg!(debug_assertions) || images.is_empty() {
-        let create_image_options = Some(CreateImageOptions {
-            from_image: format!("{}/{}", tool_image_repo, tool_image_name),
-            tag: tool_image_tag.clone(),
-            ..Default::default()
-        });
+        let create_image_options = Some(docker_image.into());
 
-        let layers =
-            get_fs_layers_for_docker_image(tool_image_repo, tool_image_name, tool_image_tag).await;
+        let layers = get_fs_layers_for_docker_image(docker_image).await;
         let mut prog_bar_disp: Option<ProgressBarDisplay> = match layers {
             Ok(fslayers) => {
                 let mut p = ProgressBarDisplay::new();
@@ -680,7 +768,9 @@ async fn prepare_tool_image(
             }
         };
 
-        let mut status_stream = docker.create_image(create_image_options, None, None).fuse();
+        let mut status_stream = docker
+            .create_image(create_image_options, None, docker_image.into())
+            .fuse();
         loop {
             let item = status_stream.next().await;
             if item.is_none() {
