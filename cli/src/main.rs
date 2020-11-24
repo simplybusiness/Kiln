@@ -97,7 +97,12 @@ impl DockerImage {
 impl Display for DockerImage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.registry.as_ref() {
-            Some(registry) => write!(f, "{}/{}/{}:{}", registry, self.repo, self.image, self.tag),
+            Some(registry) => {
+                match registry.port() {
+                    Some(port) => write!(f, "{}:{}/{}/{}:{}", registry.host().unwrap(), port, self.repo, self.image, self.tag),
+                    None => write!(f, "{}/{}/{}:{}", registry.host().unwrap(), self.repo, self.image, self.tag),
+                }
+            }
             None => write!(f, "{}/{}:{}", self.repo, self.image, self.tag),
         }
     }
