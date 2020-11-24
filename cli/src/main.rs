@@ -631,7 +631,7 @@ pub async fn get_fs_layers_for_docker_image(
         .error_for_status()
         .expect(&format!(
             "Could not get information about docker image {}. Check that image exists",
-            docker_image.to_string()
+            docker_image
         ));
     let manifest_resp_body: Value = manifest_resp.json().await?;
 
