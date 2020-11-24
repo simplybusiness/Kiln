@@ -344,21 +344,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match env_var_docker_registry_registry {
         Some(registry) => {
-            let url = Url::parse(&registry)?;
-            let host = url
+            let mut url = Url::parse(&registry)?;
+            url
                 .host_str()
                 .expect("Docker registry does not contain a valid hostname");
-            let port = url.port();
-            match port {
-                None => image_builder.with_registry(host),
-                Some(port) => image_builder.with_registry(format!("{}:{}", host, port)),
-            };
-            let path = url.path();
-            if path != "/" {
+            let path = url.path().trim_start_matches("/");
+            if !path.is_empty() {
                 image_builder.with_repo(path);
             } else {
                 image_builder.with_repo("kiln");
             }
+            url.set_path("");
+            image_builder.with_registry(url.to_string());
         }
         None => {
             image_builder.with_repo("kiln");
