@@ -612,14 +612,17 @@ pub async fn get_fs_layers_for_docker_image(
     let manifest_req = match (token, docker_image.credentials.clone()) {
         (Some(token), None) => client
             .request(Method::GET, docker_image.manifest_url())
+            .header("Accept", "application/vnd.docker.distribution.manifest.v2+json")
             .bearer_auth(token)
             .build()?,
         (None, Some(creds)) => client
             .request(Method::GET, docker_image.manifest_url())
+            .header("Accept", "application/vnd.docker.distribution.manifest.v2+json")
             .basic_auth(creds.username, Some(creds.password))
             .build()?,
         _ => client
             .request(Method::GET, docker_image.manifest_url())
+            .header("Accept", "application/vnd.docker.distribution.manifest.v2+json")
             .build()?,
     };
     let manifest_resp = client
@@ -632,12 +635,12 @@ pub async fn get_fs_layers_for_docker_image(
         ));
     let manifest_resp_body: Value = manifest_resp.json().await?;
 
-    let layers = manifest_resp_body["fsLayers"]
+    let layers = manifest_resp_body["layers"]
         .as_array()
         .unwrap()
         .iter()
         .map(|hashval| {
-            let hashstr: String = hashval["blobSum"].as_str().unwrap().to_string();
+            let hashstr: String = hashval["digest"].as_str().unwrap().to_string();
             let v: Vec<&str> = hashstr.split(':').collect();
             (&(v[1].to_string())[..12]).to_string()
         })
