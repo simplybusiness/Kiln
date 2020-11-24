@@ -111,7 +111,7 @@ impl Display for DockerImage {
 impl From<&DockerImage> for CreateImageOptions<String> {
     fn from(image: &DockerImage) -> Self {
         let image_name = match image.registry.as_ref() {
-            Some(registry) => format!("{}/{}/{}", registry, image.repo, image.image),
+            Some(registry) => format!("{}/{}/{}", registry.host().unwrap(), image.repo, image.image),
             None => format!("{}/{}", image.repo, image.image),
         };
         CreateImageOptions {
