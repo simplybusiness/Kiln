@@ -609,22 +609,19 @@ pub async fn get_fs_layers_for_docker_image(
         None
     };
 
-    let manifest_req = match (token, docker_image.credentials.clone()) {
-        (Some(token), None) => client
+    let mut req_builder = client
             .request(Method::GET, docker_image.manifest_url())
-            .header("Accept", "application/vnd.docker.distribution.manifest.v2+json")
-            .bearer_auth(token)
-            .build()?,
-        (None, Some(creds)) => client
-            .request(Method::GET, docker_image.manifest_url())
-            .header("Accept", "application/vnd.docker.distribution.manifest.v2+json")
-            .basic_auth(creds.username, Some(creds.password))
-            .build()?,
-        _ => client
-            .request(Method::GET, docker_image.manifest_url())
-            .header("Accept", "application/vnd.docker.distribution.manifest.v2+json")
-            .build()?,
-    };
+            .header("Accept", "application/vnd.docker.distribution.manifest.v2+json");
+
+    req_builder = if let Some(token) = token {
+            req_builder.bearer_auth(token)
+        } else if let Some(creds) = docker_image.credentials.clone() {
+            req_builder.basic_auth(creds.username, Some(creds.password))
+        } else {
+            req_builder
+        };
+
+    let manifest_req = req_builder.build()?;
     let manifest_resp = client
         .execute(manifest_req)
         .await?
