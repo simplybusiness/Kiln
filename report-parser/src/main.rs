@@ -315,6 +315,7 @@ fn parse_tool_report(
     report: &ToolReport,
     vulns: &HashMap<String, Cvss>,
 ) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
+    println!("fn parse_tool_report");
     let events = if report.tool_name == "bundler-audit" {
         if report.output_format == "PlainText" {
             parse_bundler_audit_plaintext(&report, &vulns)
@@ -322,6 +323,19 @@ fn parse_tool_report(
             Err(Box::new(
                 err_msg(format!(
                     "Unknown output format for Bundler-audit in ToolReport: {:?}",
+                    report
+                ))
+                .compat(),
+            )
+            .into())
+        }
+    } else if report.tool_name == "yarn-audit" {
+        if report.output_format == "JSON" {
+            parse_yarn_audit_json(&report, &vulns)
+        } else {
+            Err(Box::new(
+                err_msg(format!(
+                    "Unknown output format for Yarn-audit in ToolReport: {:?}",
                     report
                 ))
                 .compat(),
@@ -348,6 +362,7 @@ fn parse_bundler_audit_plaintext(
     report: &ToolReport,
     vulns: &HashMap<String, Cvss>,
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+    println!("fn parse_bundler_audit_plaintext");
     lazy_static! {
         static ref BLOCK_RE: Regex = Regex::new("(Name: .*\nVersion: .*\nAdvisory: .*\nCriticality: .*\nURL: .*\nTitle: .*\nSolution:.*\n)").unwrap();
     }
@@ -430,6 +445,97 @@ fn parse_bundler_audit_plaintext(
     }
     Ok(events)
 }
+
+fn parse_yarn_audit_json(
+    report: &ToolReport,
+    vulns: &HashMap<String, Cvss>,
+) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+    println!("fn parse_yarn_audit_json");
+    //println!("{:?}",report);
+    println!("report.event_id: {}",report.event_id);
+    println!("report.applicatiion_name: {}",report.application_name);
+    println!("report.tool_name: {:?}",report.tool_name);
+    println!("report.start_time: {}",report.start_time);
+    // as_ref() strips off ToolOutput("{}")
+    //println!("report.tool_output.as_ref(): {:?}",report.tool_output.as_ref());
+    
+
+    let mut events = Vec::new();
+    let mut rpt_tool_output = String::new();
+    rpt_tool_output = report.tool_output.as_ref().to_string();
+    println!("report.tool_output length: {}",rpt_tool_output.len());
+    
+   // yarn_line is a Vec<String> where each line is a "{}" json object} 
+    let yarn_line:Vec<String>=rpt_tool_output.split("\n").map(|s|s.to_string()).collect();
+
+    //println!("yarn_line[1]: {}", yarn_line[1]);
+    //let v: Value = serde_json::from_str(&rpt_tool_output); 
+    //let v: Value = serde_json::to_value(rpt_tool_output).unwrap();
+
+
+    let yn: serde_json::value::Value = serde_json::from_str(&yarn_line[1]).expect("JSON was not well-formatted");
+    println!("Yarn Audit Output - Line 1");
+    println!("id: {}", yn["data"]["resolution"]["id"]);
+    println!("path: {}", yn["data"]["resolution"]["path"]);
+    println!("created: {}", yn["data"]["advisory"]["created"]);
+    println!("title: {}", yn["data"]["advisory"]["title"]);
+    println!("module_name: {}", yn["data"]["advisory"]["module_name"]);
+    println!("cve: {}", yn["data"]["advisory"]["cves"]);
+    println!("patched_versions: {}", yn["data"]["advisory"]["patched_versions"]);
+    println!("severity: {}", yn["data"]["advisory"]["severity"]);
+    println!("cwe: {}", yn["data"]["advisory"]["cwe"]);
+    println!("url: {}", yn["data"]["advisory"]["url"]);
+    println!("url to_string: {}",yn["data"]["advisory"]["url"].to_string());
+    println!("recommendation: {}",yn["data"]["advisory"]["recommendation"]);
+    
+
+    for line in yarn_line.iter().skip(1) {
+    println!("line {}",line);    
+        if !line.is_empty(){
+            let yarn: serde_json::value::Value = serde_json::from_str(line).expect("JSON was not well-formatted");
+            println!("id: {}",yarn["data"]["resolution"]["id"]);
+            
+           let adv_id = AdvisoryId::try_from(yarn["data"]["advisory"]["cves"].to_string())?;
+           //let adv_url = Url::parse(&yarn["data"]["advisory"]["url"].to_string());
+          println!("yarn obj: {}",yarn["data"]["advisory"]["url"]); 
+           let adv_url = AdvisoryUrl::try_from(yarn["data"]["advisory"]["url"].to_string()).unwrap();
+           println!("adv_url: {}", adv_url);
+
+           let default_cvss = Cvss::builder()
+               .with_version(CvssVersion::Unknown)
+               .build()
+               .unwrap();
+
+           let cvss = vulns.get(&adv_id.to_string()).unwrap_or(&default_cvss);
+
+            let mut event = DependencyEvent{
+                event_version: EventVersion::try_from("1".to_string())?,
+                event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+                parent_event_id: report.event_id.clone(),
+                application_name: report.application_name.clone(),
+                git_branch: report.git_branch.clone(),
+                git_commit_hash: report.git_commit_hash.clone(),
+                timestamp: Timestamp::try_from(report.end_time.to_string())?,
+                affected_package: AffectedPackage::try_from(yarn["data"]["advisory"]["module_name"].to_string())?,
+                installed_version: InstalledVersion::try_from(yarn["data"]["advisory"]["vulnerable_versions"].to_string())?,
+                advisory_url: AdvisoryUrl::try_from(yarn["data"]["advisory"]["url"].to_string()).unwrap(),
+                //advisory_url: AdvisoryUrl::try_from(adv_url)?,
+                //advisory_url: AdvisoryUrl::try_from("https://nvd.nist.gov/vuln/detail/CVE-2017-5638".to_string()).unwrap(),
+                //advisory_url: AdvisoryUrl::try_from("https://npmjs.com/advisories/118".to_string()).unwrap(),
+                advisory_id: adv_id,
+                advisory_description: AdvisoryDescription::try_from(yarn["data"]["advisory"]["recommendation"].to_string())?,
+                cvss: cvss.clone(),
+                suppressed: false,
+                };
+
+        events.push(event);
+        }
+
+    } 
+    Ok(events)
+}
+
+
 
 fn should_issue_be_suppressed(
     issue_hash: &IssueHash,
