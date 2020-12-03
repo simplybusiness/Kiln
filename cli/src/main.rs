@@ -1,3 +1,4 @@
+use base64;
 use bollard::{
     auth::DockerCredentials as BollardDockerCredentials,
     container::{
@@ -20,14 +21,24 @@ use bollard::container::InspectContainerOptions;
 #[cfg(target_os = "linux")]
 use procfs::process::Process;
 
-use reqwest::Client;
-use reqwest::Method;
+use cfg_if::cfg_if;
+
+cfg_if! {
+    if #[cfg(test)] {
+        use mockall::mock;
+        use self::tests::MockClient as Client;
+    } else {
+        use reqwest::Client;
+    }
+}
+
+use reqwest::Request;
 use serde::Deserialize;
 use serde_json::Value;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::convert::TryInto;
+use std::convert::{TryInto, TryFrom};
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
 use std::fs::File;
@@ -324,6 +335,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let docker = Docker::connect_with_local_defaults()?;
+    let client = Client::new();
 
     let env_var_docker_registry_username = std::env::var("KILN_DOCKER_USERNAME").ok();
     let env_var_docker_registry_password = std::env::var("KILN_DOCKER_PASSWORD").ok();
@@ -403,7 +415,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let pre_pull_images = docker.list_images(list_image_options.clone()).await?;
 
-    prepare_tool_image(&docker_image, offline).await?;
+    prepare_tool_image(&client, &docker_image, offline).await?;
 
     let post_pull_images = docker.list_images(list_image_options).await?;
 
@@ -592,16 +604,17 @@ pub async fn get_tag_for_image(
 }
 
 pub async fn get_fs_layers_for_docker_image(
+    client: &Client,
     docker_image: &DockerImage,
-) -> Result<HashSet<String>, reqwest::Error> {
-    let client = Client::new();
-
+) -> Result<HashSet<String>, Box<dyn Error>> {
     let token = if docker_image.registry.is_none() {
         let docker_auth_url = format!(
             "{}:{}/{}:pull",
             DOCKER_AUTH_URL, docker_image.repo, docker_image.image
         );
-        let req = client.request(Method::GET, &docker_auth_url).build()?;
+        let req = http::Request::get(&docker_auth_url)
+            .body("")
+            .map(|req| Request::try_from(req))??;
         let resp = client.execute(req).await?;
         let resp_body: Value = resp.json().await?;
         Some(resp_body["token"].as_str().unwrap().to_owned())
@@ -609,27 +622,26 @@ pub async fn get_fs_layers_for_docker_image(
         None
     };
 
-    let mut req_builder = client
-            .request(Method::GET, docker_image.manifest_url())
+    let mut req_builder = http::Request::get(docker_image.manifest_url().to_string())
             .header("Accept", "application/vnd.docker.distribution.manifest.v2+json");
 
     req_builder = if let Some(token) = token {
-            req_builder.bearer_auth(token)
+            req_builder.header("Authorization", format!("Bearer {}", token))
         } else if let Some(creds) = docker_image.credentials.clone() {
-            req_builder.basic_auth(creds.username, Some(creds.password))
+            let header_value = format!("Basic {}:{}", base64::encode(creds.username), base64::encode(creds.password));
+            req_builder.header("Authorization", header_value)
         } else {
             req_builder
         };
 
-    let manifest_req = req_builder.build()?;
+    let manifest_req = Request::try_from(req_builder.body("")?)?;
+    // TODO: We should be more explicit in our error handling to give users a more useful error
+    // message. Could the registry not be found? Is it down? Are our creds bad? Can we not find the
+    // image?
     let manifest_resp = client
         .execute(manifest_req)
-        .await?
-        .error_for_status()
-        .expect(&format!(
-            "Could not get information about docker image {}. Check that image exists",
-            docker_image
-        ));
+        .await?;
+
     let manifest_resp_body: Value = manifest_resp.json().await?;
 
     let layers = manifest_resp_body["layers"]
@@ -734,6 +746,7 @@ impl ProgressBarDisplay {
 }
 
 async fn prepare_tool_image(
+    client: &Client,
     docker_image: &DockerImage,
     offline: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -756,7 +769,7 @@ async fn prepare_tool_image(
     } else if cfg!(debug_assertions) || images.is_empty() {
         let create_image_options = Some(docker_image.into());
 
-        let layers = get_fs_layers_for_docker_image(docker_image).await;
+        let layers = get_fs_layers_for_docker_image(client, docker_image).await;
         let mut prog_bar_disp: Option<ProgressBarDisplay> = match layers {
             Ok(fslayers) => {
                 let mut p = ProgressBarDisplay::new();
@@ -854,4 +867,19 @@ async fn get_mapped_tool_work_dir(tool_work_dir: &str) -> Option<String> {
 #[cfg(not(target_os = "linux"))]
 async fn get_mapped_tool_work_dir(_tool_work_dir: &str) -> Option<String> {
     None
+}
+#[cfg(test)]
+pub mod tests {
+
+    use super::*;
+    use reqwest::{Request, Response};
+    use std::boxed::Box;
+    use std::pin::Pin;
+    use std::future::Future;
+
+    mock! {
+        pub Client {
+            fn execute(&self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>>>>;
+        }
+    }
 }
