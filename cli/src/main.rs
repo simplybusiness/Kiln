@@ -32,7 +32,7 @@ cfg_if! {
     }
 }
 
-use reqwest::Request;
+use reqwest::{Request, StatusCode};
 use serde::Deserialize;
 use serde_json::Value;
 use std::boxed::Box;
@@ -635,12 +635,46 @@ pub async fn get_fs_layers_for_docker_image(
         };
 
     let manifest_req = Request::try_from(req_builder.body("")?)?;
-    // TODO: We should be more explicit in our error handling to give users a more useful error
-    // message. Could the registry not be found? Is it down? Are our creds bad? Can we not find the
-    // image?
-    let manifest_resp = client
+    let manifest_resp_result = client
         .execute(manifest_req)
-        .await?;
+        .await;
+
+    let manifest_resp = match manifest_resp_result {
+        Err(err) => {
+            let msg = if err.is_timeout() {
+                err_msg(format!("Error: Timed out connecting to Docker reigstry {}", docker_image.manifest_url().to_string()))
+            } else if err.is_connect() {
+                err_msg(format!("Error: Could not connect to Docker reigstry {}", docker_image.manifest_url().to_string()))
+            } else {
+                err_msg(format!("Error: Something went wrong while connecting to Docker reigstry {} ({})", docker_image.manifest_url().to_string(), err))
+            };
+            Err(msg)
+        },
+        Ok(resp) => Ok(resp)
+    }?;
+
+    if let Err(err) = manifest_resp.error_for_status_ref() {
+        match err.status().unwrap() {
+            StatusCode::NOT_FOUND => {
+                Err(err_msg(format!("Error: {} repo is not known to Docker registry at {}", docker_image.repo, docker_image.registry.clone().map_or_else(|| "registry.hub.docker.com".to_string(), |reg| reg.to_string()))))
+            },
+            StatusCode::BAD_REQUEST => {
+                unimplemented!()
+            },
+            StatusCode::UNAUTHORIZED => {
+                unimplemented!()
+            },
+            StatusCode::FORBIDDEN => {
+                unimplemented!()
+            },
+            StatusCode::TOO_MANY_REQUESTS => {
+                unimplemented!()
+            },
+            _ => {
+                unimplemented!()
+            }
+        }?
+    }
 
     let manifest_resp_body: Value = manifest_resp.json().await?;
 
