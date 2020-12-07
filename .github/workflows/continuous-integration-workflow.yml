@@ -98,6 +98,9 @@ jobs:
             - name: Clippy
               run: cargo clippy
               working-directory: cli/
+            - name: Test
+              run: cargo test
+              working-directory: cli/
             - name: Build kiln-cli-tool
               run: cargo make build-kiln-cli
               working-directory: cli/
