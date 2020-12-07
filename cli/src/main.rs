@@ -20,6 +20,7 @@ use cfg_if::cfg_if;
 cfg_if! {
     if #[cfg(target_os = "linux")] {
         use bollard::container::InspectContainerOptions;
+        use bollard::models::MountPoint;
         use procfs::process::Process;
         use regex::Regex;
     }
