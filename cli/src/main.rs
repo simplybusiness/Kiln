@@ -1,4 +1,3 @@
-use base64;
 use bollard::{
     auth::DockerCredentials as BollardDockerCredentials,
     container::{
@@ -89,6 +88,7 @@ pub struct DockerImage {
 }
 
 impl DockerImage {
+    #[allow(clippy::new_ret_no_self)]
     fn new() -> DockerImageBuilder {
         DockerImageBuilder {
             ..Default::default()
@@ -209,7 +209,7 @@ impl DockerImageBuilder {
     async fn build(self) -> Result<DockerImage, Box<dyn Error>> {
         let parsed_registry = match self.registry {
             None => Ok(None),
-            Some(registry) => Url::parse(&registry).and_then(|url| Ok(Some(url))),
+            Some(registry) => Url::parse(&registry).map(|url| Some(url)),
         }?;
 
         let repo = self.repo.ok_or_else(|| {
@@ -315,7 +315,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("Work directory not provided and current directory either does not exist or we do not have permission to access. EXITING!");
     let mapped_tool_work_dir = get_mapped_tool_work_dir(&tool_work_dir)
         .await
-        .unwrap_or(tool_work_dir.clone());
+        .unwrap_or_else(|| tool_work_dir.clone());
 
     let offline = matches.is_present("offline");
 
@@ -377,7 +377,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let mut url = Url::parse(&registry)?;
             url.host_str()
                 .expect("Docker registry does not contain a valid hostname");
-            let path = url.path().trim_start_matches("/");
+            let path = url.path().trim_start_matches('/');
             if !path.is_empty() {
                 image_builder.with_repo(path);
             } else {
@@ -401,7 +401,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     match custom_image_name {
         Some(image_name) => {
-            let parts: Vec<&str> = image_name.splitn(2, ":").collect();
+            let parts: Vec<&str> = image_name.splitn(2, ':').collect();
             image_builder.with_image(parts[0]);
             if parts.len() == 2 {
                 image_builder.with_tag(parts[1]);
@@ -631,7 +631,7 @@ pub async fn get_fs_layers_for_docker_image(
         );
         let req = http::Request::get(&docker_auth_url)
             .body("")
-            .map(|req| Request::try_from(req))??;
+            .map(Request::try_from)??;
         let resp = client.execute(req).await?;
         let resp_body: Value = resp.json().await?;
         Some(resp_body["token"].as_str().unwrap().to_owned())
