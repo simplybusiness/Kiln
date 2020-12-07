@@ -966,7 +966,7 @@ pub mod tests {
             }))
             .in_sequence(&mut call_sequence);
 
-        let expected = "Error: ";
+        let expected = "Error: Authentication is required to access kiln/bundler-audit:git-latest. Ensure you have provided valid credentials using the KILN_DOCKER_USERNAME and KILN_DOCKER_PASSWORD environment variables.";
         let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
@@ -1008,7 +1008,7 @@ pub mod tests {
             }))
             .in_sequence(&mut call_sequence);
 
-        let expected = "Error: ";
+        let expected = "Error: You are not authorized to access kiln/bundler-audit:git-latest with the credentials provided.";
         let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
@@ -1050,7 +1050,7 @@ pub mod tests {
             }))
             .in_sequence(&mut call_sequence);
 
-        let expected = "Error: ";
+        let expected = "Error: Repo kiln is not known to Docker registry at registry.hub.docker.com";
         let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
@@ -1092,49 +1092,7 @@ pub mod tests {
             }))
             .in_sequence(&mut call_sequence);
 
-        let expected = "Error: ";
-        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
-        assert_eq!(expected, actual.to_string())
-    }
-
-    #[tokio::test]
-    async fn docker_registry_returns_bad_request_for_tag_while_fetching_image_manifest() {
-        let mut call_sequence = Sequence::new();
-        let mut client_mock = MockClient::new();
-        client_mock.expect_execute()
-            .times(1)
-            .withf(|req| req.url().to_string().starts_with(DOCKER_AUTH_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "token": "some token"
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(200)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
-            .in_sequence(&mut call_sequence);
-
-        client_mock.expect_execute()
-            .times(1)
-            .withf(|req| req.url().to_string().starts_with(DOCKER_REGISTRY_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "errors": [{
-                        "code": "TAG_INVALID",
-                        "message": "manifest tag did not match URI"
-                    }]
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(400)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
-            .in_sequence(&mut call_sequence);
-
-        let expected = "Error: ";
+        let expected = "Error: Repo name \"kiln\" is invalid.";
         let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
@@ -1176,7 +1134,7 @@ pub mod tests {
             }))
             .in_sequence(&mut call_sequence);
 
-        let expected = "Error: ";
+        let expected = "Error: You have exceeded the rate limit set by registry.hub.docker.com.";
         let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
