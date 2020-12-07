@@ -38,7 +38,7 @@ use serde_json::Value;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::convert::{TryInto, TryFrom};
+use std::convert::{TryFrom, TryInto};
 use std::error::Error;
 use std::fmt::{self, Debug, Display};
 use std::fs::File;
@@ -108,12 +108,25 @@ impl DockerImage {
 impl Display for DockerImage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.registry.as_ref() {
-            Some(registry) => {
-                match registry.port() {
-                    Some(port) => write!(f, "{}:{}/{}/{}:{}", registry.host().unwrap(), port, self.repo, self.image, self.tag),
-                    None => write!(f, "{}/{}/{}:{}", registry.host().unwrap(), self.repo, self.image, self.tag),
-                }
-            }
+            Some(registry) => match registry.port() {
+                Some(port) => write!(
+                    f,
+                    "{}:{}/{}/{}:{}",
+                    registry.host().unwrap(),
+                    port,
+                    self.repo,
+                    self.image,
+                    self.tag
+                ),
+                None => write!(
+                    f,
+                    "{}/{}/{}:{}",
+                    registry.host().unwrap(),
+                    self.repo,
+                    self.image,
+                    self.tag
+                ),
+            },
             None => write!(f, "{}/{}:{}", self.repo, self.image, self.tag),
         }
     }
@@ -122,7 +135,12 @@ impl Display for DockerImage {
 impl From<&DockerImage> for CreateImageOptions<String> {
     fn from(image: &DockerImage) -> Self {
         let image_name = match image.registry.as_ref() {
-            Some(registry) => format!("{}/{}/{}", registry.host().unwrap(), image.repo, image.image),
+            Some(registry) => format!(
+                "{}/{}/{}",
+                registry.host().unwrap(),
+                image.repo,
+                image.image
+            ),
             None => format!("{}/{}", image.repo, image.image),
         };
         CreateImageOptions {
@@ -357,8 +375,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match env_var_docker_registry_registry {
         Some(registry) => {
             let mut url = Url::parse(&registry)?;
-            url
-                .host_str()
+            url.host_str()
                 .expect("Docker registry does not contain a valid hostname");
             let path = url.path().trim_start_matches("/");
             if !path.is_empty() {
@@ -622,35 +639,49 @@ pub async fn get_fs_layers_for_docker_image(
         None
     };
 
-    let mut req_builder = http::Request::get(docker_image.manifest_url().to_string())
-            .header("Accept", "application/vnd.docker.distribution.manifest.v2+json");
+    let mut req_builder = http::Request::get(docker_image.manifest_url().to_string()).header(
+        "Accept",
+        "application/vnd.docker.distribution.manifest.v2+json",
+    );
 
     req_builder = if let Some(token) = token {
-            req_builder.header("Authorization", format!("Bearer {}", token))
-        } else if let Some(creds) = docker_image.credentials.clone() {
-            let header_value = format!("Basic {}:{}", base64::encode(creds.username), base64::encode(creds.password));
-            req_builder.header("Authorization", header_value)
-        } else {
-            req_builder
-        };
+        req_builder.header("Authorization", format!("Bearer {}", token))
+    } else if let Some(creds) = docker_image.credentials.clone() {
+        let header_value = format!(
+            "Basic {}:{}",
+            base64::encode(creds.username),
+            base64::encode(creds.password)
+        );
+        req_builder.header("Authorization", header_value)
+    } else {
+        req_builder
+    };
 
     let manifest_req = Request::try_from(req_builder.body("")?)?;
-    let manifest_resp_result = client
-        .execute(manifest_req)
-        .await;
+    let manifest_resp_result = client.execute(manifest_req).await;
 
     let manifest_resp = match manifest_resp_result {
         Err(err) => {
             let msg = if err.is_timeout() {
-                err_msg(format!("Error: Timed out connecting to Docker reigstry {}", docker_image.manifest_url().to_string()))
+                err_msg(format!(
+                    "Error: Timed out connecting to Docker reigstry {}",
+                    docker_image.manifest_url().to_string()
+                ))
             } else if err.is_connect() {
-                err_msg(format!("Error: Could not connect to Docker reigstry {}", docker_image.manifest_url().to_string()))
+                err_msg(format!(
+                    "Error: Could not connect to Docker reigstry {}",
+                    docker_image.manifest_url().to_string()
+                ))
             } else {
-                err_msg(format!("Error: Something went wrong while connecting to Docker reigstry {} ({})", docker_image.manifest_url().to_string(), err))
+                err_msg(format!(
+                    "Error: Something went wrong while connecting to Docker reigstry {} ({})",
+                    docker_image.manifest_url().to_string(),
+                    err
+                ))
             };
             Err(msg)
-        },
-        Ok(resp) => Ok(resp)
+        }
+        Ok(resp) => Ok(resp),
     }?;
 
     if let Err(err) = manifest_resp.error_for_status_ref() {
@@ -910,8 +941,8 @@ pub mod tests {
     use reqwest::{Request, Response};
     use serde_json::json;
     use std::boxed::Box;
-    use std::pin::Pin;
     use std::future::Future;
+    use std::pin::Pin;
 
     mock! {
         pub Client {
@@ -925,7 +956,7 @@ pub mod tests {
             repo: "kiln".to_string(),
             image: "bundler-audit".to_string(),
             tag: "git-latest".to_string(),
-            credentials: None
+            credentials: None,
         }
     }
 
@@ -933,41 +964,53 @@ pub mod tests {
     async fn docker_registry_returns_unauthorised_while_fetching_image_manifest() {
         let mut call_sequence = Sequence::new();
         let mut client_mock = MockClient::new();
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_AUTH_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "token": "some token"
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(200)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "token": "some token"
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(200)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_REGISTRY_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "errors": [{
-                        "code": "UNAUTHORIZED",
-                        "message": "authentication required"
-                    }]
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(401)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "errors": [{
+                            "code": "UNAUTHORIZED",
+                            "message": "authentication required"
+                        }]
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(401)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
         let expected = "Error: Authentication is required to access kiln/bundler-audit:git-latest. Ensure you have provided valid credentials using the KILN_DOCKER_USERNAME and KILN_DOCKER_PASSWORD environment variables.";
-        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
+        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image())
+            .await
+            .expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
 
@@ -975,41 +1018,53 @@ pub mod tests {
     async fn docker_registry_returns_forbidden_while_fetching_image_manifest() {
         let mut call_sequence = Sequence::new();
         let mut client_mock = MockClient::new();
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_AUTH_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "token": "some token"
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(200)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "token": "some token"
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(200)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_REGISTRY_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "errors": [{
-                        "code": "DENIED",
-                        "message": "requested access to the resource is denied"
-                    }]
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(403)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "errors": [{
+                            "code": "DENIED",
+                            "message": "requested access to the resource is denied"
+                        }]
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(403)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
         let expected = "Error: You are not authorized to access kiln/bundler-audit:git-latest with the credentials provided.";
-        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
+        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image())
+            .await
+            .expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
 
@@ -1017,41 +1072,54 @@ pub mod tests {
     async fn docker_registry_returns_not_found_while_fetching_image_manifest() {
         let mut call_sequence = Sequence::new();
         let mut client_mock = MockClient::new();
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_AUTH_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "token": "some token"
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(200)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "token": "some token"
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(200)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_REGISTRY_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "errors": [{
-                        "code": "NAME_UNKNOWN",
-                        "message": "repository name not known to registry"
-                    }]
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(404)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "errors": [{
+                            "code": "NAME_UNKNOWN",
+                            "message": "repository name not known to registry"
+                        }]
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(404)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
-        let expected = "Error: Repo kiln is not known to Docker registry at registry.hub.docker.com";
-        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
+        let expected =
+            "Error: Repo kiln is not known to Docker registry at registry.hub.docker.com";
+        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image())
+            .await
+            .expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
 
@@ -1059,41 +1127,53 @@ pub mod tests {
     async fn docker_registry_returns_bad_request_for_image_name_while_fetching_image_manifest() {
         let mut call_sequence = Sequence::new();
         let mut client_mock = MockClient::new();
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_AUTH_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "token": "some token"
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(200)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "token": "some token"
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(200)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_REGISTRY_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "errors": [{
-                        "code": "NAME_INVALID",
-                        "message": "invalid repository name"
-                    }]
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(400)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "errors": [{
+                            "code": "NAME_INVALID",
+                            "message": "invalid repository name"
+                        }]
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(400)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
         let expected = "Error: Repo name \"kiln\" is invalid.";
-        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
+        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image())
+            .await
+            .expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
 
@@ -1101,41 +1181,53 @@ pub mod tests {
     async fn docker_registry_returns_too_many_requests_while_fetching_image_manifest() {
         let mut call_sequence = Sequence::new();
         let mut client_mock = MockClient::new();
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_AUTH_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "token": "some token"
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(200)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "token": "some token"
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(200)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
-        client_mock.expect_execute()
+        client_mock
+            .expect_execute()
             .times(1)
             .withf(|req| req.url().to_string().starts_with(DOCKER_REGISTRY_URL))
-            .returning(|_| Box::pin(async {
-                let body_payload = json!({
-                    "errors": [{
-                        "code": "TOOMANYREQUESTS",
-                        "message": "too many requests"
-                    }]
-                });
-                let response = Response::from(http::response::Response::builder()
-                    .status(429)
-                    .body(body_payload.to_string())
-                    .unwrap());
-                Ok(response)
-            }))
+            .returning(|_| {
+                Box::pin(async {
+                    let body_payload = json!({
+                        "errors": [{
+                            "code": "TOOMANYREQUESTS",
+                            "message": "too many requests"
+                        }]
+                    });
+                    let response = Response::from(
+                        http::response::Response::builder()
+                            .status(429)
+                            .body(body_payload.to_string())
+                            .unwrap(),
+                    );
+                    Ok(response)
+                })
+            })
             .in_sequence(&mut call_sequence);
 
         let expected = "Error: You have exceeded the rate limit set by registry.hub.docker.com.";
-        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image()).await.expect_err("Expected Err(err), got Ok(_)");
+        let actual = get_fs_layers_for_docker_image(&client_mock, &docker_image())
+            .await
+            .expect_err("Expected Err(err), got Ok(_)");
         assert_eq!(expected, actual.to_string())
     }
 }
