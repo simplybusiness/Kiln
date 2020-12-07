@@ -15,12 +15,15 @@ use futures::stream::StreamExt;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use path_clean::PathClean;
 
-#[cfg(target_os = "linux")]
-use bollard::container::InspectContainerOptions;
-#[cfg(target_os = "linux")]
-use procfs::process::Process;
-
 use cfg_if::cfg_if;
+
+cfg_if! {
+    if #[cfg(target_os = "linux")] {
+        use bollard::container::InspectContainerOptions;
+        use procfs::process::Process;
+        use regex::Regex;
+    }
+}
 
 cfg_if! {
     if #[cfg(test)] {
@@ -209,7 +212,7 @@ impl DockerImageBuilder {
     async fn build(self) -> Result<DockerImage, Box<dyn Error>> {
         let parsed_registry = match self.registry {
             None => Ok(None),
-            Some(registry) => Url::parse(&registry).map(|url| Some(url)),
+            Some(registry) => Url::parse(&registry).map(Some),
         }?;
 
         let repo = self.repo.ok_or_else(|| {
