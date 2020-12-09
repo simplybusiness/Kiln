@@ -26,9 +26,10 @@ use rdkafka::message::Message;
 use rdkafka::producer::future_producer::FutureRecord;
 use regex::Regex;
 use reqwest::header::ETAG;
+use reqwest::blocking::Client;
 use ring::digest;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -44,10 +45,8 @@ use slog::Drain;
 use slog::{FnValue, PushFnValue};
 use slog_derive::SerdeValue;
 use uuid::Uuid;
-use reqwest::{Request};
 
 use httpmock::MockServer;
-use httpmock::Method::GET;
 
 
 const SERVICE_NAME: &str = "report-parser";
@@ -193,7 +192,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     })?;
 
     let mut etag = None; 
-    let mut safety_cve_map = download_and_parse_python_safety_vulns(&mut etag, &client)
+    let safety_json_db_url = "https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json".to_string(); 
+    let mut safety_cve_map = download_and_parse_python_safety_vulns(safety_json_db_url.clone(), &mut etag, &client)
         .map_err(|err| { 
             error!(error_logger, "Error downloading Python Safety Vulns"; 
                 o!(
@@ -212,7 +212,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if last_updated_time
             .unwrap()
                 .lt(&(Utc::now() - Duration::days(1))) { 
-                    let new_safety_cve_map = download_and_parse_python_safety_vulns(&mut etag, &client)
+                    let new_safety_cve_map = download_and_parse_python_safety_vulns(safety_json_db_url.clone(), &mut etag, &client)
                         .map_err(|err| { 
                             error!(error_logger, "Error downloading Python Safety Vulns"; 
                                 o!(
@@ -682,11 +682,11 @@ enum SafetyJsonData{
 
 
 fn download_and_parse_python_safety_vulns(
+    server_name: String,
     etag: &mut Option<String>, 
     client: &Client
 ) -> Result<Option<HashMap<String, Option<String>>>, Box<dyn Error>>  {
-    let safety_json_db_url = &"https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json".to_string(); 
-    let client = Client::new();
+    let safety_json_db_url = &server_name.to_string(); 
     let head_resp = client.head(safety_json_db_url).send()?;
     if head_resp.status().is_success() {
         if let Some(etag_new) = head_resp.headers().get(ETAG) {
@@ -703,14 +703,14 @@ fn download_and_parse_python_safety_vulns(
             } 
         }
     } else {
-        return Err(Box::new(err_msg(format!("Unable to grab head from python safety database")).compat()).into())
+        return Err(Box::new(err_msg(format!("Unable to grab head from python safety database: ({})",head_resp.status())).compat()).into())
     } 
 
     let meta_resp_text = reqwest::blocking::get(safety_json_db_url)?
         .text()?;
     let python_safety_vuln_info_json: HashMap<String,SafetyJsonData> = serde_json::from_str(meta_resp_text.as_ref())?; 
     let cve_items = python_safety_vuln_info_json.values()
-        .filter(|ref s| match s {SafetyJsonData::Vuln(s) => true, _ => false })
+        .filter(|ref _s| match _s {SafetyJsonData::Vuln(_s) => true, _ => false })
         .map(|s|  {
             match s {
                 SafetyJsonData::Vuln(s) => s.iter(), 
@@ -1077,21 +1077,32 @@ mod tests {
         );
     }
 
-
     #[test]
-    fn download_safety_vuln_db() { 
+    fn download_safety_vuln_db_error_status() { 
         let mut etag = None;
         let server = MockServer::start();
-        let mock_response = Server.mock(|when,then| { 
-            when.method(GET)
-                .path("https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json")
+        let mock = server.mock(|when,then| { 
+            when.any_request();
+            then.status(502);
+        });
+        let client = Client::new();
+        assert!(download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client).is_err(),"HTTP error status not handled correctly");
+        mock.assert_hits(1);
+    }
+
+    #[test]
+    fn download_safety_vuln_db_etag_none() { 
+        let mut etag = None;
+        let server = MockServer::start();
+        let mock = server.mock(|when,then| { 
+            when.any_request();
             then.status(200)
                 .header("Connection", "keep-alive")
-                .header("Content-Length", "185157")
+                .header("Content-Length", "348")
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .header("Cache-Control", "max-age=300")
-                .header("Content-Security-Policy", "default-src "none"; style-src "unsafe-inline"; sandbox")
-                .header("ETag", "W/"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26"")
+                .header("Content-Security-Policy", "default-src \"none\"; style-src \"unsafe-inline\"; sandbox")
+                .header("ETag", "W/\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"")
                 .header("Strict-Transport-Security", "max-age=31536000")
                 .header("X-Content-Type-Options", "nosniff")
                 .header("X-Frame-Options", "deny")
@@ -1140,7 +1151,232 @@ mod tests {
                         ]
                 }));
         });
-        match download_and_parse_python_safety_vulns(&mut etag, mockclient){ 
+        let client = Client::new();
+        let res = download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client); 
+        assert!(etag.is_some());
+        assert!(res.is_ok(), "Error result was produced when dealing with a None Etag");
+        let res_ok = res.unwrap(); 
+        assert!(res_ok.is_some(),"Python Safety vulns CVE hash not set when Etag is None");
+        let vhash = res_ok.unwrap();
+        assert!(vhash.len() > 0, "Incorrect number of elements in the Python safety map");
+        assert!(vhash.contains_key("pyup.io-37611"), "Python Safety map returned does not contain the correct key");
+        let value = vhash.get("pyup.io-37611").unwrap();
+        assert_eq!(value.as_ref().unwrap(), "CVE-2018-1000805");
+        mock.assert_hits(2);
+    }
+
+    #[test]
+    fn download_safety_vuln_db_etags_diff() { 
+        let mut etag = Some("3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f22".to_string());
+        let server = MockServer::start();
+        let mock = server.mock(|when,then| { 
+            when.any_request();
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "348")
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .header("Cache-Control", "max-age=300")
+                .header("Content-Security-Policy", "default-src \"none\"; style-src \"unsafe-inline\"; sandbox")
+                .header("ETag", "W/\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d4038a05ba4f26\"")
+                .header("Strict-Transport-Security", "max-age=31536000")
+                .header("X-Content-Type-Options", "nosniff")
+                .header("X-Frame-Options", "deny")
+                .header("X-XSS-Protection", "1; mode=block")
+                .header("Via", "1.1 varnish (Varnish/6.0), 1.1 varnish")
+                .header("Content-Encoding", "gzip")
+                .header("X-GitHub-Request-Id", "2DD2:2A31:366058:393F4A:5FC8BA35")
+                .header("Accept-Ranges", "bytes")
+                .header("Date", "Thu, 03 Dec 2020 12:05:06 GMT")
+                .header("X-Served-By", "cache-lcy19250-LCY")
+                .header("X-Cache", "HFM, HIT")
+                .header("X-Cache-Hits", "0, 1")
+                .header("X-Timer", "S1606997106.156669,VS0,VE1")
+                .header("Vary", "Authorization,Accept-Encoding, Accept-Encoding")
+                .header("Access-Control-Allow-Origin", "*")
+                .header("X-Fastly-Request-ID", "4d1a4685623b535c8417cc2dfab67794968e04a6")
+                .header("Expires", "Thu, 03 Dec 2020 12:10:06 GMT")
+                .header("Source-Age", "129")
+                .json_body(
+                    json!({
+                        "$meta": {
+                            "advisory": "PyUp.io metadata",
+                            "timestamp": 1606802401
+                        },
+                        "acqusition": [
+                        {
+                            "advisory": "acqusition is a package affected by pytosquatting",
+                            "cve": null,
+                            "id": "pyup.io-34978",
+                            "specs": [
+                                    ">0",
+                                    "<0"
+                            ],
+                            "v": ">0,<0"
+                        }],
+                        "aegea": [
+                        {
+                            "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
+                            "cve": "CVE-2018-1000805",
+                            "id": "pyup.io-37611",
+                            "specs": [
+                                "<2.2.7"
+                            ],
+                            "v": "<2.2.7"
+                        }
+                        ]
+                }));
+        });
+        let client = Client::new();
+        let old_etag = etag.clone();
+        let res = download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client); 
+        assert!(etag.is_some());
+        assert!(old_etag != etag, "Etags cannot be matching");
+        assert!(res.is_ok(), "Error result was produced when dealing with matching Etags");
+        let res_ok = res.unwrap();
+        assert!(res_ok.is_some(),"Python Safety vulns CVE hash not set when Etags are matching");
+        let vhash = res_ok.unwrap();
+        assert!(vhash.len() > 0, "Incorrect number of elements in the Python safety map");
+        assert!(vhash.contains_key("pyup.io-37611"), "Python Safety map returned does not contain the correct key");
+        let value = vhash.get("pyup.io-37611").unwrap();
+        assert_eq!(value.as_ref().unwrap(), "CVE-2018-1000805");
+        mock.assert_hits(2);
+    }
+    
+    #[test]
+    fn download_safety_vuln_db_etags_matching() { 
+        let mut etag = Some("3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26".to_string());
+        let server = MockServer::start();
+        let mock = server.mock(|when,then| { 
+            when.any_request();
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "348")
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .header("Cache-Control", "max-age=300")
+                .header("Content-Security-Policy", "default-src \"none\"; style-src \"unsafe-inline\"; sandbox")
+                .header("ETag", "W/\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"")
+                .header("Strict-Transport-Security", "max-age=31536000")
+                .header("X-Content-Type-Options", "nosniff")
+                .header("X-Frame-Options", "deny")
+                .header("X-XSS-Protection", "1; mode=block")
+                .header("Via", "1.1 varnish (Varnish/6.0), 1.1 varnish")
+                .header("Content-Encoding", "gzip")
+                .header("X-GitHub-Request-Id", "2DD2:2A31:366058:393F4A:5FC8BA35")
+                .header("Accept-Ranges", "bytes")
+                .header("Date", "Thu, 03 Dec 2020 12:05:06 GMT")
+                .header("X-Served-By", "cache-lcy19250-LCY")
+                .header("X-Cache", "HFM, HIT")
+                .header("X-Cache-Hits", "0, 1")
+                .header("X-Timer", "S1606997106.156669,VS0,VE1")
+                .header("Vary", "Authorization,Accept-Encoding, Accept-Encoding")
+                .header("Access-Control-Allow-Origin", "*")
+                .header("X-Fastly-Request-ID", "4d1a4685623b535c8417cc2dfab67794968e04a6")
+                .header("Expires", "Thu, 03 Dec 2020 12:10:06 GMT")
+                .header("Source-Age", "129")
+                .json_body(
+                    json!({
+                        "$meta": {
+                            "advisory": "PyUp.io metadata",
+                            "timestamp": 1606802401
+                        },
+                        "acqusition": [
+                        {
+                            "advisory": "acqusition is a package affected by pytosquatting",
+                            "cve": null,
+                            "id": "pyup.io-34978",
+                            "specs": [
+                                    ">0",
+                                    "<0"
+                            ],
+                            "v": ">0,<0"
+                        }],
+                        "aegea": [
+                        {
+                            "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
+                            "cve": "CVE-2018-1000805",
+                            "id": "pyup.io-37611",
+                            "specs": [
+                                "<2.2.7"
+                            ],
+                            "v": "<2.2.7"
+                        }
+                        ]
+                }));
+        });
+        let client = Client::new();
+        let old_etag = etag.clone();
+        let res = download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client); 
+        assert!(old_etag == etag);
+        assert!(res.is_ok(), "Error result was produced when dealing with a matching Etags");
+        let res_ok = res.unwrap(); 
+        assert!(res_ok.is_none(),"Matching etags should produce a None result");
+        mock.assert_hits(1);
+    }
+
+
+    #[test]
+    fn download_safety_vuln_db_etag_some() { 
+        let mut etag = None;
+        let server = MockServer::start();
+        let mock = server.mock(|when,then| { 
+            when.any_request();
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "348")
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .header("Cache-Control", "max-age=300")
+                .header("Content-Security-Policy", "default-src \"none\"; style-src \"unsafe-inline\"; sandbox")
+                .header("ETag", "W/\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"")
+                .header("Strict-Transport-Security", "max-age=31536000")
+                .header("X-Content-Type-Options", "nosniff")
+                .header("X-Frame-Options", "deny")
+                .header("X-XSS-Protection", "1; mode=block")
+                .header("Via", "1.1 varnish (Varnish/6.0), 1.1 varnish")
+                .header("Content-Encoding", "gzip")
+                .header("X-GitHub-Request-Id", "2DD2:2A31:366058:393F4A:5FC8BA35")
+                .header("Accept-Ranges", "bytes")
+                .header("Date", "Thu, 03 Dec 2020 12:05:06 GMT")
+                .header("X-Served-By", "cache-lcy19250-LCY")
+                .header("X-Cache", "HFM, HIT")
+                .header("X-Cache-Hits", "0, 1")
+                .header("X-Timer", "S1606997106.156669,VS0,VE1")
+                .header("Vary", "Authorization,Accept-Encoding, Accept-Encoding")
+                .header("Access-Control-Allow-Origin", "*")
+                .header("X-Fastly-Request-ID", "4d1a4685623b535c8417cc2dfab67794968e04a6")
+                .header("Expires", "Thu, 03 Dec 2020 12:10:06 GMT")
+                .header("Source-Age", "129")
+                .json_body(
+                    json!({
+                        "$meta": {
+                            "advisory": "PyUp.io metadata",
+                            "timestamp": 1606802401
+                        },
+                        "acqusition": [
+                        {
+                            "advisory": "acqusition is a package affected by pytosquatting",
+                            "cve": null,
+                            "id": "pyup.io-34978",
+                            "specs": [
+                                    ">0",
+                                    "<0"
+                            ],
+                            "v": ">0,<0"
+                        }],
+                        "aegea": [
+                        {
+                            "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
+                            "cve": "CVE-2018-1000805",
+                            "id": "pyup.io-37611",
+                            "specs": [
+                                "<2.2.7"
+                            ],
+                            "v": "<2.2.7"
+                        }
+                        ]
+                }));
+        });
+        let client = Client::new();
+        match download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client){ 
             Err(e) => println!("Error: Unable to download safety vulns: {} \n", e),
             Ok(Some(vulnshash)) => { 
                 println!("Etag:{:?}", etag.clone());
@@ -1154,12 +1390,12 @@ mod tests {
             }, 
             Ok(None) => println!("Error: No vulnshash returned")
         }
-        mock.assert();
         let old_etag = etag.clone();
         /* Download again to ensure that matching etags returns None */
-        let newvulns = download_and_parse_python_safety_vulns(&mut etag,mockclient).expect("Download safety vuln returned Error");
+        let newvulns = download_and_parse_python_safety_vulns(server.url("/data"),&mut etag, &client).expect("Download safety vuln returned Error");
         assert!(etag == old_etag, "Error: etags do not match");
         assert!(newvulns.is_none(), "Error: Safety vulns downloaded despite matching etags");
+        mock.assert_hits(3);
     }
 
 
@@ -1199,7 +1435,7 @@ mod tests {
         "#;
 
         let python_safety_vuln_info_json: HashMap<String,SafetyJsonData> = serde_json::from_str(serde_json_data.as_ref()).unwrap();
-        for (k,v) in python_safety_vuln_info_json { 
+        for (k,_v) in python_safety_vuln_info_json { 
             println! ("Keys = {}", k)
         } 
 
