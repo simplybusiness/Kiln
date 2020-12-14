@@ -652,9 +652,8 @@ pub async fn get_fs_layers_for_docker_image(
         req_builder.header("Authorization", format!("Bearer {}", token))
     } else if let Some(creds) = docker_image.credentials.clone() {
         let header_value = format!(
-            "Basic {}:{}",
-            base64::encode(creds.username),
-            base64::encode(creds.password)
+            "Basic {}",
+            base64::encode(format!("{}:{}", creds.username, creds.password)),
         );
         req_builder.header("Authorization", header_value)
     } else {
