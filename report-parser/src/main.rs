@@ -1131,7 +1131,7 @@ mod tests {
                 )
                 .header(
                     "ETag",
-                    "W/\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
                 )
                 .header("Strict-Transport-Security", "max-age=31536000")
                 .header("X-Content-Type-Options", "nosniff")
@@ -1212,7 +1212,7 @@ mod tests {
     #[test]
     fn download_safety_vuln_db_etags_diff() {
         let mut etag =
-            Some("3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f22".to_string());
+            Some("\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f22\"".to_string());
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
             when.any_request();
@@ -1227,7 +1227,7 @@ mod tests {
                 )
                 .header(
                     "ETag",
-                    "W/\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d4038a05ba4f26\"",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d4038a05ba4f26\"",
                 )
                 .header("Strict-Transport-Security", "max-age=31536000")
                 .header("X-Content-Type-Options", "nosniff")
@@ -1310,7 +1310,7 @@ mod tests {
     #[test]
     fn download_safety_vuln_db_etags_matching() {
         let mut etag =
-            Some("3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26".to_string());
+            Some("\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"".to_string());
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
             when.any_request();
@@ -1325,7 +1325,7 @@ mod tests {
                 )
                 .header(
                     "ETag",
-                    "W/\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
                 )
                 .header("Strict-Transport-Security", "max-age=31536000")
                 .header("X-Content-Type-Options", "nosniff")
@@ -1393,143 +1393,26 @@ mod tests {
         mock.assert_hits(1);
     }
 
-    #[test]
-    fn download_safety_vuln_db_etag_some() {
-        let mut etag = None;
-        let server = MockServer::start();
-        let mock = server.mock(|when, then| {
-            when.any_request();
-            then.status(200)
-                .header("Connection", "keep-alive")
-                .header("Content-Length", "348")
-                .header("Content-Type", "text/plain; charset=utf-8")
-                .header("Cache-Control", "max-age=300")
-                .header(
-                    "Content-Security-Policy",
-                    "default-src \"none\"; style-src \"unsafe-inline\"; sandbox",
-                )
-                .header(
-                    "ETag",
-                    "W/\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
-                )
-                .header("Strict-Transport-Security", "max-age=31536000")
-                .header("X-Content-Type-Options", "nosniff")
-                .header("X-Frame-Options", "deny")
-                .header("X-XSS-Protection", "1; mode=block")
-                .header("Via", "1.1 varnish (Varnish/6.0), 1.1 varnish")
-                .header("Content-Encoding", "gzip")
-                .header("X-GitHub-Request-Id", "2DD2:2A31:366058:393F4A:5FC8BA35")
-                .header("Accept-Ranges", "bytes")
-                .header("Date", "Thu, 03 Dec 2020 12:05:06 GMT")
-                .header("X-Served-By", "cache-lcy19250-LCY")
-                .header("X-Cache", "HFM, HIT")
-                .header("X-Cache-Hits", "0, 1")
-                .header("X-Timer", "S1606997106.156669,VS0,VE1")
-                .header("Vary", "Authorization,Accept-Encoding, Accept-Encoding")
-                .header("Access-Control-Allow-Origin", "*")
-                .header(
-                    "X-Fastly-Request-ID",
-                    "4d1a4685623b535c8417cc2dfab67794968e04a6",
-                )
-                .header("Expires", "Thu, 03 Dec 2020 12:10:06 GMT")
-                .header("Source-Age", "129")
-                .json_body(json!({
-                    "$meta": {
-                        "advisory": "PyUp.io metadata",
-                        "timestamp": 1606802401
-                    },
-                    "acqusition": [
-                    {
-                        "advisory": "acqusition is a package affected by pytosquatting",
-                        "cve": null,
-                        "id": "pyup.io-34978",
-                        "specs": [
-                            ">0",
-                            "<0"
-                        ],
-                        "v": ">0,<0"
-                    }],
-                    "aegea": [
-                    {
-                        "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
-                        "cve": "CVE-2018-1000805",
-                        "id": "pyup.io-37611",
-                        "specs": [
-                            "<2.2.7"
-                        ],
-                        "v": "<2.2.7"
-                    }
-                    ]
-                }));
-        });
+    /*
+     #[test]
+    fn download_safety_vuln_db() { 
         let client = Client::new();
-        match download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client) {
-            Err(e) => println!("Error: Unable to download safety vulns: {} \n", e),
-            Ok(Some(vulnshash)) => {
-                println!("Etag:{:?}", etag.clone());
-                for (key, val) in &vulnshash {
-                    match val {
-                        Some(cve) => println!("{} --> {}", key, cve),
-                        None => (),
-                    }
+        let mut etag = None;
+        match download_and_parse_python_safety_vulns("https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json".to_string(), &mut etag, &client){ 
+            Err(e) => println!("Error downloading safety vulns: {} \n", e),
+            Ok(Some(vulnshash)) => { 
+                for (key,val) in &vulnshash {
+                    match val { 
+                        Some(cve) => 
+                            println!("{} --> {}", key,cve), 
+                        None => () 
+                    } 
                 }
-            }
-            Ok(None) => println!("Error: No vulnshash returned"),
+            },
+            Ok(None) => ()
         }
-        let old_etag = etag.clone();
-        /* Download again to ensure that matching etags returns None */
-        let newvulns =
-            download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client)
-                .expect("Download safety vuln returned Error");
-        assert!(etag == old_etag, "Error: etags do not match");
-        assert!(
-            newvulns.is_none(),
-            "Error: Safety vulns downloaded despite matching etags"
-        );
-        mock.assert_hits(3);
-    }
+    } */
 
-    #[test]
-    fn serde_parse_safety() {
-        let serde_json_data = r#"
-        {
-
-             "$meta": {
-                "advisory": "PyUp.io metadata",
-                "timestamp": 1601532001
-             }, 
-             "acqusition": [
-                {
-                    "advisory": "acqusition is a package affected by pytosquatting: http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/",
-                    "cve": null,
-                    "id": "pyup.io-34978",
-                    "specs": [
-                        ">0",
-                        "<0"
-                    ],
-                    "v": ">0,<0"
-                }
-            ], 
-            "aegea": [
-                {
-                    "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
-                    "cve": "CVE-2018-1000805",
-                    "id": "pyup.io-37611",
-                    "specs": [
-                        "<2.2.7"
-                    ],
-                    "v": "<2.2.7"
-                }
-            ]
-        }
-        "#;
-
-        let python_safety_vuln_info_json: HashMap<String, SafetyJsonData> =
-            serde_json::from_str(serde_json_data.as_ref()).unwrap();
-        for (k, _v) in python_safety_vuln_info_json {
-            println!("Keys = {}", k)
-        }
-    }
 
     #[test]
     fn parse_python_safety_vulns() {
