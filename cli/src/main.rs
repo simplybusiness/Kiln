@@ -641,9 +641,7 @@ pub async fn get_fs_layers_for_docker_image(
             );
             req_builder = req_builder.header("Authorization", header_value);
         };
-        let req = req_builder
-            .body("")
-            .map(Request::try_from)??;
+        let req = req_builder.body("").map(Request::try_from)??;
         let resp = client.execute(req).await?;
         let resp_body: Value = resp.json().await?;
         Some(resp_body["token"].as_str().unwrap().to_owned())
@@ -973,31 +971,31 @@ pub mod tests {
 
     fn valid_image_manifest() -> serde_json::Value {
         json!({
-    "schemaVersion": 2,
-    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
-    "config": {
-        "mediaType": "application/vnd.docker.container.image.v1+json",
-        "size": 7023,
-        "digest": "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7"
-    },
-    "layers": [
-        {
-            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
-            "size": 32654,
-            "digest": "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"
-        },
-        {
-            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
-            "size": 16724,
-            "digest": "sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b"
-        },
-        {
-            "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
-            "size": 73109,
-            "digest": "sha256:ec4b8955958665577945c89419d1af06b5f7636b4ac3da7f12184802ad867736"
-        }
-    ]
-})
+            "schemaVersion": 2,
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "config": {
+                "mediaType": "application/vnd.docker.container.image.v1+json",
+                "size": 7023,
+                "digest": "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7"
+            },
+            "layers": [
+                {
+                    "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                    "size": 32654,
+                    "digest": "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"
+                },
+                {
+                    "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                    "size": 16724,
+                    "digest": "sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b"
+                },
+                {
+                    "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                    "size": 73109,
+                    "digest": "sha256:ec4b8955958665577945c89419d1af06b5f7636b4ac3da7f12184802ad867736"
+                }
+            ]
+        })
     }
 
     #[tokio::test]
@@ -1278,9 +1276,9 @@ pub mod tests {
             repo: "kiln".to_string(),
             image: "bundler-audit".to_string(),
             tag: "git-latest".to_string(),
-            credentials: Some(DockerCredentials{
+            credentials: Some(DockerCredentials {
                 username: "user".to_string(),
-                password: "password".to_string()
+                password: "password".to_string(),
             }),
         };
         let mut call_sequence = Sequence::new();
@@ -1290,7 +1288,14 @@ pub mod tests {
         client_mock
             .expect_execute()
             .times(1)
-            .withf(|req| req.url().to_string().starts_with(DOCKER_AUTH_URL) && req.headers().get("Authorization").map(|val| val == "Basic dXNlcjpwYXNzd29yZA==").unwrap_or(false))
+            .withf(|req| {
+                req.url().to_string().starts_with(DOCKER_AUTH_URL)
+                    && req
+                        .headers()
+                        .get("Authorization")
+                        .map(|val| val == "Basic dXNlcjpwYXNzd29yZA==")
+                        .unwrap_or(false)
+            })
             .returning(|_| {
                 Box::pin(async {
                     let body_payload = json!({
@@ -1310,7 +1315,14 @@ pub mod tests {
         client_mock
             .expect_execute()
             .times(1)
-            .withf(|req| req.url().to_string().starts_with(DOCKER_REGISTRY_URL) && req.headers().get("Authorization").map(|val| val == "Bearer sometoken").unwrap_or(false))
+            .withf(|req| {
+                req.url().to_string().starts_with(DOCKER_REGISTRY_URL)
+                    && req
+                        .headers()
+                        .get("Authorization")
+                        .map(|val| val == "Bearer sometoken")
+                        .unwrap_or(false)
+            })
             .returning(|_| {
                 Box::pin(async {
                     let response = Response::from(
@@ -1331,13 +1343,15 @@ pub mod tests {
     #[tokio::test]
     async fn credentials_are_correctly_attached_to_image_manifest_request_for_custom_registry() {
         let image = DockerImage {
-            registry: Some(Url::parse("https://123456789.dkr.ecr.eu-west-1.amazonaws.com/kiln").unwrap()),
+            registry: Some(
+                Url::parse("https://123456789.dkr.ecr.eu-west-1.amazonaws.com/kiln").unwrap(),
+            ),
             repo: "kiln".to_string(),
             image: "bundler-audit".to_string(),
             tag: "git-latest".to_string(),
-            credentials: Some(DockerCredentials{
+            credentials: Some(DockerCredentials {
                 username: "user".to_string(),
-                password: "password".to_string()
+                password: "password".to_string(),
             }),
         };
         let mut call_sequence = Sequence::new();
@@ -1348,7 +1362,16 @@ pub mod tests {
         client_mock
             .expect_execute()
             .times(1)
-            .withf(|req| req.url().to_string().starts_with("https://123456789.dkr.ecr.eu-west-1.amazonaws.com") && req.headers().get("Authorization").map(|val| val == "Basic dXNlcjpwYXNzd29yZA==").unwrap_or(false))
+            .withf(|req| {
+                req.url()
+                    .to_string()
+                    .starts_with("https://123456789.dkr.ecr.eu-west-1.amazonaws.com")
+                    && req
+                        .headers()
+                        .get("Authorization")
+                        .map(|val| val == "Basic dXNlcjpwYXNzd29yZA==")
+                        .unwrap_or(false)
+            })
             .returning(|_| {
                 Box::pin(async {
                     let response = Response::from(
