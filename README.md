@@ -58,4 +58,4 @@ Docker images use two sets of tags: git-$VERSION and $VERSION. The former is use
 
 When a version is released, it will also overwrite the less specific semver compatible tags. For example, in the 0.2 series, if version 0.2.1 was released, this would also overwrite the 0.2 and latest tags.
 
-The CLI will attempt to pull and use the latest semver comptaible image for a given tool.
+The CLI will attempt to pull and use tool images with a version number that matches its own.
