@@ -1,6 +1,21 @@
 # UNRELEASED
 * Nothing... yet
 
+# 0.4.0 - 2021/01/06
+## Data Collector
+* Fixed the format of ECS formatted log data to correctly use nested objects
+## Report Parser
+* Fixed the format of ECS formatted log data to correctly use nested objects
+## Slack Connector
+* Fixed the format of ECS formatted log data to correctly use nested objects
+## CLI
+* KILN_SCAN_ENV environment variable is read by CLI to tell Data Forwarder what environment scan is running in
+* If running a release build and a Docker image for version the tool being run is present locally, use local image instead of repulling
+* Add support for pulling tool images from private Docker registries
+* Add support for providing credentials to authenticate Docker API requests
+* Upgraded to support Docker Registry Image Manifest format V2 Schema 2, which is used by AWS ECR
+* Improved error handling and error messages when pulling Docker images fails
+
 # 0.3.2 - 2020/10/27
 ## CLI
 * Fixed an issue in the path mapping feature introduced in 0.3.1 that would fail to correctly map the path supplied with `--work-dir` to a path inside a container running the CLI in certain circumstances, caused by a bug in the version of the Bollard crate that was being used.
