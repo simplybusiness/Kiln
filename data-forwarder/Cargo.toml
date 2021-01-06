@@ -4,7 +4,7 @@ version = "0.4.0"
 edition = "2018"
 
 [dependencies]
-kiln_lib = { git = "https://github.com/simplybusiness/Kiln", rev = "d2d13a54e212e67c6b8ec255cb05d87557843d1f", features = ["json", "toml"] }
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "main", features = ["json", "toml"] }
 clap = "2"  
 chrono = "0.4"
 reqwest = "0.9" 
