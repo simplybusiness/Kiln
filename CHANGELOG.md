@@ -1,6 +1,10 @@
 # UNRELEASED
 * Nothing... yet
 
+# 0.4.1 - 2021/01/07
+## Report Parser
+* Fixed a bug in how NIST NVD data is pulled that meant data after 2020 would not be pulled because of a hardcoded year
+
 # 0.4.0 - 2021/01/06
 ## Data Collector
 * Fixed the format of ECS formatted log data to correctly use nested objects
