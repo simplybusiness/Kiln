@@ -608,7 +608,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.4.1"
-source = "git+https://github.com/simplybusiness/Kiln?rev=77eac02e6181662bb2d5ec7270378647dec74813#77eac02e6181662bb2d5ec7270378647dec74813"
+source = "git+https://github.com/simplybusiness/Kiln?branch=main#fec99b44a9459b050f881c561bd51657683b259f"
 dependencies = [
  "chrono",
  "failure",
