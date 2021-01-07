@@ -1,12 +1,12 @@
 [package]
 name = "report-parser"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2018"
 
 [dependencies]
 avro-rs = "0.6"
 failure = "0.1"
-kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "main", features = ["avro", "streaming", "json", "log"] }
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", rev = "77eac02e6181662bb2d5ec7270378647dec74813", features = ["avro", "streaming", "json", "log"] }
 regex = "1"
 lazy_static = "1"
 uuid = { version = "0.8", features = ["v4"] }

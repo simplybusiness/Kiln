@@ -596,8 +596,8 @@ dependencies = [
 
 [[package]]
 name = "kiln_lib"
-version = "0.4.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=main#a0f99bde5d3fc30801a316595928d81a0c48b828"
+version = "0.4.1"
+source = "git+https://github.com/simplybusiness/Kiln?rev=77eac02e6181662bb2d5ec7270378647dec74813#77eac02e6181662bb2d5ec7270378647dec74813"
 dependencies = [
  "addr",
  "avro-rs",
@@ -1391,7 +1391,7 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "slack-connector"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "avro-rs",
  "bytes",
