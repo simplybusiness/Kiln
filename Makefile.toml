@@ -15,17 +15,17 @@ dependencies = [
 command = "cargo"
 args = ["make", "--cwd", "cli", "build-kiln-cli"]
 
-[tasks.build-data-collector-docker]
+[tasks.build-data-collector-git-docker]
 command = "cargo"
-args = ["make", "--cwd", "data-collector", "build-data-collector-docker"]
+args = ["make", "--cwd", "data-collector", "build-data-collector-git-docker"]
 
-[tasks.build-report-parser-docker]
+[tasks.build-report-parser-git-docker]
 command = "cargo"
-args = ["make", "--cwd", "report-parser", "build-report-parser-docker"]
+args = ["make", "--cwd", "report-parser", "build-report-parser-git-docker"]
 
-[tasks.build-slack-connector-docker]
+[tasks.build-slack-connector-git-docker]
 command = "cargo"
-args = ["make", "--cwd", "slack-connector", "build-slack-connector-docker"]
+args = ["make", "--cwd", "slack-connector", "build-slack-connector-git-docker"]
 
 [tasks.build-data-forwarder-musl]
 command = "cargo"
