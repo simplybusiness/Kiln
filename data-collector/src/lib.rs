@@ -16,8 +16,8 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
-use std::str::FromStr;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::task::{Context, Poll};
 use uuid::Uuid;
 
@@ -111,7 +111,10 @@ where
                 .connection_info()
                 .remote()
                 .and_then(|conn_info| std::net::SocketAddr::from_str(conn_info).ok())
-                .map_or_else(|| String::from("-"), |socket_addr| socket_addr.ip().to_string());
+                .map_or_else(
+                    || String::from("-"),
+                    |socket_addr| socket_addr.ip().to_string(),
+                );
 
             let url_domain = req
                 .headers()
