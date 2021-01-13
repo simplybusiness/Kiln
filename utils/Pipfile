@@ -5,9 +5,9 @@ name = "pypi"
 
 [packages]
 click = "*"
-pygit2 = "*"
 pygithub = "*"
 semver = "*"
+dulwich = "*"
 
 [dev-packages]
 
