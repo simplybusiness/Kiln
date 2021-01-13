@@ -18,8 +18,8 @@ dependencies = [
 [tasks.musl-build]
 script = [
 	"mkdir target &> /dev/null || true",
-	"docker run --rm -v $PWD:/home/rust/src -v cargo-git:/home/rust/.cargo/git -v cargo-registry:/home/rust/.cargo/registry ekidd/rust-musl-builder:stable sudo chown -R rust:rust /home/rust/.cargo/git /home/rust/.cargo/registry /home/rust/src/target",
-	"docker run --rm -v $PWD:/home/rust/src -v cargo-git:/home/rust/.cargo/git -v cargo-registry:/home/rust/.cargo/registry ekidd/rust-musl-builder:stable cargo build --release"
+	"docker run --rm -e CARGO_HOME=/opt/rust/cargo -v $PWD:/home/rust/src -v ${XDG_CACHE_HOME:-$HOME/.cache}/docker/cargo/git:/opt/rust/cargo/git -v ${XDG_CACHE_HOME:-$HOME/.cache}/docker/cargo/registry:/opt/rust/cargo/registry ekidd/rust-musl-builder:stable sudo chown -R rust:rust /opt/rust/cargo/git /opt/rust/cargo/registry /home/rust/src/target",
+	"docker run --rm -e CARGO_HOME=/opt/rust/cargo -v $PWD:/home/rust/src -v ${XDG_CACHE_HOME:-$HOME/.cache}/docker/cargo/git:/opt/rust/cargo/git -v ${XDG_CACHE_HOME:-$HOME/.cache}/docker/cargo/registry:/opt/rust/cargo/registry ekidd/rust-musl-builder:stable cargo build --release"
 ]
 
 [tasks.build-report-parser-docker-image]
