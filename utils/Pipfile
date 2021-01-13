@@ -7,6 +7,7 @@ name = "pypi"
 click = "*"
 pygit2 = "*"
 pygithub = "*"
+semver = "*"
 
 [dev-packages]
 
