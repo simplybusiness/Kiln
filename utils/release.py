@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 import click
 import re
+import semver
 
 def validate_version_number(ctx, param, value):
-    matches = re.match(r"v?(\d+\.\d+\.\d+)", value)
-    if matches == None:
-        raise click.BadParameter("Version number must be in format [v]1.2.3")
-    return matches.group(1)
+    try:
+        return semver.VersionInfo.parse(value)
+    except TypeError:
+        raise click.BadParameter("Version number not semver compatible")
+    except ValueError:
+        raise click.BadParameter("Version number not semver compatible")
 
 @click.command()
 @click.option('--version', required=True, prompt="Version number to release", callback=validate_version_number)
