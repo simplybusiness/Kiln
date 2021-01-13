@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import click
 import os
-from pygit2 import discover_repository, GIT_STATUS_CURRENT, GIT_STATUS_IGNORED, Repository
+from pygit2 import discover_repository, GIT_CHECKOUT_ALLOW_CONFLICTS, GIT_CHECKOUT_SAFE, GIT_STATUS_CURRENT, GIT_STATUS_IGNORED, Repository
 import re
 import semver
 
@@ -19,10 +19,12 @@ def validate_version_number(ctx, param, value):
 @click.confirmation_option()
 def main(version, signing_key_passphrase):
     kiln_repo = find_repo()
+    head_of_main = kiln_repo.revparse_single('main')
     working_copy_clean = check_for_expected_working_copy_changes(kiln_repo)
     if working_copy_clean == False:
         raise click.UsageError("Working copy contains uncomitted changes except for CHANGELOG.md")
-    pass
+    release_branch = kiln_repo.branches.local.create(f"release/{version}", head_of_main)
+    kiln_repo.checkout(release_branch, strategy=GIT_CHECKOUT_SAFE|GIT_CHECKOUT_ALLOW_CONFLICTS)
 
 def find_repo():
     current_working_directory = os.getcwd()
