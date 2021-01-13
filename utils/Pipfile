@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 click = "*"
+pygit2 = "*"
+pygithub = "*"
 
 [dev-packages]
 
