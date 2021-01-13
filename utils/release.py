@@ -18,16 +18,20 @@ def validate_version_number(ctx, param, value):
 @click.password_option('--signing-key-passphrase', prompt="Release signing key passphrase") 
 @click.confirmation_option()
 def main(version, signing_key_passphrase):
-    working_copy_clean = check_for_expected_working_copy_changes()
+    kiln_repo = find_repo()
+    working_copy_clean = check_for_expected_working_copy_changes(kiln_repo)
     if working_copy_clean == False:
         raise click.UsageError("Working copy contains uncomitted changes except for CHANGELOG.md")
     pass
 
-def check_for_expected_working_copy_changes():
+def find_repo():
     current_working_directory = os.getcwd()
     repository_path = discover_repository(current_working_directory)
     repo = Repository(repository_path)
-    status = repo.status()
+    return repo
+
+def check_for_expected_working_copy_changes(kiln_repo):
+    status = kiln_repo.status()
     for filepath, flags in status.items():
         if flags != GIT_STATUS_CURRENT and flags != GIT_STATUS_IGNORED and filepath != "CHANGELOG.md":
             return False
