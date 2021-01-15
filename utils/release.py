@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 import click
+import dulwich.porcelain
+from dulwich.repo import Repo
 import os
-from pygit2 import discover_repository, GIT_CHECKOUT_ALLOW_CONFLICTS, GIT_CHECKOUT_SAFE, GIT_STATUS_CURRENT, GIT_STATUS_IGNORED, Repository
+from pathlib import PurePath
 import re
 import semver
+import sh
+import sys
+import toml
+from toml import TomlPreserveInlineDictEncoder
 
 def validate_version_number(ctx, param, value):
     try:
@@ -15,27 +21,87 @@ def validate_version_number(ctx, param, value):
 
 @click.command()
 @click.option('--version', required=True, prompt="Version number to release", callback=validate_version_number)
-@click.password_option('--signing-key-passphrase', prompt="Release signing key passphrase") 
 @click.confirmation_option()
-def main(version, signing_key_passphrase):
-    kiln_repo = find_repo()
-    head_of_main = kiln_repo.revparse_single('main')
+def main(version):
+    no_verify=True
+
+    kiln_repo = Repo.discover()
     working_copy_clean = check_for_expected_working_copy_changes(kiln_repo)
     if working_copy_clean == False:
-        raise click.UsageError("Working copy contains uncomitted changes except for CHANGELOG.md")
-    release_branch = kiln_repo.branches.local.create(f"release/{version}", head_of_main)
-    kiln_repo.checkout(release_branch, strategy=GIT_CHECKOUT_SAFE|GIT_CHECKOUT_ALLOW_CONFLICTS)
+        raise click.ClickException("Working copy contains uncomitted changes except for CHANGELOG.md")
+    dulwich.porcelain.branch_create(kiln_repo.path, f"release/{version}")
+    release_branch_ref = f"refs/heads/release/{version}".encode()
+    kiln_repo.refs.set_symbolic_ref(b'HEAD', release_branch_ref)
 
-def find_repo():
-    current_working_directory = os.getcwd()
-    repository_path = discover_repository(current_working_directory)
-    repo = Repository(repository_path)
-    return repo
+    kiln_repo.stage(['CHANGELOG.md'])
+    changelog_commit = kiln_repo.do_commit(message=f"Docs: Update CHANGELOG.md for {version} release.".encode(), no_verify=no_verify)
+
+    set_cargo_toml_version(kiln_repo, "kiln_lib", version)
+    sh.cargo.check("--manifest-path", os.path.join(kiln_repo.path, "kiln_lib", "Cargo.toml"), "--all-features", _err=sys.stderr)
+    kiln_repo.stage(['kiln_lib/Cargo.toml', 'kiln_lib/Cargo.lock'])
+    kiln_lib_version_commit = kiln_repo.do_commit(message=f"Kiln_lib: Update component version to {version}".encode(), no_verify=no_verify)
+    origin = kiln_repo.get_config().get(('remote', 'origin'), 'url')
+    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=release_branch_ref)
+
+    for component in ["data-collector", "data-forwarder", "report-parser", "slack-connector"]:
+        set_kiln_lib_dependency(kiln_repo, component, sha=kiln_lib_version_commit)
+        sh.cargo.check("--manifest-path", os.path.join(kiln_repo.path, component, "Cargo.toml"), "--all-features", _err=sys.stderr)
+        kiln_repo.stage([f'{component}/Cargo.toml', f'{component}/Cargo.lock'])
+        kiln_repo.do_commit(message=f"{component.capitalize()}: Update kiln_lib dependency to {version}".encode(), no_verify=no_verify)
+        set_cargo_toml_version(kiln_repo, component, version)
+        sh.cargo.check("--manifest-path", os.path.join(kiln_repo.path, component, "Cargo.toml"), "--all-features", _err=sys.stderr)
+        kiln_repo.stage([f'{component}/Cargo.toml', f'{component}/Cargo.lock'])
+        kiln_repo.do_commit(message=f"{component.capitalize()}: Update component version to {version}".encode(), no_verify=no_verify)
+
+    set_cargo_toml_version(kiln_repo, "cli", version)
+    sh.cargo.check("--manifest-path", os.path.join(kiln_repo.path, 'cli', "Cargo.toml"), "--all-features", _err=sys.stderr)
+    kiln_repo.stage(['cli/Cargo.toml', 'cli/Cargo.lock'])
+    kiln_repo.do_commit(message="CLI: Update component version to {version}".encode(), no_verify=no_verify)
+
+    dulwich.porcelain.tag_create(kiln_repo, f"v{version}", message=f"v{version}".encode(), annotated=True, sign=True)
+    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=[release_branch_ref, f"v{version}".encode()])
+
+def set_cargo_toml_version(repo, component, version):
+    with open(os.path.join(repo.path, component, "Cargo.toml"), "r+") as f:
+        cargo_toml = toml.load(f)
+        cargo_toml['package']['version'] = str(version)
+        f.seek(0)
+        f.truncate()
+        toml.dump(cargo_toml, f, TomlPreserveInlineDictEncoder())
+
+def set_kiln_lib_dependency(repo, component, sha=None, branch=None):
+    with open(os.path.join(repo.path, component, "Cargo.toml"), "r+") as f:
+        cargo_toml = toml.load(f)
+        if sha is not None:
+            try:
+                del(cargo_toml['dependencies']['kiln_lib']['branch'])
+            except KeyError:
+                pass
+            try:
+                del(cargo_toml['dependencies']['kiln_lib']['rev'])
+            except KeyError:
+                pass
+            cargo_toml['dependencies']['kiln_lib']['rev'] = sha.decode('utf-8')
+        elif branch is not None:
+            try:
+                del(cargo_toml['dependencies']['kiln_lib']['branch'])
+            except KeyError:
+                pass
+            try:
+                del(cargo_toml['dependencies']['kiln_lib']['rev'])
+            except KeyError:
+                pass
+            cargo_toml['dependencies']['kiln_lib']['branch'] = branch
+        f.seek(0)
+        f.truncate()
+        toml.dump(cargo_toml, f, TomlPreserveInlineDictEncoder())
 
 def check_for_expected_working_copy_changes(kiln_repo):
-    status = kiln_repo.status()
-    for filepath, flags in status.items():
-        if flags != GIT_STATUS_CURRENT and flags != GIT_STATUS_IGNORED and filepath != "CHANGELOG.md":
+    (staged, unstaged, untracked) = dulwich.porcelain.status(kiln_repo)
+    if staged['add'] or staged['delete'] or staged['modify']:
+        return False
+    for item in unstaged:
+        if item != b"CHANGELOG.md" and not PurePath(item.decode("utf-8")).match("utils/*"):
             return False
     return True
 
