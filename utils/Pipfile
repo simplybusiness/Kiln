@@ -11,6 +11,7 @@ dulwich = "*"
 toml = "*"
 sh = "*"
 gpg = "*"
+docker = "*"
 
 [dev-packages]
 
