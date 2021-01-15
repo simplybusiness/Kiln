@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import click
+import docker
 import dulwich.porcelain
 from dulwich.repo import Repo
 import os
@@ -7,6 +8,7 @@ from pathlib import PurePath
 import re
 import semver
 import sh
+import shutil
 import sys
 import toml
 from toml import TomlPreserveInlineDictEncoder
@@ -60,6 +62,40 @@ def main(version):
 
     dulwich.porcelain.tag_create(kiln_repo, f"v{version}", message=f"v{version}".encode(), annotated=True, sign=True)
     dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=[release_branch_ref, f"v{version}".encode()])
+
+    sh.cargo.make("build-data-forwarder-musl", _cwd=os.path.join(kiln_repo.path, "data-forwarder"), _err=sys.stderr, _out=sys.stdout)
+    shutil.copy2(os.path.join(kiln_repo.path, "bin", "data-forwarder"), os.path.join(kiln_repo.path, "tool-images", "ruby", "bundler-audit"))
+    docker_client = docker.from_env()
+
+    image_tags = docker_image_tags(version)
+    bundler_audit_image = docker_client.images.build(
+            path=os.path.join(kiln_repo.path, "tool-images", "ruby", "bundler-audit"),
+            tag=image_tags[0],
+            rm=True)
+    for tag in image_tags[1:]:
+        bundler_audit_image.tag("kiln", tag=tag)
+
+    for component in ["data-collector", "report-parser", "slack-connector"]:
+        sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, component), _err=sys.stderr, _out=sys.stdout)
+        docker_image = docker_client.images.build(
+                path=os.path.join(kiln_repo.path, component),
+                tag=f"kiln/{component}:{image_tags[0]}",
+                rm=True)
+        for tag in image_tags[1:]:
+            docker_image.tag(f"kiln/{component}", tag=tag)
+
+def docker_image_tags(version):
+    tags = []
+    if version.major == 0:
+        tags.append(str(version))
+        tags.append(f"{version.major}.{version.minor}")
+        tags.append("latest")
+    else:
+        tags.append(str(version))
+        tags.append(f"{version.major}.{version.minor}")
+        tags.append(f"{version.major}")
+        tags.append("latest")
+    return tags
 
 def set_cargo_toml_version(repo, component, version):
     with open(os.path.join(repo.path, component, "Cargo.toml"), "r+") as f:
