@@ -58,7 +58,7 @@ def main(version):
     set_cargo_toml_version(kiln_repo, "cli", version)
     sh.cargo.check("--manifest-path", os.path.join(kiln_repo.path, 'cli', "Cargo.toml"), "--all-features", _err=sys.stderr)
     kiln_repo.stage(['cli/Cargo.toml', 'cli/Cargo.lock'])
-    kiln_repo.do_commit(message="CLI: Update component version to {version}".encode(), no_verify=no_verify)
+    kiln_repo.do_commit(message=f"CLI: Update component version to {version}".encode(), no_verify=no_verify)
 
     dulwich.porcelain.tag_create(kiln_repo, f"v{version}", message=f"v{version}".encode(), annotated=True, sign=True)
     dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=[release_branch_ref, f"v{version}".encode()])
