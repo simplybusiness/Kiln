@@ -60,8 +60,10 @@ def main(version):
     kiln_repo.stage(['cli/Cargo.toml', 'cli/Cargo.lock'])
     kiln_repo.do_commit(message=f"CLI: Update component version to {version}".encode(), no_verify=no_verify)
 
-    dulwich.porcelain.tag_create(kiln_repo, f"v{version}", message=f"v{version}".encode(), annotated=True, sign=True)
-    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=[release_branch_ref, f"v{version}".encode()])
+    signing_key_id = kiln_repo.get_config()[(b'user',)][b'signingkey'].decode('utf-8')
+    dulwich.porcelain.tag_create(kiln_repo, f"v{version}".encode(), message=f"v{version}".encode(), annotated=True, sign=signing_key_id)
+    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=[release_branch_ref])
+    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=[f"refs/tags/v{version}".encode()])
 
     sh.cargo.make("build-data-forwarder-musl", _cwd=os.path.join(kiln_repo.path, "data-forwarder"), _err=sys.stderr, _out=sys.stdout)
     shutil.copy2(os.path.join(kiln_repo.path, "bin", "data-forwarder"), os.path.join(kiln_repo.path, "tool-images", "ruby", "bundler-audit"))
