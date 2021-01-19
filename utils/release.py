@@ -72,7 +72,7 @@ def main(version):
     image_tags = docker_image_tags(version)
     (bundler_audit_image, build_logs) = docker_client.images.build(
             path=os.path.join(kiln_repo.path, "tool-images", "ruby", "bundler-audit"),
-            tag=image_tags[0],
+            tag=f"kiln/bundler-audit:{image_tags[0]}",
             rm=True)
     for line in build_logs:
         try:
@@ -81,7 +81,7 @@ def main(version):
             pass
 
     for tag in image_tags[1:]:
-        bundler_audit_image.tag("kiln", tag=tag)
+        bundler_audit_image.tag("kiln/bundler-audit", tag=tag)
 
     for component in ["data-collector", "report-parser", "slack-connector"]:
         sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, component), _err=sys.stderr, _out=sys.stdout)
