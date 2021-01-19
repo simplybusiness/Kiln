@@ -65,7 +65,7 @@ def main(version):
     dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=[release_branch_ref])
     dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=[f"refs/tags/v{version}".encode()])
 
-    sh.cargo.make("build-data-forwarder-musl", _cwd=os.path.join(kiln_repo.path, "data-forwarder"), _err=sys.stderr, _out=sys.stdout)
+    sh.cargo.make("build-data-forwarder-musl", _cwd=os.path.join(kiln_repo.path, "data-forwarder"), _err=sys.stderr)
     shutil.copy2(os.path.join(kiln_repo.path, "bin", "data-forwarder"), os.path.join(kiln_repo.path, "tool-images", "ruby", "bundler-audit"))
     docker_client = docker.from_env()
 
@@ -84,7 +84,7 @@ def main(version):
         bundler_audit_image.tag("kiln/bundler-audit", tag=tag)
 
     for component in ["data-collector", "report-parser", "slack-connector"]:
-        sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, component), _err=sys.stderr, _out=sys.stdout)
+        sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, component), _err=sys.stderr)
         (docker_image, build_logs) = docker_client.images.build(
                 path=os.path.join(kiln_repo.path, component),
                 tag=f"kiln/{component}:{image_tags[0]}",
