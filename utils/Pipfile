@@ -7,7 +7,7 @@ name = "pypi"
 click = "*"
 pygithub = "*"
 semver = "*"
-dulwich = "*"
+dulwich = {editable = true, ref = "specify-key-when-signing", git = "ssh://git@github.com/danhatesnumbers/dulwich.git"}
 toml = "*"
 sh = "*"
 gpg = "*"
