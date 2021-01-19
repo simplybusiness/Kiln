@@ -17,12 +17,12 @@ jobs:
             - name: Cache cargo registry
               uses: actions/cache@v1
               with:
-                path: ~/.cargo/registry
+                path: ~/.cache/docker/cargo/registry
                 key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Cache cargo index
               uses: actions/cache@v1
               with:
-                path: ~/.cargo/git
+                path: ~/.cache/docker/cargo/git
                 key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Cache cargo build
               uses: actions/cache@v1
@@ -55,12 +55,12 @@ jobs:
             - name: Cache cargo registry
               uses: actions/cache@v1
               with:
-                path: ~/.cargo/registry
+                path: ~/.cache/docker/cargo/registry
                 key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Cache cargo index
               uses: actions/cache@v1
               with:
-                path: ~/.cargo/git
+                path: ~/.cache/docker/cargo/git
                 key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Cache cargo build
               uses: actions/cache@v1
@@ -116,12 +116,12 @@ jobs:
             - name: Cache cargo registry
               uses: actions/cache@v1
               with:
-                path: ~/.cargo/registry
+                path: ~/.cache/docker/cargo/registry
                 key: ${{ runner.os }}-cargo-registry-${{ hashFiles('report-parser/Cargo.lock') }}
             - name: Cache cargo index
               uses: actions/cache@v1
               with:
-                path: ~/.cargo/git
+                path: ~/.cache/docker/cargo/git
                 key: ${{ runner.os }}-cargo-index-${{ hashFiles('report-parser/Cargo.lock') }}
             - name: Cache cargo build
               uses: actions/cache@v1
@@ -154,12 +154,12 @@ jobs:
             - name: Cache cargo registry
               uses: actions/cache@v1
               with:
-                path: ~/.cargo/registry
+                path: ~/.cache/docker/cargo/registry
                 key: ${{ runner.os }}-cargo-registry-${{ hashFiles('slack-connector/Cargo.lock') }}
             - name: Cache cargo index
               uses: actions/cache@v1
               with:
-                path: ~/.cargo/git
+                path: ~/.cache/docker/cargo/git
                 key: ${{ runner.os }}-cargo-index-${{ hashFiles('slack-connector/Cargo.lock') }}
             - name: Cache cargo build
               uses: actions/cache@v1
