@@ -70,19 +70,30 @@ def main(version):
     docker_client = docker.from_env()
 
     image_tags = docker_image_tags(version)
-    bundler_audit_image = docker_client.images.build(
+    (bundler_audit_image, build_logs) = docker_client.images.build(
             path=os.path.join(kiln_repo.path, "tool-images", "ruby", "bundler-audit"),
             tag=image_tags[0],
             rm=True)
+    for line in build_logs:
+        try:
+            print(line['stream'], end='')
+        except KeyError:
+            pass
+
     for tag in image_tags[1:]:
         bundler_audit_image.tag("kiln", tag=tag)
 
     for component in ["data-collector", "report-parser", "slack-connector"]:
         sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, component), _err=sys.stderr, _out=sys.stdout)
-        docker_image = docker_client.images.build(
+        (docker_image, build_logs) = docker_client.images.build(
                 path=os.path.join(kiln_repo.path, component),
                 tag=f"kiln/{component}:{image_tags[0]}",
                 rm=True)
+        for line in build_logs:
+            try:
+                print(line['stream'], end='')
+            except KeyError:
+                pass
         for tag in image_tags[1:]:
             docker_image.tag(f"kiln/{component}", tag=tag)
 
