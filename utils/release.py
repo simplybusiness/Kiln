@@ -3,6 +3,8 @@ import click
 import docker
 import dulwich.porcelain
 from dulwich.repo import Repo
+import hashlib
+import gpg
 import os
 from pathlib import PurePath
 import re
@@ -10,6 +12,7 @@ import semver
 import sh
 import shutil
 import sys
+import tarfile
 import toml
 from toml import TomlPreserveInlineDictEncoder
 
@@ -96,6 +99,42 @@ def main(version):
                 pass
         for tag in image_tags[1:]:
             docker_image.tag(f"kiln/{component}", tag=tag)
+
+    sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, "cli"), _err=sys.stderr)
+    base_path = os.path.join(kiln_repo.path, "cli", "target", "x86_64-unknown-linux-musl", "release")
+    src_path = os.path.join(base_path, "kiln-cli")
+    base_name = f"kiln-cli-{version}.x86_64"
+    dst_path = os.path.join(base_path, base_name)
+    tarball_name = f"{base_name}.tar.xz"
+    tarball_path = os.path.join(base_path, tarball_name)
+    hashfile_name = f"{tarball_name}.sha256"
+    hashfile_path = os.path.join(base_path, hashfile_name)
+    sig_name = f"{hashfile_name}.sig"
+    sig_path = os.path.join(base_path, sig_name)
+
+    os.rename(src_path, dst_path)
+    with tarfile.open(name=tarball_path, mode='w:xz') as tarball:
+        tarball.add(dst_path, arcname=base_name)
+
+    sha256sum = hashlib.sha256()
+    b  = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(tarball_path, 'rb', buffering=0) as f:
+        for n in iter(lambda : f.readinto(mv), 0):
+            sha256sum.update(mv[:n])
+    tarball_hash = sha256sum.hexdigest()
+    with open(hashfile_path, 'w') as f:
+        f.write(f"{tarball_hash} {tarball_name}")
+
+    with gpg.Context() as default_ctx:
+        signing_key = default_ctx.get_key(signing_key_id)
+        with gpg.Context(signers=[signing_key]) as ctx:
+            with open(hashfile_path, 'rb') as hashfile:
+                with open(sig_path, 'wb') as sigfile:
+                    hashdata = hashfile.read()
+                    sig, metadata = ctx.sign(hashdata, mode=gpg.constants.sig.mode.DETACH)
+                    sigfile.write(sig)
+
 
 def docker_image_tags(version):
     tags = []
