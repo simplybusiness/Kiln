@@ -20,11 +20,7 @@ use kiln_lib::dependency_event::{
 };
 use kiln_lib::kafka::*;
 use kiln_lib::log::NestedJsonFmt;
-use kiln_lib::tool_report::{
-    ApplicationName, EndTime, Environment, EventID, EventVersion, GitBranch, GitCommitHash,
-    IssueHash, OutputFormat, StartTime, SuppressedIssue, ToolName, ToolOutput, ToolReport,
-    ToolVersion
-};
+use kiln_lib::tool_report::{EventID, EventVersion, IssueHash, SuppressedIssue, ToolReport};
 use kiln_lib::traits::Hashable;
 use rdkafka::consumer::{CommitMode, Consumer};
 use rdkafka::message::Message;
@@ -34,7 +30,7 @@ use reqwest::blocking::Client;
 use reqwest::header::ETAG;
 use ring::digest;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -49,8 +45,6 @@ use slog::Drain;
 use slog::{FnValue, PushFnValue};
 use slog_derive::SerdeValue;
 use uuid::Uuid;
-
-use httpmock::MockServer;
 
 const SERVICE_NAME: &str = "report-parser";
 const PYTHON_SAFETY_VULN_URL: &str =
@@ -849,7 +843,14 @@ fn should_issue_be_suppressed(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use httpmock::MockServer;
+    use kiln_lib::tool_report::{
+        ApplicationName, EndTime, Environment, EventID, EventVersion, GitBranch, GitCommitHash,
+        IssueHash, OutputFormat, StartTime, SuppressedIssue, ToolName, ToolOutput, ToolReport,
+        ToolVersion,
+    };
     use kiln_lib::tool_report::{ExpiryDate, SuppressedBy, SuppressionReason};
+    use serde_json::json;
 
     #[test]
     fn issue_suppression_works_when_suppressed_issues_is_empty() {
