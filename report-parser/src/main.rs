@@ -191,16 +191,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     })?;
 
     let mut etag = None;
-    let mut safety_cve_map =
-        download_and_parse_python_safety_vulns(PYTHON_SAFETY_VULN_URL.to_string(), &mut etag, &client)
-            .map_err(|err| {
-                error!(error_logger, "Error downloading Python Safety Vulns";
-                    o!(
-                        "error.message" => err.to_string(),
-                    )
-                );
-                err
-            })?;
+    let mut safety_cve_map = download_and_parse_python_safety_vulns(
+        &PYTHON_SAFETY_VULN_URL,
+        &mut etag,
+        &client,
+    )
+    .map_err(|err| {
+        error!(error_logger, "Error downloading Python Safety Vulns";
+            o!(
+                "error.message" => err.to_string(),
+            )
+        );
+        err
+    })?;
 
     last_updated_time = Some(Utc::now());
 
@@ -212,7 +215,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .lt(&(Utc::now() - Duration::days(1)))
         {
             let new_safety_cve_map = download_and_parse_python_safety_vulns(
-                PYTHON_SAFETY_VULN_URL.to_string(),
+                &PYTHON_SAFETY_VULN_URL,
                 &mut etag,
                 &client,
             )
@@ -686,7 +689,7 @@ enum SafetyJsonData {
 }
 
 fn download_and_parse_python_safety_vulns(
-    server_name: String,
+    server_name: &str,
     etag: &mut Option<String>,
     client: &Client,
 ) -> Result<Option<HashMap<String, Option<String>>>, Box<dyn Error>> {
@@ -1104,7 +1107,7 @@ mod tests {
         });
         let client = Client::new();
         assert!(
-            download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client)
+            download_and_parse_python_safety_vulns(&server.url("/data"), &mut etag, &client)
                 .is_err(),
             "HTTP error status not handled correctly"
         );
@@ -1159,7 +1162,7 @@ mod tests {
                 }));
         });
         let client = Client::new();
-        let res = download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client);
+        let res = download_and_parse_python_safety_vulns(&server.url("/data"), &mut etag, &client);
         assert!(etag.is_some());
         assert!(
             etag.unwrap() == "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\""
@@ -1235,7 +1238,7 @@ mod tests {
         });
         let client = Client::new();
         let old_etag = etag.clone();
-        let res = download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client);
+        let res = download_and_parse_python_safety_vulns(&server.url("/data"), &mut etag, &client);
         assert!(etag.is_some());
         assert!(
             old_etag.unwrap() != etag.clone().unwrap(),
@@ -1315,7 +1318,7 @@ mod tests {
         });
         let client = Client::new();
         let old_etag = etag.clone();
-        let res = download_and_parse_python_safety_vulns(server.url("/data"), &mut etag, &client);
+        let res = download_and_parse_python_safety_vulns(&server.url("/data"), &mut etag, &client);
         assert!(old_etag.unwrap() == etag.unwrap());
         assert!(
             res.is_ok(),
