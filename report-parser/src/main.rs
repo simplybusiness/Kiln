@@ -476,23 +476,21 @@ fn download_and_parse_vulns(
                     Cvss::builder().with_version(CvssVersion::Unknown).build()
                 };
 
-                let adv_text = vuln_info
+                let desc_data_arr = vuln_info
                     .get("cve")
                     .and_then(|cve| cve.get("description"))
-                    .and_then(|desc| desc.get("description_data"))
-                    .and_then(|desc_data| desc_data.get("value"))
-                    .unwrap()
-                    .to_string();
+                    .and_then(|desc| desc.get("description_data"));
 
-                let compr_adv_text = ComprString::new(&adv_text);
+                let adv = desc_data_arr.unwrap()[0]["value"].to_string();
 
-                let adv_url = vuln_info
+                let compr_adv_text = ComprString::new(&adv);
+
+                let adv_ref_arr = vuln_info
                     .get("cve")
-                    .and_then(|cve| cve.get("reference"))
-                    .and_then(|refer| refer.get("reference_data"))
-                    .and_then(|refer_data| refer_data.get("url"))
-                    .unwrap()
-                    .to_string();
+                    .and_then(|cve| cve.get("references"))
+                    .and_then(|refer| refer.get("reference_data"));
+
+                let adv_url_str = adv_ref_arr.unwrap()[0]["url"].to_string();
 
                 (
                     vuln_info["cve"]["CVE_data_meta"]["ID"]
@@ -501,7 +499,7 @@ fn download_and_parse_vulns(
                         .to_string(),
                     VulnData {
                         advisory_str: compr_adv_text,
-                        advisory_url: adv_url,
+                        advisory_url: adv_url_str,
                         cvss: cvss.unwrap(),
                     },
                 )
