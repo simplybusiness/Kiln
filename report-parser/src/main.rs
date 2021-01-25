@@ -48,7 +48,7 @@ use uuid::Uuid;
 
 const SERVICE_NAME: &str = "report-parser";
 const PYTHON_SAFETY_VULN_URL: &str =
-    "https://github.com/pyupio/safety-db/blob/master/data/insecure_full.json";
+    "https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -191,11 +191,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     })?;
 
     let mut etag = None;
-    let safety_json_db_url =
-        "https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json"
-            .to_string();
     let mut safety_cve_map =
-        download_and_parse_python_safety_vulns(safety_json_db_url.clone(), &mut etag, &client)
+        download_and_parse_python_safety_vulns(PYTHON_SAFETY_VULN_URL.to_string(), &mut etag, &client)
             .map_err(|err| {
                 error!(error_logger, "Error downloading Python Safety Vulns";
                     o!(
@@ -215,7 +212,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .lt(&(Utc::now() - Duration::days(1)))
         {
             let new_safety_cve_map = download_and_parse_python_safety_vulns(
-                safety_json_db_url.clone(),
+                PYTHON_SAFETY_VULN_URL.to_string(),
                 &mut etag,
                 &client,
             )
