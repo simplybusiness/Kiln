@@ -191,19 +191,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     })?;
 
     let mut etag = None;
-    let mut safety_cve_map = download_and_parse_python_safety_vulns(
-        &PYTHON_SAFETY_VULN_URL,
-        &mut etag,
-        &client,
-    )
-    .map_err(|err| {
-        error!(error_logger, "Error downloading Python Safety Vulns";
-            o!(
-                "error.message" => err.to_string(),
-            )
-        );
-        err
-    })?;
+    let mut safety_cve_map =
+        download_and_parse_python_safety_vulns(&PYTHON_SAFETY_VULN_URL, &mut etag, &client)
+            .map_err(|err| {
+                error!(error_logger, "Error downloading Python Safety Vulns";
+                    o!(
+                        "error.message" => err.to_string(),
+                    )
+                );
+                err
+            })?;
 
     last_updated_time = Some(Utc::now());
 
@@ -214,19 +211,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
             .lt(&(Utc::now() - Duration::days(1)))
         {
-            let new_safety_cve_map = download_and_parse_python_safety_vulns(
-                &PYTHON_SAFETY_VULN_URL,
-                &mut etag,
-                &client,
-            )
-            .map_err(|err| {
-                error!(error_logger, "Error downloading Python Safety Vulns";
-                    o!(
-                        "error.message" => err.to_string(),
-                    )
-                );
-                err
-            })?;
+            let new_safety_cve_map =
+                download_and_parse_python_safety_vulns(&PYTHON_SAFETY_VULN_URL, &mut etag, &client)
+                    .map_err(|err| {
+                        error!(error_logger, "Error downloading Python Safety Vulns";
+                            o!(
+                                "error.message" => err.to_string(),
+                            )
+                        );
+                        err
+                    })?;
             if new_safety_cve_map.is_some() {
                 safety_cve_map = new_safety_cve_map;
             }
@@ -576,11 +570,11 @@ fn parse_bundler_audit_plaintext(
         static ref BLOCK_RE: Regex = Regex::new("(Name: .*\nVersion: .*\nAdvisory: .*\nCriticality: .*\nURL: .*\nTitle: .*\nSolution:.*\n)").unwrap();
     }
     let mut events = Vec::new();
-   
+
     let default_cvss = Cvss::builder()
-            .with_version(CvssVersion::Unknown)
-            .build()
-            .unwrap();
+        .with_version(CvssVersion::Unknown)
+        .build()
+        .unwrap();
 
     for block in BLOCK_RE.captures_iter(report.tool_output.as_ref()) {
         let block = block.get(0).unwrap().as_str();
@@ -752,65 +746,106 @@ fn parse_safety_json(
     let python_dep_vulns: Vec<PythonSafety> = serde_json::from_str(report.tool_output.as_ref())?;
 
     let default_cvss = Cvss::builder()
-            .with_version(CvssVersion::Unknown)
-            .build()
-            .unwrap();
+        .with_version(CvssVersion::Unknown)
+        .build()
+        .unwrap();
     for vuln in python_dep_vulns.iter() {
         let advisory_id = AdvisoryId::try_from(vuln.advisory_id.to_owned())?;
-
-
-        let mut advisory_str = vuln.advisory_description.to_string();
-        let mut advisory_url = PYTHON_SAFETY_VULN_URL.to_string();
-        let mut cvss = &default_cvss;
-
         match safety_vulns.get(&format!("pyup.io-{}", advisory_id.to_string())) {
             Some(res) => match res {
                 Some(s) => {
-                    let cve_vec = s.split(',').collect::<Vec<&str>>();
+                    let cve_vec = s
+                        .split(',')
+                        .collect::<Vec<&str>>()
+                        .into_iter()
+                        .map(|v| v.trim());
                     for cve_str in cve_vec {
-                        cvss = vulns.get(cve_str).map_or(&default_cvss, |v| &v.cvss);
-                        advisory_str = vulns
-                            .get(cve_str)
-                            .map_or(vuln.advisory_description.to_string(), |v| {
-                                v.advisory_str.to_string()
-                            });
-                        advisory_url = vulns
-                            .get(cve_str)
-                            .map_or(PYTHON_SAFETY_VULN_URL.to_string(), |v| {
-                                v.advisory_url.to_string()
-                            });
+                        let (cvss, advisory_str, advisory_url) = vulns.get(cve_str).map_or(
+                            (
+                                &default_cvss,
+                                vuln.advisory_description.to_string(),
+                                PYTHON_SAFETY_VULN_URL.to_string(),
+                            ),
+                            |v| {
+                                (
+                                    &v.cvss,
+                                    v.advisory_str.to_string(),
+                                    v.advisory_url.to_string(),
+                                )
+                            },
+                        );
+                        let mut event = DependencyEvent {
+                            event_version: EventVersion::try_from("1".to_string())?,
+                            event_id: EventID::try_from(
+                                Uuid::new_v4().to_hyphenated().to_string(),
+                            )?,
+                            parent_event_id: report.event_id.clone(),
+                            application_name: report.application_name.clone(),
+                            git_branch: report.git_branch.clone(),
+                            git_commit_hash: report.git_commit_hash.clone(),
+                            timestamp: Timestamp::try_from(report.end_time.to_string())?,
+                            affected_package: AffectedPackage::try_from(
+                                vuln.affected_package.to_owned(),
+                            )?,
+                            installed_version: InstalledVersion::try_from(
+                                vuln.installed_version.to_owned(),
+                            )?,
+                            advisory_url: AdvisoryUrl::try_from(advisory_url)?,
+                            advisory_id: advisory_id.clone(),
+                            advisory_description: AdvisoryDescription::try_from(advisory_str)?,
+                            cvss: cvss.clone(),
+                            suppressed: false,
+                        };
+
+                        let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+                        event.suppressed = should_issue_be_suppressed(
+                            &issue_hash,
+                            &report.suppressed_issues,
+                            &Utc::now(),
+                        );
+                        //println!("advisory id: {} \n adv_desc: {} \n adv_url: {}", event.advisory_id, event.advisory_description, event.advisory_url);
+
+                        events.push(event.clone());
                     }
                 }
                 _ => (),
             },
-            None => (),
+            None => {
+                let mut event = DependencyEvent {
+                    event_version: EventVersion::try_from("1".to_string())?,
+                    event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+                    parent_event_id: report.event_id.clone(),
+                    application_name: report.application_name.clone(),
+                    git_branch: report.git_branch.clone(),
+                    git_commit_hash: report.git_commit_hash.clone(),
+                    timestamp: Timestamp::try_from(report.end_time.to_string())?,
+                    affected_package: AffectedPackage::try_from(vuln.affected_package.to_owned())?,
+                    installed_version: InstalledVersion::try_from(
+                        vuln.installed_version.to_owned(),
+                    )?,
+                    advisory_url: AdvisoryUrl::try_from(PYTHON_SAFETY_VULN_URL.to_string())?,
+                    advisory_id: advisory_id.clone(),
+                    advisory_description: AdvisoryDescription::try_from(
+                        vuln.advisory_description.to_string(),
+                    )?,
+                    cvss: default_cvss.clone(),
+                    suppressed: false,
+                };
+                let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+                event.suppressed =
+                    should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
+
+                //println!("advisory id: {} \n adv_desc: {} \n adv_url: {}", event.advisory_id, event.advisory_description, event.advisory_url);
+                events.push(event.clone());
+            }
         };
-        let mut event = DependencyEvent {
-            event_version: EventVersion::try_from("1".to_string())?,
-            event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
-            parent_event_id: report.event_id.clone(),
-            application_name: report.application_name.clone(),
-            git_branch: report.git_branch.clone(),
-            git_commit_hash: report.git_commit_hash.clone(),
-            timestamp: Timestamp::try_from(report.end_time.to_string())?,
-            affected_package: AffectedPackage::try_from(vuln.affected_package.to_owned())?,
-            installed_version: InstalledVersion::try_from(vuln.installed_version.to_owned())?,
-            advisory_url: AdvisoryUrl::try_from(advisory_url)?,
-            advisory_id: advisory_id.clone(),
-            advisory_description: AdvisoryDescription::try_from(advisory_str)?,
-            cvss: cvss.clone(),
-            suppressed: false,
-        };
-
-        let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
-
-        event.suppressed =
-            should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
-
-        events.push(event);
     }
+    //println!("Events: {}", events.len());
     Ok(events)
 }
+
 #[derive(Clone, SerdeValue, Serialize, Deserialize)]
 struct EventType(Vec<String>);
 
@@ -1348,30 +1383,48 @@ mod tests {
         "38100"
     ]]"#;
 
-        let advisory_text = "Some advsiory text";
-        let compr_adv_text = ComprString::new(advisory_text);
-        let advisory_url = "http://someurl.co.uk/";
+        let advisory_text_1 = "Some advsiory text CVE-2020-13757";
+        let compr_adv_text_1 = ComprString::new(advisory_text_1);
+        let advisory_url_1 = "http://someurl-cve-2020-13757.co.uk/";
+
+        let advisory_text_2 = "Some advsiory text CVE-2020-14564";
+        let compr_adv_text_2 = ComprString::new(advisory_text_2);
+        let advisory_url_2 = "http://someurl-cve-2020-14564.co.uk/";
 
         let safety_cve_map: HashMap<String, Option<String>> = [(
             "pyup.io-38414".to_string(),
-            Some("CVE-2020-13757".to_string()),
+            Some("CVE-2020-13757 , CVE-2020-14564".to_string()),
         )]
         .iter()
         .cloned()
         .collect();
 
-        let vulnshash: HashMap<String, VulnData> = [(
-            "CVE-2020-13757".to_string(),
-            VulnData {
-                advisory_str: compr_adv_text,
-                advisory_url: advisory_url.to_string(),
-                cvss: Cvss::builder()
-                    .with_version(CvssVersion::V2)
-                    .with_score(Some(7.5))
-                    .build()
-                    .unwrap(),
-            },
-        )]
+        let vulnshash: HashMap<String, VulnData> = [
+            (
+                "CVE-2020-13757".to_string(),
+                VulnData {
+                    advisory_str: compr_adv_text_1,
+                    advisory_url: advisory_url_1.to_string(),
+                    cvss: Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(7.5))
+                        .build()
+                        .unwrap(),
+                },
+            ),
+            (
+                "CVE-2020-14564".to_string(),
+                VulnData {
+                    advisory_str: compr_adv_text_2,
+                    advisory_url: advisory_url_2.to_string(),
+                    cvss: Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(7.5))
+                        .build()
+                        .unwrap(),
+                },
+            ),
+        ]
         .iter()
         .cloned()
         .collect();
@@ -1400,11 +1453,17 @@ mod tests {
         let events_res = parse_safety_json(&test_report, &vulnshash, &safety_cve_map);
         assert!(events_res.is_ok());
         let events = events_res.unwrap();
-        assert_eq!(events.len(), 2);
+        assert_eq!(events.len(), 3);
         assert!(events[0].affected_package.to_string() == "rsa");
-        assert!(events[0].advisory_url.to_string() == advisory_url);
-        assert!(events[0].advisory_description.to_string() == advisory_text);
-        assert!(events[1].affected_package.to_string() == "pyyaml");
-        assert!(events[1].advisory_url.to_string() == PYTHON_SAFETY_VULN_URL);
+        assert!(events[0].advisory_id.to_string() == "38414".to_string());
+        assert!(events[0].advisory_url.to_string() == advisory_url_1);
+        assert!(events[0].advisory_description.to_string() == advisory_text_1);
+        assert!(events[1].advisory_id.to_string() == "38414".to_string());
+        assert!(events[1].affected_package.to_string() == "rsa");
+        assert!(events[1].advisory_url.to_string() == advisory_url_2);
+        assert!(events[1].advisory_description.to_string() == advisory_text_2);
+        assert!(events[2].advisory_id.to_string() == "38100".to_string());
+        assert!(events[2].affected_package.to_string() == "pyyaml");
+        assert!(events[2].advisory_url.to_string() == PYTHON_SAFETY_VULN_URL);
     }
 }
