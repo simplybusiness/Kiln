@@ -720,9 +720,9 @@ fn download_and_parse_python_safety_vulns(
         .into());
     }
 
-    let meta_resp_text = reqwest::blocking::get(safety_json_db_url)?.text()?;
+    let safety_db_resp_text = reqwest::blocking::get(safety_json_db_url)?.text()?;
     let python_safety_vuln_info_json: HashMap<String, SafetyJsonData> =
-        serde_json::from_str(meta_resp_text.as_ref())?;
+        serde_json::from_str(safety_db_resp_text.as_ref())?;
     let cve_items = python_safety_vuln_info_json
         .values()
         .filter(|ref _s| match _s {
@@ -733,11 +733,7 @@ fn download_and_parse_python_safety_vulns(
             SafetyJsonData::Vuln(s) => s.iter(),
             _ => unreachable!(),
         })
-        .collect::<Vec<_>>()
-        .into_iter()
         .flatten()
-        .collect::<Vec<_>>()
-        .iter()
         .map(|p| match &p.cve {
             Value::String(s) => (p.id.to_owned(), Some(s.to_owned())),
             _ => (p.id.to_owned(), None),
