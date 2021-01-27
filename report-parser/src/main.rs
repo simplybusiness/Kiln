@@ -576,6 +576,12 @@ fn parse_bundler_audit_plaintext(
         static ref BLOCK_RE: Regex = Regex::new("(Name: .*\nVersion: .*\nAdvisory: .*\nCriticality: .*\nURL: .*\nTitle: .*\nSolution:.*\n)").unwrap();
     }
     let mut events = Vec::new();
+   
+    let default_cvss = Cvss::builder()
+            .with_version(CvssVersion::Unknown)
+            .build()
+            .unwrap();
+
     for block in BLOCK_RE.captures_iter(report.tool_output.as_ref()) {
         let block = block.get(0).unwrap().as_str();
         let fields = block
@@ -592,11 +598,6 @@ fn parse_bundler_audit_plaintext(
                 .unwrap()
                 .to_owned(),
         )?;
-
-        let default_cvss = Cvss::builder()
-            .with_version(CvssVersion::Unknown)
-            .build()
-            .unwrap();
 
         let cvss = vulns
             .get(&advisory_id.to_string())
@@ -749,13 +750,14 @@ fn parse_safety_json(
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     let mut events = Vec::new();
     let python_dep_vulns: Vec<PythonSafety> = serde_json::from_str(report.tool_output.as_ref())?;
-    for vuln in python_dep_vulns.iter() {
-        let advisory_id = AdvisoryId::try_from(vuln.advisory_id.to_owned())?;
 
-        let default_cvss = Cvss::builder()
+    let default_cvss = Cvss::builder()
             .with_version(CvssVersion::Unknown)
             .build()
             .unwrap();
+    for vuln in python_dep_vulns.iter() {
+        let advisory_id = AdvisoryId::try_from(vuln.advisory_id.to_owned())?;
+
 
         let mut advisory_str = vuln.advisory_description.to_string();
         let mut advisory_url = PYTHON_SAFETY_VULN_URL.to_string();
