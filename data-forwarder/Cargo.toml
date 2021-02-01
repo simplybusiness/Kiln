@@ -4,12 +4,12 @@ version = "0.4.1"
 edition = "2018"
 
 [dependencies]
-kiln_lib = { git = "https://github.com/simplybusiness/Kiln", branch = "main", features = ["json", "toml"] }
-clap = "2"  
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", features = [ "json", "toml",], rev = "2d62569d652ff16f495cf0f5afd6e15cb6719fb0" }
+clap = "2"
 chrono = "0.4"
-reqwest = "0.9" 
+reqwest = "0.9"
 git2 = "0.10"
-uuid = { version = "0.8", features = ["v4"] }
+uuid = { version = "0.8", features = [ "v4",] }
 openssl-probe = "0.1.2"
 toml = "0.5"
 retry = "1"
