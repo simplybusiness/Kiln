@@ -6,7 +6,7 @@ edition = "2018"
 [dependencies]
 avro-rs = "0.6"
 failure = "0.1"
-kiln_lib = { git = "https://github.com/simplybusiness/Kiln", features = [ "avro", "streaming", "json", "log",], rev = "2d62569d652ff16f495cf0f5afd6e15cb6719fb0" }
+kiln_lib = { git = "https://github.com/simplybusiness/Kiln", features = [ "avro", "streaming", "json", "log",], branch = "main" }
 regex = "1"
 lazy_static = "1"
 uuid = { version = "0.8", features = [ "v4",] }
