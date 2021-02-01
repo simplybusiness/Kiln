@@ -1,6 +1,10 @@
 # UNRELEASED
 * Nothing... yet
 
+# 0.4.2 - 2021/02/01
+## Data-collector
+* Fixed a bug in the formatting of log output that was causing logs to be incompatible with Elastic Common Schema. The `source.address` field contained an ip address:port pair, when it should have just been an IP address.
+
 # 0.4.1 - 2021/01/07
 ## Report Parser
 * Fixed a bug in how NIST NVD data is pulled that meant data after 2020 would not be pulled because of a hardcoded year
