@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "5575cf4e9d40d344c712f8393805483f1d9f8e843ab3e50521615a767b972478"
+            "sha256": "add249908bb57020ea7e13cd7451945bb44380ea23a934d52c142c0a799ab2ca"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -28,7 +28,6 @@
                 "sha256:0d6f53a15db4120f2b08c94f11e7d93d2c911ee118b6b30a04ec3ee8310179fa",
                 "sha256:f864054d66fd9118f2e67044ac8981a54775ec5b67aed0441892edb553d21da5"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
             "version": "==4.0.0"
         },
         "click": {
@@ -44,7 +43,6 @@
                 "sha256:471ec32b2755172046e28102cd46c481f21c6036a0ec027521eba8521aa4ef35",
                 "sha256:924b6921f822b64ec54f49be6700a126bab0640cfafca78f22c9d429ed590560"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==1.2.11"
         },
         "docker": {
@@ -57,27 +55,8 @@
         },
         "dulwich": {
             "editable": true,
-            "git": "ssh://git@github.com/danhatesnumbers/dulwich.git",
-            "hashes": [
-                "sha256:0eb7818b633599ad30d148fe54fcdcaae3e21fefdc835ecefbf83a5e54b40e6c",
-                "sha256:17dd011ddd1cff8f0e80a9bb8a28442cc071dec0fbefc8202dbde8b1db3f4d4d",
-                "sha256:18c96c3fc544a5c8f8bc7c0bfe697d82f68693ffee00f0c0e7ecf4aefc75736b",
-                "sha256:22ef7832678af5c34ae2bb0cf26645f51becce104b85c960d26cc446fbd6f137",
-                "sha256:55613b1cecf0103835d05a04644ce0868630a6d5ba2ac83f847ce407798a7cb8",
-                "sha256:615e3fab089273ade8ef8377e2b469f45f1d09c948782e47f386cbf95d663e29",
-                "sha256:63874b54a56871ab69c34d7c3f8f5e2af3949cb47dd491fcc473a6fd25d31f72",
-                "sha256:6eaa7b6dd07df31759cee06ba30489c421cd0ff993099223a7c7b89f191d8d32",
-                "sha256:8f49475bdfcab263586f61ac485f1d9e83e0d56de4173bae8f06f3da32620c71",
-                "sha256:b0e852cd0f74209147cbcf6b58efc32c96297b4942bea3c669a7221133bc25d0",
-                "sha256:c9eeff547e09c90c4aadc12dc99bac7cfb962def728b9fc012cfd58a3129dad0",
-                "sha256:d8088a41d6fe6f8871abd1a8ad5fa7a7cadb9c1b7455d397c9a54cc10b04d825",
-                "sha256:e0c5c863eaed3825473646ae9ec7d5847dacbb06bb11abcfadb488ac93a15b4c",
-                "sha256:ec6e7ffc5ff387d4173397619308939504736767454e29b02847ea0f801890b6",
-                "sha256:fb1773373ec2af896031f8312af6962a1b8b0176a2de3fb3d84a84ec04498888",
-                "sha256:fea0dbd77e5123b81b76582713151bee3ca78f1706026895bfc4040ae1e88894",
-                "sha256:feb2a10771710d05eff0f0b89979a0b688d7dff8ab1f0dd3a2b7b1147691bb9f"
-            ],
-            "ref": "9954ff70e0699eaafbcf15db20a3b750cf68a88b"
+            "git": "https://github.com/danhatesnumbers/dulwich.git",
+            "ref": "specify-key-when-signing"
         },
         "gpg": {
             "hashes": [
@@ -91,7 +70,6 @@
                 "sha256:b307872f855b18632ce0c21c5e45be78c0ea7ae4c15c828c20788b26921eb3f6",
                 "sha256:b97d804b1e9b523befed77c48dacec60e6dcb0b5391d57af6a65a312a90648c0"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==2.10"
         },
         "pygithub": {
@@ -114,7 +92,6 @@
                 "sha256:27973dd4a904a4f13b263a19c866c13b92a39ed1c964655f025f3f8d3d75b804",
                 "sha256:c210084e36a42ae6b9219e00e48287def368a26d03a048ddad7bfee44f75871e"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
             "version": "==2.25.1"
         },
         "semver": {
@@ -138,7 +115,6 @@
                 "sha256:30639c035cdb23534cd4aa2dd52c3bf48f06e5f4a941509c8bafd8ce11080259",
                 "sha256:8b74bedcbbbaca38ff6d7491d76f2b06b3592611af620f8426e82dddb04a5ced"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==1.15.0"
         },
         "toml": {
@@ -151,11 +127,10 @@
         },
         "urllib3": {
             "hashes": [
-                "sha256:19188f96923873c92ccb987120ec4acaa12f0461fa9ce5d3d0772bc965a39e08",
-                "sha256:d8ff90d979214d7b4f8ce956e80f4028fc6860e4431f731ea4a8c08f23f99473"
+                "sha256:1b465e494e3e0d8939b50680403e3aedaa2bc434b7d5af64dfd3c958d7f5ae80",
+                "sha256:de3eedaad74a2683334e282005cd8d7f22f4d55fa690a2a1020a416cb0a47e73"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'",
-            "version": "==1.26.2"
+            "version": "==1.26.3"
         },
         "websocket-client": {
             "hashes": [
