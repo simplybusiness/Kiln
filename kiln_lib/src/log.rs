@@ -130,10 +130,8 @@ impl slog::Serializer for NestedJsonFmtSerializer {
             .map_err(|_| slog::Error::Other)
     }
 
-    fn emit_none(&mut self, key: slog::Key) -> Result<(), Error> {
-        self.initial_value
-            .dot_set(key, Value::Null)
-            .map_err(|_| slog::Error::Other)
+    fn emit_none(&mut self, _key: slog::Key) -> Result<(), Error> {
+        Ok(())
     }
 
     fn emit_arguments<'b>(&mut self, key: slog::Key, val: &Arguments<'b>) -> Result<(), Error> {
@@ -276,6 +274,36 @@ pub mod tests {
         assert_eq!(
             output.snapshot_str(),
             format!("{}\n", json!({"ecs": {"version": "1.6"}, "event": {"kind": "event"}, "http": {"request": {"method": "GET", "body": {"bytes": "12345"}}}}).to_string())
+        );
+    }
+
+    #[test]
+    fn adding_option_none_value_works() {
+        let output = LogCapture::default();
+        let drain = NestedJsonFmt::new(output.clone()).fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let logger = Logger::root(drain, o!("ecs.version" => "1.6"));
+        debug!(logger, "test msg"; "event.kind" => "event", "http.request.method" => "GET", "http.request.body.bytes" => "12345", "source.ip" => Option::None::<&str>);
+
+        drop(logger);
+        assert_eq!(
+            output.snapshot_str(),
+            format!("{}\n", json!({"ecs": {"version": "1.6"}, "event": {"kind": "event"}, "http": {"request": {"method": "GET", "body": {"bytes": "12345"}}}}).to_string())
+        );
+    }
+
+    #[test]
+    fn adding_option_some_value_works() {
+        let output = LogCapture::default();
+        let drain = NestedJsonFmt::new(output.clone()).fuse();
+        let drain = slog_async::Async::new(drain).build().fuse();
+        let logger = Logger::root(drain, o!("ecs.version" => "1.6"));
+        debug!(logger, "test msg"; "event.kind" => "event", "http.request.method" => "GET", "http.request.body.bytes" => "12345", "source.ip" => Some("192.0.2.123"));
+
+        drop(logger);
+        assert_eq!(
+            output.snapshot_str(),
+            format!("{}\n", json!({"ecs": {"version": "1.6"}, "event": {"kind": "event"}, "http": {"request": {"method": "GET", "body": {"bytes": "12345"}}}, "source": {"ip": "192.0.2.123"}}).to_string())
         );
     }
 
