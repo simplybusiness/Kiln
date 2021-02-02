@@ -104,24 +104,19 @@ where
                 .headers()
                 .get(USER_AGENT)
                 .and_then(|v| v.to_str().ok())
-                .map(|v| v.to_string())
-                .unwrap_or(String::from("-"));
+                .map(|v| v.to_string());
 
             let source_ip = req
                 .connection_info()
                 .remote()
                 .and_then(|conn_info| std::net::SocketAddr::from_str(conn_info).ok())
-                .map_or_else(
-                    || String::from("-"),
-                    |socket_addr| socket_addr.ip().to_string(),
-                );
+                .map(|socket_addr| socket_addr.ip().to_string());
 
             let url_domain = req
                 .headers()
                 .get(HOST)
                 .and_then(|v| v.to_str().ok())
-                .map(|v| v.to_string())
-                .unwrap_or(String::from("-"));
+                .map(|v| v.to_string());
 
             let http_version = format!("{:?}", req.version());
             let http_request_method = req.path().to_owned();
