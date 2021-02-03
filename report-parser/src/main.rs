@@ -697,6 +697,7 @@ fn download_and_parse_python_safety_vulns(
 ) -> Result<Option<HashMap<String, Option<String>>>, Box<dyn Error>> {
     let safety_json_db_url = &server_name.to_string();
     let head_resp = client.head(safety_json_db_url).send()?;
+    let mut etag_str=None;
     if head_resp.status().is_success() {
         if let Some(etag_new) = head_resp.headers().get(ETAG) {
             // If the etag passed in is none or different to the one we just got, then download below....
@@ -705,10 +706,10 @@ fn download_and_parse_python_safety_vulns(
                     if *etag_old == etag_new.to_str().unwrap() {
                         return Ok(None);
                     } else {
-                        *etag = Some(etag_new.to_str().unwrap().to_owned());
+                        etag_str = Some(etag_new.to_str().unwrap().to_owned());
                     }
                 }
-                None => *etag = Some(etag_new.to_str().unwrap().to_owned()),
+                None =>  etag_str = Some(etag_new.to_str().unwrap().to_owned()),
             }
         }
     } else {
@@ -725,6 +726,8 @@ fn download_and_parse_python_safety_vulns(
     let safety_db_resp_text = reqwest::blocking::get(safety_json_db_url)?.text()?;
     let python_safety_vuln_info_json: HashMap<String, SafetyJsonData> =
         serde_json::from_str(safety_db_resp_text.as_ref())?;
+
+    *etag = etag_str;
     let cve_items = python_safety_vuln_info_json
         .values()
         .filter(|ref _s| match _s {
@@ -1368,14 +1371,18 @@ mod tests {
         "<4.3",
         "3.4.2",
         "Rsa 4.3 includes two security fixes:\r\n- Choose blinding factor relatively prime to N.\r\n- Reject cyphertexts (when decrypting) and signatures (when verifying) that have  been modified by prepending zero bytes. This resolves CVE-2020-13757.",
-        "38414"
+        "38414", 
+        null, 
+        null
     ],
     [
         "pyyaml",
         "<5.3.1",
         "5.1.2",
         "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
-        "38100"
+        "38100", 
+        null, 
+        null
     ]]"#;
 
         let advisory_text_1 = "Some advsiory text CVE-2020-13757";
