@@ -203,9 +203,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             })?;
 
     info!(root_logger, "Successfully got Python dependency vulns from Safety tool database";
-              o!(
-                  "event.type" => EventType(vec!("info".to_string())),
-              )
+        o!(
+            "event.type" => EventType(vec!("info".to_string())),
+        )
     );
     last_updated_time = Some(Utc::now());
 
@@ -235,7 +235,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
             .lt(&(Utc::now() - Duration::hours(2)))
         {
-            download_and_parse_vulns( 
+            download_and_parse_vulns(
                 "modified".to_string(),
                 last_updated_time,
                 &base_url,
@@ -611,10 +611,10 @@ fn parse_bundler_audit_plaintext(
             git_commit_hash: report.git_commit_hash.clone(),
             timestamp: Timestamp::try_from(report.end_time.to_string())?,
             affected_package: AffectedPackage::try_from(
-                    fields
-                        .get("Name")
-                        .cloned()
-                        .or_else(|| Some("".to_string()))
+                fields
+                    .get("Name")
+                    .cloned()
+                    .or_else(|| Some("".to_string()))
                     .unwrap()
                     .to_owned(),
             )?,
@@ -664,8 +664,8 @@ struct PythonSafety {
     installed_version: String,
     advisory_description: String,
     advisory_id: String,
-    cvssv2: Option<String>, 
-    cvssv3: Option<String>
+    cvssv2: Option<String>,
+    cvssv3: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -697,7 +697,7 @@ fn download_and_parse_python_safety_vulns(
 ) -> Result<Option<HashMap<String, Option<String>>>, Box<dyn Error>> {
     let safety_json_db_url = &server_name.to_string();
     let head_resp = client.head(safety_json_db_url).send()?;
-    let mut etag_str=None;
+    let mut etag_str = None;
     if head_resp.status().is_success() {
         if let Some(etag_new) = head_resp.headers().get(ETAG) {
             // If the etag passed in is none or different to the one we just got, then download below....
@@ -709,7 +709,7 @@ fn download_and_parse_python_safety_vulns(
                         etag_str = Some(etag_new.to_str().unwrap().to_owned());
                     }
                 }
-                None =>  etag_str = Some(etag_new.to_str().unwrap().to_owned()),
+                None => etag_str = Some(etag_new.to_str().unwrap().to_owned()),
             }
         }
     } else {
@@ -761,33 +761,29 @@ fn parse_safety_json(
         .unwrap();
 
     for vuln in python_dep_vulns.iter() {
-        
         let advisory_id = AdvisoryId::try_from(vuln.advisory_id.to_owned())?;
-        
+
         let mut event = DependencyEvent {
-                    event_version: EventVersion::try_from("1".to_string())?,
-                    event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
-                    parent_event_id: report.event_id.clone(),
-                    application_name: report.application_name.clone(),
-                    git_branch: report.git_branch.clone(),
-                    git_commit_hash: report.git_commit_hash.clone(),
-                    timestamp: Timestamp::try_from(report.end_time.to_string())?,
-                    affected_package: AffectedPackage::try_from(vuln.affected_package.to_owned())?,
-                    installed_version: InstalledVersion::try_from(
-                        vuln.installed_version.to_owned(),
-                    )?,
-                    advisory_url: AdvisoryUrl::try_from(PYTHON_SAFETY_VULN_URL.to_string())?,
-                    advisory_id: advisory_id.clone(),
-                    advisory_description: AdvisoryDescription::try_from(
-                        vuln.advisory_description.to_string(),
-                    )?,
-                    cvss: default_cvss.clone(),
-                    suppressed: false,
+            event_version: EventVersion::try_from("1".to_string())?,
+            event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+            parent_event_id: report.event_id.clone(),
+            application_name: report.application_name.clone(),
+            git_branch: report.git_branch.clone(),
+            git_commit_hash: report.git_commit_hash.clone(),
+            timestamp: Timestamp::try_from(report.end_time.to_string())?,
+            affected_package: AffectedPackage::try_from(vuln.affected_package.to_owned())?,
+            installed_version: InstalledVersion::try_from(vuln.installed_version.to_owned())?,
+            advisory_url: AdvisoryUrl::try_from(PYTHON_SAFETY_VULN_URL.to_string())?,
+            advisory_id: advisory_id.clone(),
+            advisory_description: AdvisoryDescription::try_from(
+                vuln.advisory_description.to_string(),
+            )?,
+            cvss: default_cvss.clone(),
+            suppressed: false,
         };
         match safety_vulns.get(&format!("pyup.io-{}", advisory_id.to_string())) {
             Some(res) => match res {
                 Some(s) => {
-
                     let cve_vec = s
                         .split(',')
                         .collect::<Vec<&str>>()
@@ -809,7 +805,6 @@ fn parse_safety_json(
                             },
                         );
 
-
                         event.advisory_url = AdvisoryUrl::try_from(advisory_url)?;
                         event.advisory_description = AdvisoryDescription::try_from(advisory_str)?;
                         event.cvss = cvss.clone();
@@ -824,13 +819,17 @@ fn parse_safety_json(
                         events.push(event.clone());
                     }
                 }
-                _ =>  { 
-                        let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+                _ => {
+                    let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
 
-                        event.suppressed =
-                            should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
-                        events.push(event.clone());},
-                },
+                    event.suppressed = should_issue_be_suppressed(
+                        &issue_hash,
+                        &report.suppressed_issues,
+                        &Utc::now(),
+                    );
+                    events.push(event.clone());
+                }
+            },
             None => {
                 let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
 
@@ -1153,7 +1152,7 @@ mod tests {
             when.any_request();
             then.status(200)
                 .header("Connection", "keep-alive")
-                .header("Content-Length", "348")
+                .header("Content-Length", "708")
                 .header("Cache-Control", "max-age=300")
                 .header(
                     "Content-Security-Policy",
@@ -1189,7 +1188,27 @@ mod tests {
                         ],
                         "v": "<2.2.7"
                     }
-                    ]
+                    ],
+                    "renku": [
+                    {
+                        "advisory": "Renku version 0.4.0 fixes CVE-2017-18342.",
+                        "cve": "CVE-2017-18342",
+                        "id": "pyup.io-38552",
+                        "specs": [
+                            "<0.4.0"
+                        ],
+                        "v": "<0.4.0"
+                    },
+                    {
+                        "advisory": "Renku 0.6.0 updates the werkzeug package due to security concerns - see https://github.com/SwissDataScienceCenter/renku-python/issues/633",
+                        "cve": null,
+                        "id": "pyup.io-37548",
+                        "specs": [
+                            "<0.6.0"
+                        ],
+                        "v": "<0.6.0"
+                    }
+                    ],
                 }));
         });
         let client = Client::new();
@@ -1209,7 +1228,7 @@ mod tests {
         );
         let vhash = res_ok.unwrap();
         assert!(
-            vhash.is_empty() == false,
+            vhash.len() == 4,
             "Incorrect number of elements in the Python safety map"
         );
         assert!(
@@ -1218,6 +1237,13 @@ mod tests {
         );
         let value = vhash.get("pyup.io-37611").unwrap();
         assert_eq!(value.as_ref().unwrap(), "CVE-2018-1000805");
+
+        let value = vhash.get("pyup.io-37548").unwrap();
+        assert!(value.is_none());
+
+        let value = vhash.get("pyup.io-38552").unwrap();
+        assert_eq!(value.as_ref().unwrap(), "CVE-2017-18342");
+
         mock.assert_hits(2);
     }
 
@@ -1231,7 +1257,7 @@ mod tests {
             when.any_request();
             then.status(200)
                 .header("Connection", "keep-alive")
-                .header("Content-Length", "348")
+                .header("Content-Length", "708")
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .header("Cache-Control", "max-age=300")
                 .header(
@@ -1264,7 +1290,27 @@ mod tests {
                         ],
                         "v": "<2.2.7"
                     }
-                    ]
+                    ],
+                    "renku": [
+                    {
+                        "advisory": "Renku version 0.4.0 fixes CVE-2017-18342.",
+                        "cve": "CVE-2017-18342",
+                        "id": "pyup.io-38552",
+                        "specs": [
+                            "<0.4.0"
+                        ],
+                        "v": "<0.4.0"
+                    },
+                    {
+                        "advisory": "Renku 0.6.0 updates the werkzeug package due to security concerns - see https://github.com/SwissDataScienceCenter/renku-python/issues/633",
+                        "cve": null,
+                        "id": "pyup.io-37548",
+                        "specs": [
+                            "<0.6.0"
+                        ],
+                        "v": "<0.6.0"
+                    }
+                    ],
                 }));
         });
         let client = Client::new();
@@ -1289,7 +1335,7 @@ mod tests {
         );
         let vhash = res_ok.unwrap();
         assert!(
-            vhash.len() > 0,
+            vhash.len() == 4,
             "Incorrect number of elements in the Python safety map"
         );
         assert!(
@@ -1298,6 +1344,13 @@ mod tests {
         );
         let value = vhash.get("pyup.io-37611").unwrap();
         assert_eq!(value.as_ref().unwrap(), "CVE-2018-1000805");
+
+        let value = vhash.get("pyup.io-37548").unwrap();
+        assert!(value.is_none());
+
+        let value = vhash.get("pyup.io-38552").unwrap();
+        assert_eq!(value.as_ref().unwrap(), "CVE-2017-18342");
+
         mock.assert_hits(2);
     }
 
