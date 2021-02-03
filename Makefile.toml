@@ -1,6 +1,6 @@
 [tasks.server-components]
 dependencies = [
-    "build-data-collector-git-docker",
+	"build-data-collector-git-docker",
 	"build-report-parser-git-docker",
 	"build-slack-connector-git-docker"
 ]
@@ -8,7 +8,8 @@ dependencies = [
 [tasks.tools]
 dependencies = [
 	"build-data-forwarder-musl",
-	"build-bundler-audit-docker"
+	"build-bundler-audit-docker",
+	"build-safety-docker"
 ]
 
 [tasks.cli]
@@ -34,3 +35,7 @@ args = ["make", "--cwd", "data-forwarder", "build-data-forwarder-musl"]
 [tasks.build-bundler-audit-docker]
 command = "cargo"
 args = ["make", "--cwd", "tool-images/ruby/bundler-audit", "build-bundler-audit-docker"]
+
+[tasks.build-safety-docker]
+command = "cargo"
+args = ["make", "--cwd", "tool-images/python/safety", "build-safety-docker"]
