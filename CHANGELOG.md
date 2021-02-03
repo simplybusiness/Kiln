@@ -1,6 +1,10 @@
 # UNRELEASED
 * Nothing... yet
 
+# 0.4.3 - 20201/02/03
+## Data-collector
+* Fixed a bug in the formatting of log output that was causing logs to be incompatible with Elastic Common Schema. When a value could not be determined, a default of '-' was used, which is incompatible with some fields. Now optional fields with no value are not included in log output.
+
 # 0.4.2 - 2021/02/01
 ## Data-collector
 * Fixed a bug in the formatting of log output that was causing logs to be incompatible with Elastic Common Schema. The `source.address` field contained an ip address:port pair, when it should have just been an IP address.
