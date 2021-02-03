@@ -597,7 +597,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.4.3"
-source = "git+https://github.com/simplybusiness/Kiln?rev=f1ba6e0c6fbea3c8bf2bd300a2d3086afe7b3e70#f1ba6e0c6fbea3c8bf2bd300a2d3086afe7b3e70"
+source = "git+https://github.com/simplybusiness/Kiln?branch=main#8d0494ccc4fa205e941b18c461d01f7ec542c827"
 dependencies = [
  "addr",
  "avro-rs",
