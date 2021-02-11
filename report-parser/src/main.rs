@@ -480,7 +480,7 @@ fn download_and_parse_vulns(
                     .and_then(|cve| cve.get("description"))
                     .and_then(|desc| desc.get("description_data"));
 
-                let adv = desc_data_arr.unwrap()[0]["value"].as_str().unwrap_or("");
+                let adv = desc_data_arr.filter(|x| x["value"]=="en").unwrap()[0]["value"].as_str().unwrap_or("");
 
                 let compr_adv_text = ComprString::new(&adv);
 
