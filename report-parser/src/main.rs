@@ -697,8 +697,7 @@ fn download_and_parse_python_safety_vulns(
     etag: &mut Option<String>,
     client: &Client,
 ) -> Result<Option<HashMap<String, Option<String>>>, Box<dyn Error>> {
-    let safety_json_db_url = &server_name.to_string();
-    let head_resp = client.head(safety_json_db_url).send()?;
+    let head_resp = client.head(server_name).send()?;
     let mut etag_str = None;
     if head_resp.status().is_success() {
         if let Some(etag_new) = head_resp.headers().get(ETAG) {
