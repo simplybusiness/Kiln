@@ -725,7 +725,7 @@ fn download_and_parse_python_safety_vulns(
         .into());
     }
 
-    let safety_db_resp_text = reqwest::blocking::get(safety_json_db_url)?.text()?;
+    let safety_db_resp_text = reqwest::blocking::get(server_name)?.text()?;
     let python_safety_vuln_info_json: HashMap<String, SafetyJsonData> =
         serde_json::from_str(safety_db_resp_text.as_ref())?;
 
