@@ -9,11 +9,6 @@ RUN ["chmod", "+x", "/entrypoint.sh"]
 COPY data-forwarder /data-forwarder
 RUN ["chmod", "+x", "/data-forwarder"]
 
-RUN apk add --no-cache --virtual .pynacl_deps build-base python3-dev libffi-dev openssl-dev
 RUN pip install safety
-RUN pip install insecure-package
-RUN pip install 'blackduck==0.0.50'
-RUN pip install distro
-RUn pip install django=='1.11.22'
 
 CMD ["/entrypoint.sh"]
