@@ -475,14 +475,20 @@ fn download_and_parse_vulns(
                     Cvss::builder().with_version(CvssVersion::Unknown).build()
                 };
 
-                let desc_data_arr = vuln_info
+                let desc_data = vuln_info
                     .get("cve")
                     .and_then(|cve| cve.get("description"))
-                    .and_then(|desc| desc.get("description_data"));
+                    .and_then(|desc| desc.get("description_data"))
+                    .unwrap()
+                    .as_array();
 
-                let adv = desc_data_arr.filter(|x| x["value"] == "en").unwrap()[0]["value"]
-                    .as_str()
-                    .unwrap_or("");
+                let adv = desc_data
+                    .unwrap()
+                    .iter()
+                    .filter(|x| x["lang"].as_str().unwrap() == "en")
+                    .next()
+                    .and_then(|y| Some(y["value"].as_str().unwrap().to_string()))
+                    .unwrap_or("".to_string());
 
                 let compr_adv_text = ComprString::new(&adv);
 
