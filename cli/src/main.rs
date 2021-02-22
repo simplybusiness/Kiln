@@ -973,7 +973,7 @@ pub mod tests {
 
     mock! {
         pub Client {
-            fn execute(&self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>>>>;
+            pub fn execute(&self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>>>>;
         }
     }
 
