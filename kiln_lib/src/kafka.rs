@@ -82,7 +82,7 @@ pub fn build_kafka_producer(config: KafkaBootstrapTlsConfig) -> Result<FuturePro
         .set("compression.type", "gzip")
         .set("security.protocol", "SSL")
         .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
-        .set("ssl.ca.location", &cert_location.unwrap().to_string_lossy())
+        .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
         .create()
 }
 
@@ -103,7 +103,7 @@ pub fn build_kafka_consumer(
         .set("compression.type", "gzip")
         .set("security.protocol", "SSL")
         .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
-        .set("ssl.ca.location", &cert_location.unwrap().to_string_lossy())
+        .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
         .create()
 }
 
