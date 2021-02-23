@@ -641,7 +641,7 @@ use actix_web::http::StatusCode;
 #[cfg(feature = "web")]
 impl Into<HttpResponse> for ValidationError {
     fn into(self) -> HttpResponse {
-        HttpResponse::BadRequest().json(self)
+        HttpResponse::BadRequest().json(&self)
     }
 }
 
