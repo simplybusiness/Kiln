@@ -1,7 +1,7 @@
 #[cfg(feature = "avro")]
 use crate::avro_schema::DEPENDENCY_EVENT_SCHEMA;
 #[cfg(feature = "avro")]
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 
 use crate::tool_report::{ApplicationName, EventID, EventVersion, GitBranch, GitCommitHash};
 use crate::traits::Hashable;
@@ -44,87 +44,69 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
 
     fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
         let schema = Schema::parse_str(DEPENDENCY_EVENT_SCHEMA).unwrap();
-        let resolved_value = value.resolve(&schema).map_err(|err| {
-            anyhow!(
-                "Error resolving Avro schema: {}",
-                err.name().unwrap()
-            )
-        })?;
+        let resolved_value = value.resolve(&schema).context("Error resolving Avro schema")?;
 
         if let avro_rs::types::Value::Record(record) = resolved_value {
             let mut fields = record.iter();
             let event_version =
-                EventVersion::try_from(fields.find(|&x| x.0 == "event_version").unwrap().1.clone())
-                    .map_err(|err| anyhow!(err))?;
+                EventVersion::try_from(fields.find(|&x| x.0 == "event_version").unwrap().1.clone())?;
             let event_id =
-                EventID::try_from(fields.find(|&x| x.0 == "event_id").unwrap().1.clone())
-                    .map_err(|err| anyhow!(err))?;
+                EventID::try_from(fields.find(|&x| x.0 == "event_id").unwrap().1.clone())?;
             let parent_event_id = EventID::try_from(
                 fields
                     .find(|&x| x.0 == "parent_event_id")
                     .unwrap()
                     .1
                     .clone(),
-            )
-            .map_err(|err| anyhow!(err))?;
+            )?;
             let application_name = ApplicationName::try_from(
                 fields
                     .find(|&x| x.0 == "application_name")
                     .unwrap()
                     .1
                     .clone(),
-            )
-            .map_err(|err| anyhow!(err))?;
+            )?;
             let git_branch =
-                GitBranch::try_from(fields.find(|&x| x.0 == "git_branch").unwrap().1.clone())
-                    .map_err(|err| anyhow!(err))?;
+                GitBranch::try_from(fields.find(|&x| x.0 == "git_branch").unwrap().1.clone())?;
             let git_commit_hash = GitCommitHash::try_from(
                 fields
                     .find(|&x| x.0 == "git_commit_hash")
                     .unwrap()
                     .1
                     .clone(),
-            )
-            .map_err(|err| anyhow!(err))?;
+            )?;
             let timestamp =
-                Timestamp::try_from(fields.find(|&x| x.0 == "timestamp").unwrap().1.clone())
-                    .map_err(|err| anyhow!(err))?;
+                Timestamp::try_from(fields.find(|&x| x.0 == "timestamp").unwrap().1.clone())?;
             let affected_package = AffectedPackage::try_from(
                 fields
                     .find(|&x| x.0 == "affected_package")
                     .unwrap()
                     .1
                     .clone(),
-            )
-            .map_err(|err| anyhow!(err))?;
+            )?;
             let installed_version = InstalledVersion::try_from(
                 fields
                     .find(|&x| x.0 == "installed_version")
                     .unwrap()
                     .1
                     .clone(),
-            )
-            .map_err(|err| anyhow!(err))?;
+            )?;
             let advisory_id =
-                AdvisoryId::try_from(fields.find(|&x| x.0 == "advisory_id").unwrap().1.clone())
-                    .map_err(|err| anyhow!(err))?;
+                AdvisoryId::try_from(fields.find(|&x| x.0 == "advisory_id").unwrap().1.clone())?;
             let advisory_url =
-                AdvisoryUrl::try_from(fields.find(|&x| x.0 == "advisory_url").unwrap().1.clone())
-                    .map_err(|err| anyhow!(err))?;
+                AdvisoryUrl::try_from(fields.find(|&x| x.0 == "advisory_url").unwrap().1.clone())?;
             let advisory_description = AdvisoryDescription::try_from(
                 fields
                     .find(|&x| x.0 == "advisory_description")
                     .unwrap()
                     .1
                     .clone(),
-            )
-            .map_err(|err| anyhow!(err))?;
-            let cvss = Cvss::try_from(fields.find(|&x| x.0 == "cvss").unwrap().1.clone())
-                .map_err(|err| anyhow!(err))?;
+            )?;
+            let cvss = Cvss::try_from(fields.find(|&x| x.0 == "cvss").unwrap().1.clone())?;
             let suppressed_avro = fields.find(|&x| x.0 == "suppressed").unwrap().1.clone();
             let suppressed = match suppressed_avro {
                 avro_rs::types::Value::Boolean(b) => Ok(b),
-                _ => Err(anyhow!(ValidationError::suppressed_flag_not_a_boolean())),
+                _ => Err(ValidationError::suppressed_flag_not_a_boolean()),
             }?;
 
             Ok(DependencyEvent {

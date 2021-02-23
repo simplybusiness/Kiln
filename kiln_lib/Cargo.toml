@@ -5,7 +5,7 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
-avro-rs = { version = "0.6", optional = true }
+avro-rs = { version = "0.13", optional = true }
 chrono = { version = "0.4", features = [ "serde",] }
 actix-web = { version = "4.0.0-beta.3", optional = true }
 hex = { version = "0.4", features = [ "serde",] }
