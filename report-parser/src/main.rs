@@ -130,7 +130,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build()?;
 
     let mut vulns = HashMap::new();
-    let mut safety_cve_map = HashMap::new();
     for year in 2002..=Utc::today().year() {
         download_and_parse_vulns(year.to_string(), last_updated_time, &base_url, &client)
             .map_err(|err| {
