@@ -883,7 +883,7 @@ async fn prepare_tool_image(
                 break;
             }
             match item.unwrap() {
-                Ok(CreateImageInfo{
+                Ok(CreateImageInfo {
                     status,
                     progress_detail,
                     id,
