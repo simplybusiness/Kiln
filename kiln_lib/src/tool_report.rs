@@ -3,7 +3,7 @@ use crate::avro_schema::TOOL_REPORT_SCHEMA;
 #[cfg(feature = "avro")]
 use avro_rs::schema::Schema;
 #[cfg(feature = "avro")]
-use failure::err_msg;
+use anyhow::anyhow;
 
 #[cfg(feature = "json")]
 use serde_json::value::Value;
@@ -397,25 +397,25 @@ impl TryFrom<&Value> for ToolReport {
 
 #[cfg(feature = "avro")]
 impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
-    type Error = failure::Error;
+    type Error = anyhow::Error;
 
     fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
         let schema = Schema::parse_str(TOOL_REPORT_SCHEMA).unwrap();
         let resolved_value = value.resolve(&schema).map_err(|err| {
-            err_msg(format!(
+            anyhow!(
                 "Error resolving Avro schema: {}",
                 err.name().unwrap()
-            ))
+            )
         })?;
 
         if let avro_rs::types::Value::Record(record) = resolved_value {
             let mut fields = record.iter();
             let event_version =
                 EventVersion::try_from(fields.find(|&x| x.0 == "event_version").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let event_id =
                 EventID::try_from(fields.find(|&x| x.0 == "event_id").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let application_name = ApplicationName::try_from(
                 fields
                     .find(|&x| x.0 == "application_name")
@@ -423,10 +423,10 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
                     .1
                     .clone(),
             )
-            .map_err(|err| err_msg(err.error_message))?;
+            .map_err(|err| anyhow!(err))?;
             let git_branch =
                 GitBranch::try_from(fields.find(|&x| x.0 == "git_branch").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let git_commit_hash = GitCommitHash::try_from(
                 fields
                     .find(|&x| x.0 == "git_commit_hash")
@@ -434,28 +434,28 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
                     .1
                     .clone(),
             )
-            .map_err(|err| err_msg(err.error_message))?;
+            .map_err(|err| anyhow!(err))?;
             let tool_name =
                 ToolName::try_from(fields.find(|&x| x.0 == "tool_name").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let tool_output =
                 ToolOutput::try_from(fields.find(|&x| x.0 == "tool_output").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let output_format =
                 OutputFormat::try_from(fields.find(|&x| x.0 == "output_format").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let start_time =
                 StartTime::try_from(fields.find(|&x| x.0 == "start_time").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let end_time =
                 EndTime::try_from(fields.find(|&x| x.0 == "end_time").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let environment =
                 Environment::try_from(fields.find(|&x| x.0 == "environment").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let tool_version =
                 ToolVersion::try_from(fields.find(|&x| x.0 == "tool_version").unwrap().1.clone())
-                    .map_err(|err| err_msg(err.error_message))?;
+                    .map_err(|err| anyhow!(err))?;
             let suppressed_issues_avro = fields
                 .find(|&x| x.0 == "suppressed_issues")
                 .unwrap()
@@ -467,7 +467,7 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
                     .into_iter()
                     .map(|unparsed_issue| {
                         SuppressedIssue::try_from(unparsed_issue)
-                            .map_err(|err| err_msg(err.error_message))
+                            .map_err(|err| anyhow!(err))
                     })
                     .collect::<Result<Vec<SuppressedIssue>, _>>()),
                 _ => Err(ValidationError::suppressed_issues_not_an_array()),
@@ -489,7 +489,7 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
                 suppressed_issues,
             })
         } else {
-            Err(err_msg("Something went wrong decoding Avro record"))
+            Err(anyhow!("Something went wrong decoding Avro record"))
         }
     }
 }
