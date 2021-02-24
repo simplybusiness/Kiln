@@ -629,7 +629,7 @@ pub mod tests {
         writer.append_ser(event.clone()).unwrap();
         writer.flush().unwrap();
 
-        let input = writer.into_inner();
+        let input = writer.into_inner().unwrap();
         let reader = Reader::with_schema(&schema, &input[..]).unwrap();
         let mut input_records = reader.into_iter().collect::<Vec<_>>();
         let parsed_record = input_records.remove(0).unwrap();

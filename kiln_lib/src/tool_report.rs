@@ -2202,7 +2202,7 @@ pub mod tests {
         writer.append_ser(report).unwrap();
         writer.flush().unwrap();
 
-        let input = writer.into_inner();
+        let input = writer.into_inner().unwrap();
 
         let reader = Reader::with_schema(&schema, &input[..]).unwrap();
         let mut input_records = reader.into_iter().collect::<Vec<_>>();
