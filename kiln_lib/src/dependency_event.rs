@@ -44,12 +44,15 @@ impl<'a> TryFrom<avro_rs::types::Value> for DependencyEvent {
 
     fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
         let schema = Schema::parse_str(DEPENDENCY_EVENT_SCHEMA).unwrap();
-        let resolved_value = value.resolve(&schema).context("Error resolving Avro schema")?;
+        let resolved_value = value
+            .resolve(&schema)
+            .context("Error resolving Avro schema")?;
 
         if let avro_rs::types::Value::Record(record) = resolved_value {
             let mut fields = record.iter();
-            let event_version =
-                EventVersion::try_from(fields.find(|&x| x.0 == "event_version").unwrap().1.clone())?;
+            let event_version = EventVersion::try_from(
+                fields.find(|&x| x.0 == "event_version").unwrap().1.clone(),
+            )?;
             let event_id =
                 EventID::try_from(fields.find(|&x| x.0 == "event_id").unwrap().1.clone())?;
             let parent_event_id = EventID::try_from(

@@ -1,9 +1,9 @@
 #[cfg(feature = "avro")]
 use crate::avro_schema::TOOL_REPORT_SCHEMA;
 #[cfg(feature = "avro")]
-use avro_rs::schema::Schema;
-#[cfg(feature = "avro")]
 use anyhow::{anyhow, Context};
+#[cfg(feature = "avro")]
+use avro_rs::schema::Schema;
 
 #[cfg(feature = "json")]
 use serde_json::value::Value;
@@ -401,12 +401,15 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
 
     fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
         let schema = Schema::parse_str(TOOL_REPORT_SCHEMA).unwrap();
-        let resolved_value = value.resolve(&schema).context("Error resolving Avro schema")?;
+        let resolved_value = value
+            .resolve(&schema)
+            .context("Error resolving Avro schema")?;
 
         if let avro_rs::types::Value::Record(record) = resolved_value {
             let mut fields = record.iter();
-            let event_version =
-                EventVersion::try_from(fields.find(|&x| x.0 == "event_version").unwrap().1.clone())?;
+            let event_version = EventVersion::try_from(
+                fields.find(|&x| x.0 == "event_version").unwrap().1.clone(),
+            )?;
             let event_id =
                 EventID::try_from(fields.find(|&x| x.0 == "event_id").unwrap().1.clone())?;
             let application_name = ApplicationName::try_from(
@@ -429,8 +432,9 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
                 ToolName::try_from(fields.find(|&x| x.0 == "tool_name").unwrap().1.clone())?;
             let tool_output =
                 ToolOutput::try_from(fields.find(|&x| x.0 == "tool_output").unwrap().1.clone())?;
-            let output_format =
-                OutputFormat::try_from(fields.find(|&x| x.0 == "output_format").unwrap().1.clone())?;
+            let output_format = OutputFormat::try_from(
+                fields.find(|&x| x.0 == "output_format").unwrap().1.clone(),
+            )?;
             let start_time =
                 StartTime::try_from(fields.find(|&x| x.0 == "start_time").unwrap().1.clone())?;
             let end_time =
@@ -449,8 +453,7 @@ impl<'a> TryFrom<avro_rs::types::Value> for ToolReport {
                 avro_rs::types::Value::Array(issues) => Ok(issues
                     .into_iter()
                     .map(|unparsed_issue| {
-                        SuppressedIssue::try_from(unparsed_issue)
-                            .map_err(|err| anyhow!(err))
+                        SuppressedIssue::try_from(unparsed_issue).map_err(|err| anyhow!(err))
                     })
                     .collect::<Result<Vec<SuppressedIssue>, _>>()),
                 _ => Err(ValidationError::suppressed_issues_not_an_array()),
