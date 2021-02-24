@@ -80,7 +80,7 @@ struct CliConfigOptions {
 
 enum Tool {
     BundlerAudit,
-    Safety
+    Safety,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -315,9 +315,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             SubCommand::with_name("python")
                 .about("perform security testing of Python based projects")
                 .setting(AppSettings::SubcommandRequired)
-                .subcommand(SubCommand::with_name("dependencies").about(
-                    "Use Safety to find known vulnerabilities in project dependencies",
-                )),
+                .subcommand(
+                    SubCommand::with_name("dependencies")
+                        .about("Use Safety to find known vulnerabilities in project dependencies"),
+                ),
         )
         .get_matches();
 
@@ -409,7 +410,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Some("dependencies") => (Tool::BundlerAudit, matches.value_of("tool-image-name")), //Image and tag
             _ => unreachable!(),
         },
-        ("python", Some(sub_m)) => match sub_m.subcommand_name() { 
+        ("python", Some(sub_m)) => match sub_m.subcommand_name() {
             Some("dependencies") => (Tool::Safety, matches.value_of("tool-image-name")),
             _ => unreachable!(),
         },
@@ -428,7 +429,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             match tool {
                 Tool::BundlerAudit => {
                     image_builder.with_image("bundler-audit");
-                }, 
+                }
 
                 Tool::Safety => {
                     image_builder.with_image("safety");
