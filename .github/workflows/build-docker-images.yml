@@ -104,6 +104,35 @@ jobs:
             - name: Docker push latest
               run: cargo make bundler-audit-docker-push-git-latest
               working-directory: tool-images/ruby/bundler-audit
+    build-safety-docker:
+        name: Build Safety tool docker image
+        runs-on: ubuntu-18.04
+        needs: data-forwarder
+        steps:
+            - uses: davidB/rust-cargo-make@v1
+              with:
+                version: 0.22.2
+            - name: Checkout
+              uses: actions/checkout@v1
+            - name: Download pre-built data-forwarder
+              uses: actions/download-artifact@v1
+              with:
+                name: data-forwarder
+                path: tool-images/python/safety/
+            - name: Build safety
+              run: cargo make build-safety-git-docker
+              working-directory: tool-images/python/safety
+            - name: docker login
+              uses: azure/docker-login@v1
+              with:
+                password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+                username: kilnautomation
+            - name: Docker push version
+              run: cargo make safety-docker-push-git-version
+              working-directory: tool-images/python/safety
+            - name: Docker push latest
+              run: cargo make safety-docker-push-git-latest
+              working-directory: tool-images/python/safety
     report-parser:
         name: Report-parser build
         runs-on: ubuntu-18.04
