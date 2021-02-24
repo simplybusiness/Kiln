@@ -7,6 +7,7 @@ use avro_rs::{Reader, Schema, Writer};
 use chrono::prelude::*;
 use chrono::Duration;
 use chrono::{SecondsFormat, Utc};
+use compressed_string::ComprString;
 use data_encoding::HEXUPPER;
 use failure::err_msg;
 use flate2::read::GzDecoder;
@@ -26,6 +27,7 @@ use rdkafka::message::Message;
 use rdkafka::producer::future_producer::FutureRecord;
 use regex::Regex;
 use reqwest::blocking::Client;
+use reqwest::header::ETAG;
 use ring::digest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -45,6 +47,8 @@ use slog_derive::SerdeValue;
 use uuid::Uuid;
 
 const SERVICE_NAME: &str = "report-parser";
+const PYTHON_SAFETY_VULN_URL: &str =
+    "https://raw.githubusercontent.com/pyupio/safety-db/master/data/insecure_full.json";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -185,11 +189,47 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(())
     })?;
 
+    let mut etag = None;
+    let mut safety_cve_map =
+        download_and_parse_python_safety_vulns(&PYTHON_SAFETY_VULN_URL, &mut etag, &client)
+            .map_err(|err| {
+                error!(error_logger, "Error downloading Python Safety Vulns";
+                    o!(
+                        "error.message" => err.to_string(),
+                    )
+                );
+                err
+            })?;
+
+    info!(root_logger, "Successfully got Python dependency vulns from Safety tool database";
+        o!(
+            "event.type" => EventType(vec!("info".to_string())),
+        )
+    );
     last_updated_time = Some(Utc::now());
 
     let mut messages = consumer.start_with(std::time::Duration::from_secs(1), false);
 
     loop {
+        if last_updated_time
+            .unwrap()
+            .lt(&(Utc::now() - Duration::days(1)))
+        {
+            let new_safety_cve_map =
+                download_and_parse_python_safety_vulns(&PYTHON_SAFETY_VULN_URL, &mut etag, &client)
+                    .map_err(|err| {
+                        error!(error_logger, "Error downloading Python Safety Vulns";
+                            o!(
+                                "error.message" => err.to_string(),
+                            )
+                        );
+                        err
+                    })?;
+            if new_safety_cve_map.is_some() {
+                safety_cve_map = new_safety_cve_map;
+            }
+        }
+
         if last_updated_time
             .unwrap()
             .lt(&(Utc::now() - Duration::hours(2)))
@@ -244,14 +284,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         err
                     })?;
                     let app_name = report.application_name.to_string();
-                    let records = parse_tool_report(&report, &vulns).map_err(|err| {
-                        error!(error_logger, "Error parsing tool output in ToolReport";
-                            o!(
-                                "error.message" => err.to_string(),
-                            )
-                        );
-                        err
-                    })?;
+                    let records =
+                        parse_tool_report(&report, &vulns, safety_cve_map.as_ref().unwrap())
+                            .map_err(|err| {
+                                error!(error_logger, "Error parsing tool output in ToolReport";
+                                    o!(
+                                        "error.message" => err.to_string(),
+                                    )
+                                );
+                                err
+                            })?;
                     for record in records.into_iter() {
                         let kafka_payload = FutureRecord::to("DependencyEvents")
                             .payload(&record)
@@ -281,12 +323,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 }
 
+#[derive(Clone)]
+struct VulnData {
+    cvss: Cvss,
+    advisory_str: ComprString,
+    advisory_url: String,
+}
+
 fn download_and_parse_vulns(
     index: String,
     last_updated_time: Option<DateTime<Utc>>,
     base_url: &Url,
     client: &Client,
-) -> Result<Option<HashMap<String, Cvss>>, Box<dyn Error>> {
+) -> Result<Option<HashMap<String, VulnData>>, Box<dyn Error>> {
     lazy_static! {
         static ref META_LAST_MOD_RE: Regex = Regex::new("lastModifiedDate:(.*)\r\n").unwrap();
         static ref META_COMPRESSED_GZ_SIZE_RE: Regex = Regex::new("gzSize:(.*)\r\n").unwrap();
@@ -425,12 +474,40 @@ fn download_and_parse_vulns(
                     Cvss::builder().with_version(CvssVersion::Unknown).build()
                 };
 
+                let desc_data = vuln_info
+                    .get("cve")
+                    .and_then(|cve| cve.get("description"))
+                    .and_then(|desc| desc.get("description_data"))
+                    .unwrap()
+                    .as_array();
+
+                let adv = desc_data
+                    .unwrap()
+                    .iter()
+                    .filter(|x| x["lang"].as_str().unwrap() == "en")
+                    .next()
+                    .and_then(|y| Some(y["value"].as_str().unwrap().to_string()))
+                    .unwrap_or("".to_string());
+
+                let compr_adv_text = ComprString::new(&adv);
+
+                let adv_ref_arr = vuln_info
+                    .get("cve")
+                    .and_then(|cve| cve.get("references"))
+                    .and_then(|refer| refer.get("reference_data"));
+
+                let adv_url_str = adv_ref_arr.unwrap()[0]["url"].as_str().unwrap_or("");
+
                 (
                     vuln_info["cve"]["CVE_data_meta"]["ID"]
                         .as_str()
                         .unwrap()
                         .to_string(),
-                    cvss.unwrap(),
+                    VulnData {
+                        advisory_str: compr_adv_text,
+                        advisory_url: adv_url_str.to_string(),
+                        cvss: cvss.unwrap(),
+                    },
                 )
             })
             .collect::<HashMap<_, _>>();
@@ -443,7 +520,8 @@ fn download_and_parse_vulns(
 
 fn parse_tool_report(
     report: &ToolReport,
-    vulns: &HashMap<String, Cvss>,
+    vulns: &HashMap<String, VulnData>,
+    safety_vuln_map: &HashMap<String, Option<String>>,
 ) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
     let events = if report.tool_name == "bundler-audit" {
         if report.output_format == "PlainText" {
@@ -452,6 +530,28 @@ fn parse_tool_report(
             Err(Box::new(
                 err_msg(format!(
                     "Unknown output format for Bundler-audit in ToolReport: {:?}",
+                    report
+                ))
+                .compat(),
+            )
+            .into())
+        }
+    } else if report.tool_name == "safety" {
+        if report.output_format == "JSON" {
+            parse_safety_json(&report, vulns, safety_vuln_map)
+        } else if report.output_format == "PlainText" {
+            Err(Box::new(
+                    err_msg(format!(
+                            "PlainText output not supported for safety; re-run safety with --json option in ToolReport: {:?}",
+                            report
+                    ))
+                    .compat(),
+            )
+                .into())
+        } else {
+            Err(Box::new(
+                err_msg(format!(
+                    "Unknown output format for safety in ToolReport: {:?}",
                     report
                 ))
                 .compat(),
@@ -476,12 +576,18 @@ fn parse_tool_report(
 
 fn parse_bundler_audit_plaintext(
     report: &ToolReport,
-    vulns: &HashMap<String, Cvss>,
+    vulns: &HashMap<String, VulnData>,
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     lazy_static! {
         static ref BLOCK_RE: Regex = Regex::new("(Name: .*\nVersion: .*\nAdvisory: .*\nCriticality: .*\nURL: .*\nTitle: .*\nSolution:.*\n)").unwrap();
     }
     let mut events = Vec::new();
+
+    let default_cvss = Cvss::builder()
+        .with_version(CvssVersion::Unknown)
+        .build()
+        .unwrap();
+
     for block in BLOCK_RE.captures_iter(report.tool_output.as_ref()) {
         let block = block.get(0).unwrap().as_str();
         let fields = block
@@ -499,12 +605,9 @@ fn parse_bundler_audit_plaintext(
                 .to_owned(),
         )?;
 
-        let default_cvss = Cvss::builder()
-            .with_version(CvssVersion::Unknown)
-            .build()
-            .unwrap();
-
-        let cvss = vulns.get(&advisory_id.to_string()).unwrap_or(&default_cvss);
+        let cvss = vulns
+            .get(&advisory_id.to_string())
+            .map_or(&default_cvss, |v| &v.cvss);
 
         let mut event = DependencyEvent {
             event_version: EventVersion::try_from("1".to_string())?,
@@ -561,6 +664,191 @@ fn parse_bundler_audit_plaintext(
     Ok(events)
 }
 
+#[derive(Deserialize, Debug)]
+struct PythonSafety {
+    affected_package: String,
+    affected_versions: String,
+    installed_version: String,
+    advisory_description: String,
+    advisory_id: String,
+    cvssv2: Option<String>,
+    cvssv3: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct MetaInfo {
+    advisory: String,
+    timestamp: Value,
+}
+
+#[derive(Deserialize, Debug)]
+struct SafetyPackageVulnInfo {
+    advisory: String,
+    cve: Value,
+    id: String,
+    specs: Vec<String>,
+    v: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+enum SafetyJsonData {
+    Vuln(Vec<SafetyPackageVulnInfo>),
+    Meta(MetaInfo),
+}
+
+fn download_and_parse_python_safety_vulns(
+    server_name: &str,
+    etag: &mut Option<String>,
+    client: &Client,
+) -> Result<Option<HashMap<String, Option<String>>>, Box<dyn Error>> {
+    let head_resp = client.head(server_name).send()?;
+    let mut etag_str = None;
+    if head_resp.status().is_success() {
+        if let Some(etag_new) = head_resp.headers().get(ETAG) {
+            // If the etag passed in is none or different to the one we just got, then download below....
+            match etag {
+                Some(etag_old) => {
+                    if *etag_old == etag_new.to_str().unwrap() {
+                        return Ok(None);
+                    } else {
+                        etag_str = Some(etag_new.to_str().unwrap().to_owned());
+                    }
+                }
+                None => etag_str = Some(etag_new.to_str().unwrap().to_owned()),
+            }
+        }
+    } else {
+        return Err(Box::new(
+            err_msg(format!(
+                "Unable to grab head from python safety database: ({})",
+                head_resp.status()
+            ))
+            .compat(),
+        )
+        .into());
+    }
+
+    let safety_db_resp_text = reqwest::blocking::get(server_name)?.text()?;
+    let python_safety_vuln_info_json: HashMap<String, SafetyJsonData> =
+        serde_json::from_str(safety_db_resp_text.as_ref())?;
+
+    *etag = etag_str;
+    let cve_items = python_safety_vuln_info_json
+        .values()
+        .filter(|ref _s| match _s {
+            SafetyJsonData::Vuln(_s) => true,
+            _ => false,
+        })
+        .map(|s| match s {
+            SafetyJsonData::Vuln(s) => s.iter(),
+            _ => unreachable!(),
+        })
+        .flatten()
+        .map(|p| match &p.cve {
+            Value::String(s) => (p.id.to_owned(), Some(s.to_owned())),
+            _ => (p.id.to_owned(), None),
+        })
+        .collect::<HashMap<_, _>>();
+    Ok(Some(cve_items))
+}
+
+fn parse_safety_json(
+    report: &ToolReport,
+    vulns: &HashMap<String, VulnData>,
+    safety_vulns: &HashMap<String, Option<String>>,
+) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+    let mut events = Vec::new();
+    let python_dep_vulns: Vec<PythonSafety> = serde_json::from_str(report.tool_output.as_ref())?;
+
+    let default_cvss = Cvss::builder()
+        .with_version(CvssVersion::Unknown)
+        .build()
+        .unwrap();
+
+    for vuln in python_dep_vulns.iter() {
+        let advisory_id = AdvisoryId::try_from(vuln.advisory_id.to_owned())?;
+
+        let mut event = DependencyEvent {
+            event_version: EventVersion::try_from("1".to_string())?,
+            event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+            parent_event_id: report.event_id.clone(),
+            application_name: report.application_name.clone(),
+            git_branch: report.git_branch.clone(),
+            git_commit_hash: report.git_commit_hash.clone(),
+            timestamp: Timestamp::try_from(report.end_time.to_string())?,
+            affected_package: AffectedPackage::try_from(vuln.affected_package.to_owned())?,
+            installed_version: InstalledVersion::try_from(vuln.installed_version.to_owned())?,
+            advisory_url: AdvisoryUrl::try_from(PYTHON_SAFETY_VULN_URL.to_string())?,
+            advisory_id: advisory_id.clone(),
+            advisory_description: AdvisoryDescription::try_from(
+                vuln.advisory_description.to_string(),
+            )?,
+            cvss: default_cvss.clone(),
+            suppressed: false,
+        };
+        match safety_vulns.get(&format!("pyup.io-{}", advisory_id.to_string())) {
+            Some(res) => match res {
+                Some(s) => {
+                    let cve_vec = s
+                        .split(',')
+                        .collect::<Vec<&str>>()
+                        .into_iter()
+                        .map(|v| v.trim());
+                    for cve_str in cve_vec {
+                        let (cvss, advisory_str, advisory_url) = vulns.get(cve_str).map_or(
+                            (
+                                &default_cvss,
+                                vuln.advisory_description.to_string(),
+                                PYTHON_SAFETY_VULN_URL.to_string(),
+                            ),
+                            |v| {
+                                (
+                                    &v.cvss,
+                                    v.advisory_str.to_string(),
+                                    v.advisory_url.to_string(),
+                                )
+                            },
+                        );
+
+                        event.advisory_url = AdvisoryUrl::try_from(advisory_url)?;
+                        event.advisory_description = AdvisoryDescription::try_from(advisory_str)?;
+                        event.cvss = cvss.clone();
+                        let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+                        event.suppressed = should_issue_be_suppressed(
+                            &issue_hash,
+                            &report.suppressed_issues,
+                            &Utc::now(),
+                        );
+
+                        events.push(event.clone());
+                    }
+                }
+                _ => {
+                    let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+                    event.suppressed = should_issue_be_suppressed(
+                        &issue_hash,
+                        &report.suppressed_issues,
+                        &Utc::now(),
+                    );
+                    events.push(event.clone());
+                }
+            },
+            None => {
+                let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+                event.suppressed =
+                    should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
+
+                events.push(event);
+            }
+        };
+    }
+    Ok(events)
+}
+
 #[derive(Clone, SerdeValue, Serialize, Deserialize)]
 struct EventType(Vec<String>);
 
@@ -589,7 +877,16 @@ fn should_issue_be_suppressed(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use httpmock::Method::GET;
+    use httpmock::Method::HEAD;
+    use httpmock::MockServer;
+    use kiln_lib::tool_report::{
+        ApplicationName, EndTime, Environment, EventID, EventVersion, GitBranch, GitCommitHash,
+        IssueHash, OutputFormat, StartTime, SuppressedIssue, ToolName, ToolOutput, ToolReport,
+        ToolVersion,
+    };
     use kiln_lib::tool_report::{ExpiryDate, SuppressedBy, SuppressionReason};
+    use serde_json::json;
 
     #[test]
     fn issue_suppression_works_when_suppressed_issues_is_empty() {
@@ -836,5 +1133,441 @@ mod tests {
             true,
             should_issue_be_suppressed(&test_hash, &suppressed_issues, &test_date)
         );
+    }
+
+    #[test]
+    fn download_safety_vuln_db_error_status() {
+        let mut etag = None;
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.any_request();
+            then.status(502);
+        });
+        let client = Client::new();
+        assert!(
+            download_and_parse_python_safety_vulns(&server.url("/data"), &mut etag, &client)
+                .is_err(),
+            "HTTP error status not handled correctly"
+        );
+        mock.assert_hits(1);
+    }
+
+    #[test]
+    fn download_safety_vuln_db_etag_none() {
+        let mut etag = None;
+        let server = MockServer::start();
+        let head_mock = server.mock(|when, then| {
+            when.method(HEAD);
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "708")
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .header("Cache-Control", "max-age=300")
+                .header(
+                    "ETag",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
+                );
+        });
+        let get_mock = server.mock(|when, then| {
+            when.method(GET);
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "708")
+                .header("Cache-Control", "max-age=300")
+                .header(
+                    "Content-Security-Policy",
+                    "default-src \"none\"; style-src \"unsafe-inline\"; sandbox",
+                )
+                .header(
+                    "ETag",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
+                )
+                .json_body(json!({
+                    "$meta": {
+                        "advisory": "PyUp.io metadata",
+                        "timestamp": 1606802401
+                    },
+                    "acqusition": [
+                    {
+                        "advisory": "acqusition is a package affected by pytosquatting",
+                        "cve": null,
+                        "id": "pyup.io-34978",
+                        "specs": [
+                            ">0",
+                            "<0"
+                        ],
+                        "v": ">0,<0"
+                    }],
+                    "aegea": [
+                    {
+                        "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
+                        "cve": "CVE-2018-1000805",
+                        "id": "pyup.io-37611",
+                        "specs": [
+                            "<2.2.7"
+                        ],
+                        "v": "<2.2.7"
+                    }
+                    ],
+                    "renku": [
+                    {
+                        "advisory": "Renku version 0.4.0 fixes CVE-2017-18342.",
+                        "cve": "CVE-2017-18342",
+                        "id": "pyup.io-38552",
+                        "specs": [
+                            "<0.4.0"
+                        ],
+                        "v": "<0.4.0"
+                    },
+                    {
+                        "advisory": "Renku 0.6.0 updates the werkzeug package due to security concerns - see https://github.com/SwissDataScienceCenter/renku-python/issues/633",
+                        "cve": null,
+                        "id": "pyup.io-37548",
+                        "specs": [
+                            "<0.6.0"
+                        ],
+                        "v": "<0.6.0"
+                    }
+                    ],
+                }));
+        });
+        let client = Client::new();
+        let res = download_and_parse_python_safety_vulns(&server.url("/data"), &mut etag, &client);
+        assert!(etag.is_some());
+        assert!(
+            etag.unwrap() == "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\""
+        );
+        assert!(
+            res.is_ok(),
+            "Error result was produced when dealing with a None Etag"
+        );
+        let res_ok = res.unwrap();
+        assert!(
+            res_ok.is_some(),
+            "Python Safety vulns CVE hash not set when Etag is None"
+        );
+        let vhash = res_ok.unwrap();
+        assert!(
+            vhash.len() == 4,
+            "Incorrect number of elements in the Python safety map"
+        );
+        assert!(
+            vhash.contains_key("pyup.io-37611"),
+            "Python Safety map returned does not contain the correct key"
+        );
+        let value = vhash.get("pyup.io-37611").unwrap();
+        assert_eq!(value.as_ref().unwrap(), "CVE-2018-1000805");
+
+        let value = vhash.get("pyup.io-37548").unwrap();
+        assert!(value.is_none());
+
+        let value = vhash.get("pyup.io-38552").unwrap();
+        assert_eq!(value.as_ref().unwrap(), "CVE-2017-18342");
+
+        head_mock.assert_hits(1);
+        get_mock.assert_hits(1);
+    }
+
+    #[test]
+    fn download_safety_vuln_db_etags_diff() {
+        let mut etag = Some(
+            "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f22\"".to_string(),
+        );
+        let server = MockServer::start();
+
+        let head_mock = server.mock(|when, then| {
+            when.method(HEAD);
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "708")
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .header("Cache-Control", "max-age=300")
+                .header(
+                    "ETag",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d4038a05ba4f26\"",
+                );
+        });
+
+        let get_mock = server.mock(|when, then| {
+            when.method(GET);
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "708")
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .header("Cache-Control", "max-age=300")
+                .header(
+                    "ETag",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d4038a05ba4f26\"",
+                )
+                .json_body(json!({
+                    "$meta": {
+                        "advisory": "PyUp.io metadata",
+                        "timestamp": 1606802401
+                    },
+                    "acqusition": [
+                    {
+                        "advisory": "acqusition is a package affected by pytosquatting",
+                        "cve": null,
+                        "id": "pyup.io-34978",
+                        "specs": [
+                            ">0",
+                            "<0"
+                        ],
+                        "v": ">0,<0"
+                    }],
+                    "aegea": [
+                    {
+                        "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
+                        "cve": "CVE-2018-1000805",
+                        "id": "pyup.io-37611",
+                        "specs": [
+                            "<2.2.7"
+                        ],
+                        "v": "<2.2.7"
+                    }
+                    ],
+                    "renku": [
+                    {
+                        "advisory": "Renku version 0.4.0 fixes CVE-2017-18342.",
+                        "cve": "CVE-2017-18342",
+                        "id": "pyup.io-38552",
+                        "specs": [
+                            "<0.4.0"
+                        ],
+                        "v": "<0.4.0"
+                    },
+                    {
+                        "advisory": "Renku 0.6.0 updates the werkzeug package due to security concerns - see https://github.com/SwissDataScienceCenter/renku-python/issues/633",
+                        "cve": null,
+                        "id": "pyup.io-37548",
+                        "specs": [
+                            "<0.6.0"
+                        ],
+                        "v": "<0.6.0"
+                    }
+                    ],
+                }));
+        });
+        let client = Client::new();
+        let old_etag = etag.clone();
+        let res = download_and_parse_python_safety_vulns(&server.url("/data"), &mut etag, &client);
+        assert!(etag.is_some());
+        assert!(
+            old_etag.unwrap() != etag.clone().unwrap(),
+            "Etags cannot be matching"
+        );
+        assert!(
+            etag.unwrap() == "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d4038a05ba4f26\""
+        );
+        assert!(
+            res.is_ok(),
+            "Error result was produced when dealing with matching Etags"
+        );
+        let res_ok = res.unwrap();
+        assert!(
+            res_ok.is_some(),
+            "Python Safety vulns CVE hash not set when Etags are matching"
+        );
+        let vhash = res_ok.unwrap();
+        assert!(
+            vhash.len() == 4,
+            "Incorrect number of elements in the Python safety map"
+        );
+        assert!(
+            vhash.contains_key("pyup.io-37611"),
+            "Python Safety map returned does not contain the correct key"
+        );
+        let value = vhash.get("pyup.io-37611").unwrap();
+        assert_eq!(value.as_ref().unwrap(), "CVE-2018-1000805");
+
+        let value = vhash.get("pyup.io-37548").unwrap();
+        assert!(value.is_none());
+
+        let value = vhash.get("pyup.io-38552").unwrap();
+        assert_eq!(value.as_ref().unwrap(), "CVE-2017-18342");
+
+        head_mock.assert_hits(1);
+        get_mock.assert_hits(1);
+    }
+
+    #[test]
+    fn download_safety_vuln_db_etags_matching() {
+        let mut etag = Some(
+            "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"".to_string(),
+        );
+        let server = MockServer::start();
+        let head_mock = server.mock(|when, then| {
+            when.method(HEAD);
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "348")
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .header("Cache-Control", "max-age=300")
+                .header(
+                    "ETag",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
+                );
+        });
+        let get_mock = server.mock(|when, then| {
+            when.method(GET);
+            then.status(200)
+                .header("Connection", "keep-alive")
+                .header("Content-Length", "348")
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .header("Cache-Control", "max-age=300")
+                .header(
+                    "ETag",
+                    "\"3e557b6621332dd9eb4ee95322df0a2971c87322fdf56abaa1d6038a05ba4f26\"",
+                )
+                .json_body(json!({
+                    "$meta": {
+                        "advisory": "PyUp.io metadata",
+                        "timestamp": 1606802401
+                    },
+                    "acqusition": [
+                    {
+                        "advisory": "acqusition is a package affected by pytosquatting",
+                        "cve": null,
+                        "id": "pyup.io-34978",
+                        "specs": [
+                            ">0",
+                            "<0"
+                        ],
+                        "v": ">0,<0"
+                    }],
+                    "aegea": [
+                    {
+                        "advisory": "Aegea 2.2.7 avoids CVE-2018-1000805.",
+                        "cve": "CVE-2018-1000805",
+                        "id": "pyup.io-37611",
+                        "specs": [
+                            "<2.2.7"
+                        ],
+                        "v": "<2.2.7"
+                    }
+                    ]
+                }));
+        });
+        let client = Client::new();
+        let old_etag = etag.clone();
+        let res = download_and_parse_python_safety_vulns(&server.url("/data"), &mut etag, &client);
+        assert!(old_etag.unwrap() == etag.unwrap());
+        assert!(
+            res.is_ok(),
+            "Error result was produced when dealing with a matching Etags"
+        );
+        let res_ok = res.unwrap();
+        assert!(
+            res_ok.is_none(),
+            "Matching etags should produce a None result"
+        );
+        head_mock.assert_hits(1);
+        get_mock.assert_hits(0);
+    }
+
+    #[test]
+    fn parse_python_safety_vulns() {
+        let python_safety_vulns = r#"[
+    [
+        "rsa",
+        "<4.3",
+        "3.4.2",
+        "Rsa 4.3 includes two security fixes:\r\n- Choose blinding factor relatively prime to N.\r\n- Reject cyphertexts (when decrypting) and signatures (when verifying) that have  been modified by prepending zero bytes. This resolves CVE-2020-13757.",
+        "38414", 
+        null, 
+        null
+    ],
+    [
+        "pyyaml",
+        "<5.3.1",
+        "5.1.2",
+        "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
+        "38100", 
+        null, 
+        null
+    ]]"#;
+
+        let advisory_text_1 = "Some advsiory text CVE-2020-13757";
+        let compr_adv_text_1 = ComprString::new(advisory_text_1);
+        let advisory_url_1 = "http://someurl-cve-2020-13757.co.uk/";
+
+        let advisory_text_2 = "Some advsiory text CVE-2020-14564";
+        let compr_adv_text_2 = ComprString::new(advisory_text_2);
+        let advisory_url_2 = "http://someurl-cve-2020-14564.co.uk/";
+
+        let safety_cve_map: HashMap<String, Option<String>> = [(
+            "pyup.io-38414".to_string(),
+            Some("CVE-2020-13757 , CVE-2020-14564".to_string()),
+        )]
+        .iter()
+        .cloned()
+        .collect();
+
+        let vulnshash: HashMap<String, VulnData> = [
+            (
+                "CVE-2020-13757".to_string(),
+                VulnData {
+                    advisory_str: compr_adv_text_1,
+                    advisory_url: advisory_url_1.to_string(),
+                    cvss: Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(7.5))
+                        .build()
+                        .unwrap(),
+                },
+            ),
+            (
+                "CVE-2020-14564".to_string(),
+                VulnData {
+                    advisory_str: compr_adv_text_2,
+                    advisory_url: advisory_url_2.to_string(),
+                    cvss: Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(7.5))
+                        .build()
+                        .unwrap(),
+                },
+            ),
+        ]
+        .iter()
+        .cloned()
+        .collect();
+        let test_report = ToolReport {
+            event_version: EventVersion::try_from("1".to_owned()).unwrap(),
+            event_id: EventID::try_from("95130bee-95ae-4dac-aecf-5650ff646ea1".to_owned()).unwrap(),
+            application_name: ApplicationName::try_from("Test application".to_owned()).unwrap(),
+            git_branch: GitBranch::try_from(Some("git".to_owned())).unwrap(),
+            git_commit_hash: GitCommitHash::try_from(
+                "e99f715d0fe787cd43de967b8a79b56960fed3e5".to_owned(),
+            )
+            .unwrap(),
+            tool_name: ToolName::try_from("safety".to_owned()).unwrap(),
+            tool_output: ToolOutput::try_from(python_safety_vulns.to_owned()).unwrap(),
+            output_format: OutputFormat::JSON,
+            start_time: StartTime::from(DateTime::<Utc>::from(
+                DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap(),
+            )),
+            end_time: EndTime::from(DateTime::<Utc>::from(
+                DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap(),
+            )),
+            environment: Environment::Local,
+            tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
+            suppressed_issues: vec![],
+        };
+        let events_res = parse_safety_json(&test_report, &vulnshash, &safety_cve_map);
+        assert!(events_res.is_ok());
+        let events = events_res.unwrap();
+        assert_eq!(events.len(), 3);
+        assert!(events[0].affected_package.to_string() == "rsa");
+        assert!(events[0].advisory_id.to_string() == "38414".to_string());
+        assert!(events[0].advisory_url.to_string() == advisory_url_1);
+        assert!(events[0].advisory_description.to_string() == advisory_text_1);
+        assert!(events[1].advisory_id.to_string() == "38414".to_string());
+        assert!(events[1].affected_package.to_string() == "rsa");
+        assert!(events[1].advisory_url.to_string() == advisory_url_2);
+        assert!(events[1].advisory_description.to_string() == advisory_text_2);
+        assert!(events[2].advisory_id.to_string() == "38100".to_string());
+        assert!(events[2].affected_package.to_string() == "pyyaml");
+        assert!(events[2].advisory_url.to_string() == PYTHON_SAFETY_VULN_URL);
     }
 }
