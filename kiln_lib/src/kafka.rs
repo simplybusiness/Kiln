@@ -112,7 +112,7 @@ mod tests {
     use super::*;
 
     #[allow(unused_must_use)]
-    #[test]
+    #[tokio::test]
     fn creating_kafka_producer_does_not_return_a_client_config_error() {
         let config =
             KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
