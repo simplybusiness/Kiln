@@ -113,15 +113,15 @@ mod tests {
 
     #[allow(unused_must_use)]
     #[tokio::test]
-    fn creating_kafka_producer_does_not_return_a_client_config_error() {
+    async fn creating_kafka_producer_does_not_return_a_client_config_error() {
         let config =
             KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
         build_kafka_producer(config).unwrap();
     }
 
     #[allow(unused_must_use)]
-    #[test]
-    fn creating_kafka_consumer_does_not_return_a_client_config_error() {
+    #[tokio::test]
+    async fn creating_kafka_consumer_does_not_return_a_client_config_error() {
         let config =
             KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
         build_kafka_consumer(config, "TestConsumerGroup".to_string()).unwrap();
