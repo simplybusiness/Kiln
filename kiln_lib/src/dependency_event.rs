@@ -439,8 +439,11 @@ impl TryFrom<avro_rs::types::Value> for Cvss {
                 }?;
 
                 let score = match fields.get("score").unwrap() {
-                    avro_rs::types::Value::Null => Ok(None),
-                    avro_rs::types::Value::Float(val) => Ok(Some(*val)),
+                    avro_rs::types::Value::Union(v) => match **v {
+                        avro_rs::types::Value::Null => Ok(None),
+                        avro_rs::types::Value::Float(val) => Ok(Some(val)),
+                        _ => Err(ValidationError::cvss_score_not_valid()),
+                    },
                     _ => Err(ValidationError::cvss_score_not_valid()),
                 }?;
 

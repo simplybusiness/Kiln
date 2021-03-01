@@ -522,8 +522,11 @@ impl TryFrom<avro_rs::types::Value> for GitBranch {
 
     fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
         match value {
-            avro_rs::types::Value::String(s) => GitBranch::try_from(Some(s)),
-            avro_rs::types::Value::Null => GitBranch::try_from(None),
+            avro_rs::types::Value::Union(v) => match *v {
+                avro_rs::types::Value::String(v) => GitBranch::try_from(Some(v)),
+                avro_rs::types::Value::Null => GitBranch::try_from(None),
+                _ => Err(ValidationError::git_branch_name_not_a_string()),
+            },
             _ => Err(ValidationError::git_branch_name_not_a_string()),
         }
     }
@@ -644,8 +647,11 @@ impl TryFrom<avro_rs::types::Value> for ToolVersion {
 
     fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
         match value {
-            avro_rs::types::Value::Null => Ok(ToolVersion(None)),
-            avro_rs::types::Value::String(s) => Ok(ToolVersion(Some(s))),
+            avro_rs::types::Value::Union(v) => match *v {
+                avro_rs::types::Value::Null => Ok(ToolVersion(None)),
+                avro_rs::types::Value::String(s) => Ok(ToolVersion(Some(s))),
+                _ => Err(ValidationError::tool_version_not_a_string()),
+            },
             _ => Err(ValidationError::tool_version_not_a_string()),
         }
     }
@@ -1038,8 +1044,11 @@ impl TryFrom<avro_rs::types::Value> for ExpiryDate {
 
     fn try_from(value: avro_rs::types::Value) -> Result<Self, Self::Error> {
         match value {
-            avro_rs::types::Value::String(s) => ExpiryDate::try_from(Some(s)),
-            avro_rs::types::Value::Null => Ok(ExpiryDate::from(None)),
+            avro_rs::types::Value::Union(v) => match *v {
+                avro_rs::types::Value::String(v) => ExpiryDate::try_from(Some(v)),
+                avro_rs::types::Value::Null => Ok(ExpiryDate::from(None)),
+                _ => Err(ValidationError::expiry_date_not_a_string()),
+            },
             _ => Err(ValidationError::expiry_date_not_a_string()),
         }
     }
