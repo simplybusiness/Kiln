@@ -18,7 +18,7 @@ serde = { version = "1.0", features = [ "derive",] }
 failure = "0.1"
 avro-rs = "0.6"
 tokio = { version = "0.2", features = [ "full",] }
-rdkafka = { version = "0.23", features = [ "cmake-build", "ssl-vendored",] }
+rdkafka = { version = "0.25", features = [ "cmake-build", "ssl-vendored",] }
 slog = { version = "2.5", features = [ "nested-values",] }
 slog-async = { version = "2.5", features = [ "nested-values",] }
 slog_derive = "0.2"
