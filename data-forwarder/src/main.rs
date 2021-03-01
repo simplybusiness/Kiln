@@ -7,7 +7,7 @@ use kiln_lib::tool_report::{
     SuppressedIssue, ToolName, ToolOutput, ToolReport, ToolVersion,
 };
 use kiln_lib::validation::ValidationError;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use reqwest::StatusCode;
 use retry::{delay::Fibonacci, retry_with_index, OperationResult};
 use std::convert::TryFrom;
