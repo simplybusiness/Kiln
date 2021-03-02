@@ -1,0 +1,91 @@
+version: 2
+
+updates:
+  - package-ecosystem: "cargo"
+    directory: "cli"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "DanHatesNumbers"
+    commit-message:
+      prefix: "CLI: "
+      include: "scope"
+  - package-ecosystem: "cargo"
+    directory: "data-collector"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "DanHatesNumbers"
+    commit-message:
+      prefix: "Data-collector: "
+      include: "scope"
+  - package-ecosystem: "cargo"
+    directory: "data-forwarder"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "DanHatesNumbers"
+    commit-message:
+      prefix: "Data-forwarder: "
+      include: "scope"
+  - package-ecosystem: "cargo"
+    directory: "report-parser"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "DanHatesNumbers"
+    commit-message:
+      prefix: "Report-parser: "
+      include: "scope"
+  - package-ecosystem: "cargo"
+    directory: "slack-connector"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "DanHatesNumbers"
+    commit-message:
+      prefix: "Slack-connector: "
+      include: "scope"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "DanHatesNumbers"
+    commit-message:
+      prefix: "Meta: "
+      include: "scope"
+  - package-ecosystem: "docker"
+    directory: "tool-images/ruby/bundler-audit"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "DanHatesNumbers"
+    commit-message:
+      prefix: "Bundler-audit: "
+      include: "scope"
+  - package-ecosystem: "docker"
+    directory: "tool-images/python/safety"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "all"
+    reviewers:
+      - "DanHatesNumbers"
+    commit-message:
+      prefix: "Safety: "
+      include: "scope"
