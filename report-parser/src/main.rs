@@ -208,7 +208,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     );
     last_updated_time = Some(Utc::now());
 
-    let mut messages = consumer.start_with(std::time::Duration::from_secs(1), false);
+    let mut messages = consumer.stream();
 
     loop {
         if last_updated_time
@@ -298,14 +298,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         let kafka_payload = FutureRecord::to("DependencyEvents")
                             .payload(&record)
                             .key(&app_name);
-                        producer.send(kafka_payload, 5000).await?.map_err(|err| {
+                        let send_result = producer.send_result(kafka_payload);
+                        if let Err(err) = send_result {
                             error!(error_logger, "Error publishing DependencyEvent to Kafka";
                                 o!(
                                     "error.message" => err.0.to_string(),
                                 )
                             );
-                            err.0
-                        })?;
+                        }
                     }
                 }
             }
@@ -568,8 +568,7 @@ fn parse_tool_report(
             let schema = Schema::parse_str(DEPENDENCY_EVENT_SCHEMA).unwrap();
             let mut writer = Writer::new(&schema, Vec::new());
             writer.append_ser(event).unwrap();
-            writer.flush().unwrap();
-            writer.into_inner()
+            writer.into_inner().unwrap()
         })
         .collect::<Vec<Vec<u8>>>())
 }
