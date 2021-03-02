@@ -3,8 +3,7 @@ extern crate slog;
 
 use avro_rs::Reader;
 use anyhow::anyhow;
-use bytes::buf::ext::BufExt;
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 use chrono::{SecondsFormat, Utc};
 use futures::stream::{StreamExt, TryStreamExt};
 use futures_util::sink::SinkExt;
