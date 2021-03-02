@@ -885,6 +885,7 @@ dependencies = [
  "serde_json",
  "slog",
  "slog-async",
+ "thiserror",
  "tokio",
  "toml",
  "url",

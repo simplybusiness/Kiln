@@ -22,6 +22,7 @@ toml_crate = { version = "0.5", package = "toml", optional = true }
 openssl-probe = "0.1"
 json_dotpath = { version = "1", optional = true }
 slog = { version = "2.5", features = [ "nested-values",], optional = true }
+thiserror = "1"
 
 [features]
 default = []
