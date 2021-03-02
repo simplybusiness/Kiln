@@ -5,7 +5,7 @@ use bollard::{
         WaitContainerOptions,
     },
     image::{CreateImageOptions, ListImagesOptions, RemoveImageOptions},
-    models::{BuildInfo, HostConfig},
+    models::{CreateImageInfo, HostConfig},
     service::{ContainerCreateResponse, Mount, MountTypeEnum, ProgressDetail},
     Docker,
 };
@@ -883,7 +883,7 @@ async fn prepare_tool_image(
                 break;
             }
             match item.unwrap() {
-                Ok(BuildInfo {
+                Ok(CreateImageInfo {
                     status,
                     progress_detail,
                     id,
@@ -973,7 +973,7 @@ pub mod tests {
 
     mock! {
         pub Client {
-            fn execute(&self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>>>>;
+            pub fn execute(&self, request: Request) -> Pin<Box<dyn Future<Output = Result<Response, reqwest::Error>>>>;
         }
     }
 
