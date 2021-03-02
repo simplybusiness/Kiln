@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate slog;
 
-use avro_rs::Reader;
 use anyhow::anyhow;
+use avro_rs::Reader;
 use bytes::{Buf, Bytes};
 use chrono::{SecondsFormat, Utc};
 use futures::stream::{StreamExt, TryStreamExt};
@@ -243,7 +243,7 @@ enum SlackSendError {
     #[error("Slack API returned an error: {cause}")]
     SlackError { cause: String },
     #[error("HTTP Error ooccured: {0}")]
-    ReqwestError(#[from] reqwest::Error ),
+    ReqwestError(#[from] reqwest::Error),
 }
 
 async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt::Display>(
@@ -276,7 +276,9 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
                 retry_delay.unwrap_or(Duration::from_secs(30)),
             ))
         } else {
-            Err(SlackSendError::SlackError{cause: cause.to_owned()})
+            Err(SlackSendError::SlackError {
+                cause: cause.to_owned(),
+            })
         };
     }
     Ok(())
