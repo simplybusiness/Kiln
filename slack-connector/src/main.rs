@@ -2,10 +2,10 @@
 extern crate slog;
 
 use avro_rs::Reader;
+use anyhow::anyhow;
 use bytes::buf::ext::BufExt;
 use bytes::Bytes;
 use chrono::{SecondsFormat, Utc};
-use failure::err_msg;
 use futures::stream::{StreamExt, TryStreamExt};
 use futures_util::sink::SinkExt;
 use kiln_lib::dependency_event::DependencyEvent;
@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let client = Client::new();
     let (queue_tx, queue_rx) =
-        futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, failure::Error>>)>(10);
+        futures::channel::mpsc::channel::<(i64, Vec<Result<DependencyEvent, anyhow::Error>>)>(10);
 
     consumer.subscribe(&["DependencyEvents"]).map_err(|err| {
         error!(error_logger, "Could not subscribe to DependencyEvents Kafka topic";
@@ -117,19 +117,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         err
     })?;
 
-    let avro_bytes = consumer.start_with(Duration::from_secs(1), false);
+    let avro_bytes = consumer.stream();
     let consumer_error_logger = &error_logger;
     let mut events = avro_bytes
+        .map_err(|err| anyhow!(err))
         .map_ok(|message| message.detach())
-        .map_err(|err| failure::Error::from_boxed_compat(Box::new(err)))
         .and_then(move |message| async move {
             message
                 .payload()
                 .ok_or_else(|| {
                     warn!(consumer_error_logger, "Received empty payload from Kafka");
-                    err_msg("Received empty payload from Kafka")
+                    anyhow!("Received empty payload from Kafka")
                 })
                 .map(|msg| (message.offset(), Bytes::copy_from_slice(msg)))
+                .map_err(|err| anyhow!(err))
         })
         .and_then(|(offset, body_bytes)| async move {
             let reader_result = Reader::new(body_bytes.reader());
@@ -141,7 +142,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             "error.message" => err.to_string()
                         )
                     );
-                    Err(err_msg("Could not parse Avro value from message"))
+                    Err(anyhow!("Could not parse Avro value from message"))
                 }
             }
         })
@@ -182,8 +183,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                         error!(dispatch_error_logger, "Rate limited by Slack while sending message for EventID {} (Parent EventID {}), waiting {} seconds before retrying", event.event_id, event.parent_event_id, delay.as_secs());
                                         futures_timer::Delay::new(delay).await;
                                     },
-                                    SlackSendError::Unknown(err) => {
-                                        error!(dispatch_error_logger, "Could not send Slack message for EventID {} (Parent EventID {})", event.event_id, event.parent_event_id;
+                                    _ => {
+                                        error!(dispatch_error_logger, "Could not send Slack message for EventID {} (Parent EventID {}) ({}) ", event.event_id, event.parent_event_id, err;
                                             o!(
                                                 "error.message" => err.to_string()
                                             ));
@@ -196,8 +197,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
             }
-            dispatch_consumer.assignment().unwrap().set_all_offsets(Offset::from_raw(offset));
-            Ok::<(), failure::Error>(())
+            dispatch_consumer.assignment().unwrap().set_all_offsets(Offset::from_raw(offset))?;
+            Ok::<(), anyhow::Error>(())
         })
         .collect::<Vec<_>>();
 
@@ -236,15 +237,14 @@ impl ToSlackMessage for DependencyEvent {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
 enum SlackSendError {
+    #[error("Slack API Rate Limit encountered. Try again in {0:?}")]
     RateLimited(std::time::Duration),
-    Unknown(failure::Error),
-}
-
-impl From<reqwest::Error> for SlackSendError {
-    fn from(val: reqwest::Error) -> Self {
-        SlackSendError::Unknown(val.into())
-    }
+    #[error("Slack API returned an error: {cause}")]
+    SlackError { cause: String },
+    #[error("HTTP Error ooccured: {0}")]
+    ReqwestError(#[from] reqwest::Error ),
 }
 
 async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt::Display>(
@@ -272,12 +272,12 @@ async fn try_send_slack_message<T: AsRef<str> + serde::ser::Serialize + std::fmt
     let resp_body: Value = resp.json().await?;
     if !resp_body.get("ok").unwrap().as_bool().unwrap() {
         let cause = resp_body.get("error").unwrap().as_str().unwrap();
-        return if cause == "rate_limited" {
+        return if cause == "rate_limited" || cause == "ratelimited" {
             Err(SlackSendError::RateLimited(
                 retry_delay.unwrap_or(Duration::from_secs(30)),
             ))
         } else {
-            Err(SlackSendError::Unknown(err_msg(cause.to_owned())))
+            Err(SlackSendError::SlackError{cause: cause.to_owned()})
         };
     }
     Ok(())
