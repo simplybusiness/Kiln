@@ -27,5 +27,5 @@ erased-serde = "0.3"
 uuid = { version = "0.8", features = [ "serde", "v4",] }
 
 [dev-dependencies]
-serial_test = "0.1"
-serial_test_derive = "0.1"
+serial_test = "0.5"
+serial_test_derive = "0.5"
