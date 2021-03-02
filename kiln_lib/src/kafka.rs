@@ -6,7 +6,6 @@ use rdkafka::error::KafkaError;
 use rdkafka::producer::future_producer::FutureProducer;
 use std::fmt::Display;
 
-
 #[derive(Debug, Clone)]
 pub struct KafkaBootstrapTlsConfig(Vec<String>);
 
@@ -22,7 +21,7 @@ impl Display for ValidationFailureReason {
         match self {
             ValidationFailureReason::Missing => f.write_str("value is missing"),
             ValidationFailureReason::PresentButEmpty => f.write_str("value is present but empty"),
-            ValidationFailureReason::CouldNotBeParsed => f.write_str("value could not be parsed")
+            ValidationFailureReason::CouldNotBeParsed => f.write_str("value could not be parsed"),
         }
     }
 }
@@ -30,9 +29,15 @@ impl Display for ValidationFailureReason {
 #[derive(thiserror::Error, Debug)]
 pub enum KafkaConfigError {
     #[error("Required environment variable {var} failed validation because {reason}")]
-    RequiredValueValidationFailure { var: String, reason: ValidationFailureReason},
+    RequiredValueValidationFailure {
+        var: String,
+        reason: ValidationFailureReason,
+    },
     #[error("Optional environment variable {var} failed validation because {reason}")]
-    OptionalValueValidationFailure { var: String, reason: ValidationFailureReason},
+    OptionalValueValidationFailure {
+        var: String,
+        reason: ValidationFailureReason,
+    },
     #[error("Kafka client could not be created")]
     KafkaError(#[from] KafkaError),
     #[error("Could not find TLS trust store")]
@@ -53,7 +58,7 @@ where
             if var.1.is_empty() {
                 return Err(KafkaConfigError::OptionalValueValidationFailure {
                     var: "DISABLE_KAFKA_DOMAIN_VALIDATION".into(),
-                    reason: ValidationFailureReason::PresentButEmpty
+                    reason: ValidationFailureReason::PresentButEmpty,
                 });
             } else {
                 match var.1.as_ref() {
@@ -77,7 +82,7 @@ where
             if var.1.is_empty() {
                 return Err(KafkaConfigError::RequiredValueValidationFailure {
                     var: "KAFKA_BOOTSTRAP_TLS".into(),
-                    reason: ValidationFailureReason::PresentButEmpty
+                    reason: ValidationFailureReason::PresentButEmpty,
                 });
             } else {
                 let raw_hosts: Vec<String> = var.1.split(',').map(|s| s.to_owned()).collect();
