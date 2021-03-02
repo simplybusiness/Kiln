@@ -11,7 +11,7 @@ actix-service = "2.0.0-beta.4"
 actix-rt = "2"
 anyhow = "1"
 thiserror = "1"
-bytes = "0.5"
+bytes = "1"
 futures = "0.3"
 http = "0.1"
 kiln_lib = { git = "https://github.com/simplybusiness/Kiln", features = [ "web", "avro", "streaming", "log",], branch = "main" }
