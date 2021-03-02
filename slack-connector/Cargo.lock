@@ -1400,7 +1400,7 @@ version = "0.4.3"
 dependencies = [
  "anyhow",
  "avro-rs",
- "bytes 0.5.6",
+ "bytes 1.0.1",
  "chrono",
  "erased-serde",
  "futures",
