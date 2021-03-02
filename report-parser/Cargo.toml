@@ -19,7 +19,7 @@ data-encoding = "2"
 ring = { version = "0.16", features = [ "std",] }
 url = "2"
 iter-read = "0.3"
-tokio = { version = "0.2", features = [ "full",] }
+tokio = { version = "1", features = [ "full",] }
 rdkafka = { version = "0.25", features = [ "cmake-build", "ssl-vendored",] }
 futures-util = "0.3"
 hex = "0.4"
