@@ -1,12 +1,11 @@
-use actix_web::Error as ActixError;
 use actix_web::{web, App, HttpResponse, HttpServer};
 use avro_rs::{Schema, Writer};
-use failure::err_msg;
-use rdkafka::producer::future_producer::{FutureProducer, FutureRecord};
-use std::boxed::Box;
+use rdkafka::{
+    error::KafkaError,
+    producer::future_producer::{FutureProducer, FutureRecord},
+};
 use std::convert::TryFrom;
 use std::env;
-use std::error::Error;
 use std::str;
 use std::sync::Arc;
 
@@ -28,7 +27,7 @@ pub mod lib;
 const SERVICE_NAME: &str = "data-collector";
 
 #[actix_rt::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), anyhow::Error> {
     let drain = NestedJsonFmt::new(std::io::stdout()).fuse();
 
     let drain = slog_async::Async::new(drain).build().fuse();
@@ -54,11 +53,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         ),
     );
 
-    let config = get_bootstrap_config(&mut env::vars())
-        .map_err(|err| failure::err_msg(format!("Configuration Error: {}", err)))?;
+    let config = get_bootstrap_config(&mut env::vars())?;
 
-    let producer = build_kafka_producer(config)
-        .map_err(|err| err_msg(format!("Kafka Error: {}", err.to_string())))?;
+    let producer = build_kafka_producer(config)?;
 
     let shared_producer = Arc::from(producer);
 
@@ -81,7 +78,7 @@ async fn health_handler() -> HttpResponse {
 async fn handler(
     body: web::Bytes,
     producer: web::Data<Arc<FutureProducer>>,
-) -> Result<HttpResponse, actix_web::error::Error> {
+) -> Result<HttpResponse, HandlerError> {
     let report = parse_payload(&body)?;
 
     let app_name = report.application_name.to_string();
@@ -92,12 +89,10 @@ async fn handler(
         .payload(&serialised_record)
         .key(&app_name);
 
-    let delivery_result = producer.send(kafka_payload, 5000).await?;
-
-    match delivery_result {
-        Ok(_) => Ok(HttpResponse::Ok().finish()),
-        Err(err) => Err(failure::Error::from(Box::new(err.0)).into()),
-    }
+    producer
+        .send_result(kafka_payload)
+        .map_err(|err| err.0.into())
+        .and_then(|_| Ok(HttpResponse::Ok().finish()))
 }
 
 pub fn parse_payload(body: &web::Bytes) -> Result<ToolReport, ValidationError> {
@@ -110,12 +105,36 @@ pub fn parse_payload(body: &web::Bytes) -> Result<ToolReport, ValidationError> {
         .and_then(|json| ToolReport::try_from(&json))
 }
 
-pub fn serialise_to_avro(report: ToolReport) -> Result<Vec<u8>, failure::Error> {
+pub fn serialise_to_avro(report: ToolReport) -> Result<Vec<u8>, HandlerError> {
     let schema = Schema::parse_str(TOOL_REPORT_SCHEMA)?;
     let mut writer = Writer::new(&schema, Vec::new());
     writer.append_ser(report)?;
-    writer.flush()?;
-    Ok(writer.into_inner())
+    Ok(writer.into_inner()?)
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum HandlerError {
+    #[error("Something went wrong while communicating with Kafka")]
+    KafkaError {
+        #[from]
+        source: KafkaError,
+    },
+    #[error(transparent)]
+    ValidationError(#[from] ValidationError),
+    #[error("Something went wrong while serialising payload to Apache Avro")]
+    AvroError(#[from] avro_rs::Error),
+}
+
+impl From<HandlerError> for actix_web::error::Error {
+    fn from(err: HandlerError) -> Self {
+        match err {
+            HandlerError::ValidationError(e) => actix_web::error::ErrorBadRequest(e),
+            HandlerError::KafkaError { source } => {
+                actix_web::error::ErrorInternalServerError(source)
+            }
+            HandlerError::AvroError(_) => actix_web::error::ErrorInternalServerError(err),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -255,7 +274,7 @@ mod tests {
         match actual {
             Ok(_) => panic!("expected Err(_) value"),
             Err(err) => assert_eq!(
-                "Configuration Error: Required environment variable missing: KAFKA_BOOTSTRAP_TLS",
+                "Required environment variable KAFKA_BOOTSTRAP_TLS failed validation because value is missing",
                 err.to_string()
             ),
         }
