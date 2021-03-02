@@ -3,7 +3,6 @@ use actix_web::dev::{
 };
 use actix_web::error::{Error, Result};
 use actix_web::http::header::{HOST, USER_AGENT};
-use actix_web::HttpMessage;
 use chrono::{SecondsFormat, Utc};
 use futures::future::{ok, Ready};
 use futures::stream::StreamExt;
@@ -18,7 +17,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::str::FromStr;
-use std::task::{Context, Poll};
 use uuid::Uuid;
 
 #[derive(Clone, SerdeValue, Serialize, Deserialize)]
@@ -49,13 +47,12 @@ impl StructuredLogger {
     }
 }
 
-impl<S, B> Transform<S> for StructuredLogger
+impl<S, B> Transform<S, ServiceRequest> for StructuredLogger
 where
-    S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
-    B: MessageBody + 'static,
+    B: MessageBody + 'static + Unpin,
 {
-    type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
     type Error = Error;
     type Transform = StructuredLoggerMiddleware<S>;
@@ -75,24 +72,21 @@ pub struct StructuredLoggerMiddleware<S> {
     service: Rc<RefCell<S>>,
 }
 
-impl<S, B> Service for StructuredLoggerMiddleware<S>
+impl<S, B> Service<ServiceRequest> for StructuredLoggerMiddleware<S>
 where
-    S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
+    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
-    B: MessageBody + 'static,
+    B: MessageBody + 'static + Unpin,
 {
-    type Request = ServiceRequest;
     type Response = ServiceResponse<B>;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
-    }
+    actix_service::forward_ready!(service);
 
-    fn call(&mut self, mut req: ServiceRequest) -> Self::Future {
+    fn call(&self, mut req: ServiceRequest) -> Self::Future {
         let event_start = Utc::now();
-        let mut svc = self.service.clone();
+        let svc = self.service.clone();
         let is_exclude = self.inner.exclude.contains(req.path());
         let logger = self.inner.clone().logger.clone();
 
@@ -108,7 +102,7 @@ where
 
             let source_ip = req
                 .connection_info()
-                .remote()
+                .realip_remote_addr()
                 .and_then(|conn_info| std::net::SocketAddr::from_str(conn_info).ok())
                 .map(|socket_addr| socket_addr.ip().to_string());
 
@@ -126,29 +120,19 @@ where
             let transaction_id = Uuid::new_v4();
             let event_id = Uuid::new_v4();
 
-            let (req_http, req_payload) = req.into_parts();
-            {
-                let mut req_extensions = req_http.extensions_mut();
-                req_extensions.insert(transaction_id);
-            }
-            req = ServiceRequest::from_parts(req_http, req_payload).map_err(|_| {
-                failure::err_msg("Unable to reconstitute request after attaching transaction id")
-            })?;
+            req.head_mut().extensions_mut().insert(transaction_id);
 
             // read request body
-            let mut stream = req.take_payload();
+            let (req_http, mut payload) = req.into_parts();
 
             let mut req_body_bytes_mut = bytes::BytesMut::new();
-            while let Some(chunk) = stream.next().await {
+            while let Some(chunk) = payload.by_ref().next().await {
                 req_body_bytes_mut.extend_from_slice(&chunk?);
             }
             let req_body_bytes = req_body_bytes_mut.freeze();
             let req_body = String::from_utf8(req_body_bytes.clone().to_vec()).unwrap();
 
-            // put bytes back into request body
-            let mut payload = actix_http::h1::Payload::empty();
-            payload.unread_data(req_body_bytes.clone());
-            req.set_payload(payload.into());
+            req = ServiceRequest::from_parts(req_http, payload);
 
             let resp = svc.call(req).await;
 
@@ -201,7 +185,7 @@ where
 
                         // put bytes back into response body
                         let resp: Self::Response = resp.map_body(move |_, _| {
-                            ResponseBody::Body(resp_body_bytes.clone().into()).into_body()
+                            ResponseBody::Other(actix_web::dev::Body::from_slice(&resp_body_bytes))
                         });
                         let event_end = Utc::now();
                         if let Some(err) = resp.response().error() {
