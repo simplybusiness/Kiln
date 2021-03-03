@@ -10,7 +10,6 @@ updates:
     reviewers:
       - "DanHatesNumbers"
     commit-message:
-      prefix: "Dependencies: "
       include: "scope"
   - package-ecosystem: "cargo"
     directory: "data-collector"
@@ -21,7 +20,6 @@ updates:
     reviewers:
       - "DanHatesNumbers"
     commit-message:
-      prefix: "Dependencies: "
       include: "scope"
   - package-ecosystem: "cargo"
     directory: "data-forwarder"
@@ -32,7 +30,6 @@ updates:
     reviewers:
       - "DanHatesNumbers"
     commit-message:
-      prefix: "Dependencies: "
       include: "scope"
   - package-ecosystem: "cargo"
     directory: "report-parser"
@@ -43,7 +40,6 @@ updates:
     reviewers:
       - "DanHatesNumbers"
     commit-message:
-      prefix: "Dependencies: "
       include: "scope"
   - package-ecosystem: "cargo"
     directory: "slack-connector"
@@ -54,7 +50,6 @@ updates:
     reviewers:
       - "DanHatesNumbers"
     commit-message:
-      prefix: "Dependencies: "
       include: "scope"
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -65,7 +60,6 @@ updates:
     reviewers:
       - "DanHatesNumbers"
     commit-message:
-      prefix: "Dependencies: "
       include: "scope"
   - package-ecosystem: "docker"
     directory: "tool-images/ruby/bundler-audit"
@@ -76,7 +70,6 @@ updates:
     reviewers:
       - "DanHatesNumbers"
     commit-message:
-      prefix: "Dependencies: "
       include: "scope"
   - package-ecosystem: "docker"
     directory: "tool-images/python/safety"
@@ -87,5 +80,4 @@ updates:
     reviewers:
       - "DanHatesNumbers"
     commit-message:
-      prefix: "Dependencies: "
       include: "scope"
