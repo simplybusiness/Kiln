@@ -1031,9 +1031,9 @@ dependencies = [
 
 [[package]]
 name = "hex"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "644f9158b2f133fd50f5fb3242878846d9eb792e445c893805ff0e3824006e35"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 dependencies = [
  "serde",
 ]
@@ -1157,7 +1157,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.4.3"
-source = "git+https://github.com/simplybusiness/Kiln?branch=main#609b06e949604f02fea844e5edc1653cb0ebffe1"
+source = "git+https://github.com/simplybusiness/Kiln?branch=main#11c6f84138b6de1ec830c93b10e250ad4a5e516b"
 dependencies = [
  "actix-web",
  "addr",
