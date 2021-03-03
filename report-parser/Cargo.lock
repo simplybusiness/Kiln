@@ -1149,7 +1149,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.4.3"
-source = "git+https://github.com/simplybusiness/Kiln?branch=main#d194bb316417fb04e4e2124b4aaf7fbaabb540a2"
+source = "git+https://github.com/simplybusiness/Kiln?branch=main#3fa96b07d73ad2668f3e11827e60dc0eb7d7743b"
 dependencies = [
  "addr",
  "anyhow",
