@@ -1134,9 +1134,9 @@ dependencies = [
 
 [[package]]
 name = "json_dotpath"
-version = "1.0.3"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e907e6c22a540a809d003178eae3172a6c54b94338058b9d72d051e53187be7"
+checksum = "dbdcfef3cf5591f0cef62da413ae795e3d1f5a00936ccec0b2071499a32efd1a"
 dependencies = [
  "serde",
  "serde_derive",
