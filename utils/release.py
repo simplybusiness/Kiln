@@ -128,7 +128,7 @@ def main(version):
 
     with gpg.Context() as default_ctx:
         signing_key = default_ctx.get_key(signing_key_id)
-        with gpg.Context(signers=[signing_key]) as ctx:
+        with gpg.Context(signers=[signing_key], armor=True) as ctx:
             with open(hashfile_path, 'rb') as hashfile:
                 with open(sig_path, 'wb') as sigfile:
                     hashdata = hashfile.read()
