@@ -15,6 +15,8 @@ import sys
 import tarfile
 import toml
 from toml import TomlPreserveInlineDictEncoder
+import io
+import lzma
 
 def validate_version_number(ctx, param, value):
     try:
@@ -135,6 +137,33 @@ def main(version):
                     sig, metadata = ctx.sign(hashdata, mode=gpg.constants.sig.mode.DETACH)
                     sigfile.write(sig)
 
+    tarball_name = f"Kiln-{version}.tar.xz"
+    tarball_path = os.path.join(kiln_repo.path, tarball_name)
+    hashfile_name = f"{tarball_name}.sha256"
+    hashfile_path = os.path.join(kiln_repo.path, hashfile_name)
+    sig_name = f"{hashfile_name}.sig"
+    sig_path = os.path.join(kiln_repo.path, sig_name)
+
+    with io.BytesIO() as f:
+        dulwich.porcelain.archive(kiln_repo, outstream=f)
+        f.flush()
+        compressed_bytes = lzma.compress(f.getvalue())
+    with open(tarball_path, 'wb') as f:
+        f.write(compressed_bytes)
+    sha256sum = hashlib.sha256()
+    sha256sum.update(compressed_bytes)
+    tarball_hash = sha256sum.hexdigest()
+    with open(hashfile_path, 'w') as f:
+        f.write(f"{tarball_hash} {tarball_name}")
+
+    with gpg.Context() as default_ctx:
+        signing_key = default_ctx.get_key(signing_key_id)
+        with gpg.Context(signers=[signing_key], armor=True) as ctx:
+            with open(hashfile_path, 'rb') as hashfile:
+                with open(sig_path, 'wb') as sigfile:
+                    hashdata = hashfile.read()
+                    sig, metadata = ctx.sign(hashdata, mode=gpg.constants.sig.mode.DETACH)
+                    sigfile.write(sig)
 
 def docker_image_tags(version):
     tags = []
