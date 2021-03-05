@@ -209,6 +209,14 @@ def main(version, github_personal_access_token):
         kiln_repo.stage([f'{component}/Cargo.toml', f'{component}/Cargo.lock'])
         kiln_repo.do_commit(message=f"{component.capitalize()}: Revert kiln_lib dependency to main branch".encode(), no_verify=no_verify)
 
+    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=release_branch_ref)
+    main_branch_ref = f"refs/heads/main".encode()
+    kiln_repo.refs.set_symbolic_ref(b'HEAD', main_branch_ref)
+    kiln_repo.reset_index()
+    sh.git.merge("--no-edit", "--no-ff", f"release/{version}")
+    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=main_branch_ref)
+
+    print("Release is complete, but requires that Github release is published manually")
 
 def docker_image_tags(version):
     tags = []
