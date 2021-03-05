@@ -12,6 +12,7 @@ toml = "*"
 sh = "*"
 gpg = "*"
 docker = "*"
+whatthepatch = "*"
 
 [dev-packages]
 

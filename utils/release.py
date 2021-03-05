@@ -17,6 +17,7 @@ import toml
 from toml import TomlPreserveInlineDictEncoder
 import io
 import lzma
+import whatthepatch
 
 def validate_version_number(ctx, param, value):
     try:
@@ -42,6 +43,16 @@ def main(version):
 
     kiln_repo.stage(['CHANGELOG.md'])
     changelog_commit = kiln_repo.do_commit(message=f"Docs: Update CHANGELOG.md for {version} release.".encode(), no_verify=no_verify)
+
+    buf = io.BytesIO()
+    dulwich.porcelain.diff_tree(kiln_repo, kiln_repo.get_object(changelog_commit.parents[0]).tree, changelog_commit.tree, buf)
+
+    diffs = whatthepatch.parse(buf.getvalue().decode("utf-8"))
+    changelog_lines = []
+    for diff in diffs:
+        for change in diff.changes:
+            if change.old is None and change.new is not None and change.line != "":
+                changelog_lines.append(change.line)
 
     set_cargo_toml_version(kiln_repo, "kiln_lib", version)
     sh.cargo.check("--manifest-path", os.path.join(kiln_repo.path, "kiln_lib", "Cargo.toml"), "--all-features", _err=sys.stderr)
