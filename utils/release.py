@@ -217,20 +217,22 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
     release.upload_asset(source_hashfile_path)
     release.upload_asset(source_sig_path)
 
+    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=release_branch_ref)
+    main_branch_ref = f"refs/heads/main".encode()
+    kiln_repo.refs.set_symbolic_ref(b'HEAD', main_branch_ref)
+    kiln_repo.reset_index()
+    sh.git.merge("--no-edit", "--no-ff", f"release/{version}")
+
     for component in ["data-collector", "data-forwarder", "report-parser", "slack-connector"]:
         set_kiln_lib_dependency(kiln_repo, component, sha=kiln_lib_version_commit)
         sh.cargo.check("--manifest-path", os.path.join(kiln_repo.path, component, "Cargo.toml"), "--all-features", _err=sys.stderr)
         kiln_repo.stage([f'{component}/Cargo.toml', f'{component}/Cargo.lock'])
         kiln_repo.do_commit(message=f"{component.capitalize()}: Revert kiln_lib dependency to main branch".encode(), no_verify=no_verify)
 
-    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=release_branch_ref)
-    main_branch_ref = f"refs/heads/main".encode()
-    kiln_repo.refs.set_symbolic_ref(b'HEAD', main_branch_ref)
-    kiln_repo.reset_index()
-    sh.git.merge("--no-edit", "--no-ff", f"release/{version}")
     dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=main_branch_ref)
 
     print("Release is complete, but requires that Github release is published manually")
+
 
 def docker_image_tags(version):
     tags = []
