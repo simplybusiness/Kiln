@@ -152,11 +152,11 @@ def main(version, github_personal_access_token):
                     sigfile.write(sig)
 
     source_tarball_name = f"Kiln-{version}.tar.xz"
-    source_tarball_path = os.path.join(kiln_repo.path, tarball_name)
-    source_hashfile_name = f"{tarball_name}.sha256"
-    source_hashfile_path = os.path.join(kiln_repo.path, hashfile_name)
-    source_sig_name = f"{hashfile_name}.sig"
-    source_sig_path = os.path.join(kiln_repo.path, sig_name)
+    source_tarball_path = os.path.join(kiln_repo.path, source_tarball_name)
+    source_hashfile_name = f"{source_tarball_name}.sha256"
+    source_hashfile_path = os.path.join(kiln_repo.path, source_hashfile_name)
+    source_sig_name = f"{source_hashfile_name}.sig"
+    source_sig_path = os.path.join(kiln_repo.path, source_sig_name)
 
     with io.BytesIO() as f:
         dulwich.porcelain.archive(kiln_repo, outstream=f)
