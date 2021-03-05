@@ -19,6 +19,7 @@ import lzma
 import whatthepatch
 from github import Github
 
+
 def validate_version_number(ctx, param, value):
     try:
         return semver.VersionInfo.parse(value)
@@ -27,16 +28,17 @@ def validate_version_number(ctx, param, value):
     except ValueError:
         raise click.BadParameter("Version number not semver compatible")
 
+
 @click.command()
 @click.option('--version', required=True, prompt="Version number to release", callback=validate_version_number)
 @click.option('--github-personal-access-token', required=True, envvar='GITHUB_PERSONAL_ACCESS_TOKEN')
 @click.confirmation_option()
 def main(version, github_personal_access_token):
-    no_verify=True
+    no_verify = True
 
     kiln_repo = Repo.discover()
     working_copy_clean = check_for_expected_working_copy_changes(kiln_repo)
-    if working_copy_clean == False:
+    if not working_copy_clean:
         raise click.ClickException("Working copy contains uncomitted changes except for CHANGELOG.md")
     dulwich.porcelain.branch_create(kiln_repo.path, f"release/{version}")
     release_branch_ref = f"refs/heads/release/{version}".encode()
@@ -131,10 +133,10 @@ def main(version, github_personal_access_token):
         tarball.add(dst_path, arcname=base_name)
 
     sha256sum = hashlib.sha256()
-    b  = bytearray(128*1024)
+    b = bytearray(128*1024)
     mv = memoryview(b)
     with open(tarball_path, 'rb', buffering=0) as f:
-        for n in iter(lambda : f.readinto(mv), 0):
+        for n in iter(lambda: f.readinto(mv), 0):
             sha256sum.update(mv[:n])
     tarball_hash = sha256sum.hexdigest()
     with open(hashfile_path, 'w') as f:
@@ -187,6 +189,7 @@ def main(version, github_personal_access_token):
     release.upload_asset(source_hashfile_path)
     release.upload_asset(source_sig_path)
 
+
 def docker_image_tags(version):
     tags = []
     if version.major == 0:
@@ -200,6 +203,7 @@ def docker_image_tags(version):
         tags.append("latest")
     return tags
 
+
 def set_cargo_toml_version(repo, component, version):
     with open(os.path.join(repo.path, component, "Cargo.toml"), "r+") as f:
         cargo_toml = toml.load(f)
@@ -207,6 +211,7 @@ def set_cargo_toml_version(repo, component, version):
         f.seek(0)
         f.truncate()
         toml.dump(cargo_toml, f, TomlPreserveInlineDictEncoder())
+
 
 def set_kiln_lib_dependency(repo, component, sha=None, branch=None):
     with open(os.path.join(repo.path, component, "Cargo.toml"), "r+") as f:
@@ -235,6 +240,7 @@ def set_kiln_lib_dependency(repo, component, sha=None, branch=None):
         f.truncate()
         toml.dump(cargo_toml, f, TomlPreserveInlineDictEncoder())
 
+
 def check_for_expected_working_copy_changes(kiln_repo):
     (staged, unstaged, untracked) = dulwich.porcelain.status(kiln_repo)
     if staged['add'] or staged['delete'] or staged['modify']:
@@ -243,6 +249,7 @@ def check_for_expected_working_copy_changes(kiln_repo):
         if item != b"CHANGELOG.md" and not PurePath(item.decode("utf-8")).match("utils/*"):
             return False
     return True
+
 
 if __name__ == "__main__":
     main()
