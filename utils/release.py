@@ -18,6 +18,7 @@ from toml import TomlPreserveInlineDictEncoder
 import io
 import lzma
 import whatthepatch
+from github import Github
 
 def validate_version_number(ctx, param, value):
     try:
@@ -29,8 +30,9 @@ def validate_version_number(ctx, param, value):
 
 @click.command()
 @click.option('--version', required=True, prompt="Version number to release", callback=validate_version_number)
+@click.option('--github-personal-access-token', required=True, envvar='GITHUB_PERSONAL_ACCESS_TOKEN')
 @click.confirmation_option()
-def main(version):
+def main(version, github_personal_access_token):
     no_verify=True
 
     kiln_repo = Repo.discover()
@@ -148,33 +150,43 @@ def main(version):
                     sig, metadata = ctx.sign(hashdata, mode=gpg.constants.sig.mode.DETACH)
                     sigfile.write(sig)
 
-    tarball_name = f"Kiln-{version}.tar.xz"
-    tarball_path = os.path.join(kiln_repo.path, tarball_name)
-    hashfile_name = f"{tarball_name}.sha256"
-    hashfile_path = os.path.join(kiln_repo.path, hashfile_name)
-    sig_name = f"{hashfile_name}.sig"
-    sig_path = os.path.join(kiln_repo.path, sig_name)
+    source_tarball_name = f"Kiln-{version}.tar.xz"
+    source_tarball_path = os.path.join(kiln_repo.path, tarball_name)
+    source_hashfile_name = f"{tarball_name}.sha256"
+    source_hashfile_path = os.path.join(kiln_repo.path, hashfile_name)
+    source_sig_name = f"{hashfile_name}.sig"
+    source_sig_path = os.path.join(kiln_repo.path, sig_name)
 
     with io.BytesIO() as f:
         dulwich.porcelain.archive(kiln_repo, outstream=f)
         f.flush()
         compressed_bytes = lzma.compress(f.getvalue())
-    with open(tarball_path, 'wb') as f:
+    with open(source_tarball_path, 'wb') as f:
         f.write(compressed_bytes)
     sha256sum = hashlib.sha256()
     sha256sum.update(compressed_bytes)
     tarball_hash = sha256sum.hexdigest()
-    with open(hashfile_path, 'w') as f:
-        f.write(f"{tarball_hash} {tarball_name}")
+    with open(source_hashfile_path, 'w') as f:
+        f.write(f"{tarball_hash} {source_tarball_name}")
 
     with gpg.Context() as default_ctx:
         signing_key = default_ctx.get_key(signing_key_id)
         with gpg.Context(signers=[signing_key], armor=True) as ctx:
-            with open(hashfile_path, 'rb') as hashfile:
-                with open(sig_path, 'wb') as sigfile:
+            with open(source_hashfile_path, 'rb') as hashfile:
+                with open(source_sig_path, 'wb') as sigfile:
                     hashdata = hashfile.read()
                     sig, metadata = ctx.sign(hashdata, mode=gpg.constants.sig.mode.DETACH)
                     sigfile.write(sig)
+
+    g = Github(github_personal_access_token)
+    repo = g.get_repo("simplybusiness/Kiln")
+    release = repo.create_git_release("v{version}", "Version {version}", changelog_lines.join('\n'), draft=True)
+    release.upload_asset(tarball_path)
+    release.upload_asset(hashfile_path)
+    release.upload_asset(sig_path)
+    release.upload_asset(source_tarball_path)
+    release.upload_asset(source_hashfile_path)
+    release.upload_asset(source_sig_path)
 
 def docker_image_tags(version):
     tags = []
