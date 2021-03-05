@@ -7,7 +7,6 @@ import hashlib
 import gpg
 import os
 from pathlib import PurePath
-import re
 import semver
 import sh
 import shutil
