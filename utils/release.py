@@ -32,8 +32,9 @@ def validate_version_number(ctx, param, value):
 @click.command()
 @click.option('--version', required=True, prompt="Version number to release", callback=validate_version_number)
 @click.option('--github-personal-access-token', required=True, envvar='GITHUB_PERSONAL_ACCESS_TOKEN')
+@click.option('--kiln-automation-docker-access-token', required=True, envvar='KILN_AUTOMATION_DOCKER_ACCESS_TOKEN')
 @click.confirmation_option()
-def main(version, github_personal_access_token):
+def main(version, github_personal_access_token, kiln_automation_docker_access_token):
     no_verify = True
 
     kiln_repo = Repo.discover()
@@ -88,6 +89,7 @@ def main(version, github_personal_access_token):
     shutil.copy2(os.path.join(kiln_repo.path, "bin", "data-forwarder"), os.path.join(kiln_repo.path, "tool-images", "ruby", "bundler-audit"))
     shutil.copy2(os.path.join(kiln_repo.path, "bin", "data-forwarder"), os.path.join(kiln_repo.path, "tool-images", "python", "safety"))
     docker_client = docker.from_env()
+    docker_client.login(username="kilnautomation", password=kiln_automation_docker_access_token)
 
     image_tags = docker_image_tags(version)
     (bundler_audit_image, build_logs) = docker_client.images.build(
@@ -100,8 +102,12 @@ def main(version, github_personal_access_token):
         except KeyError:
             pass
 
+    push_logs = bundler_audit_image.push("kiln/bundler-audit", tag=image_tags[0])
+    print(push_logs)
     for tag in image_tags[1:]:
         bundler_audit_image.tag("kiln/bundler-audit", tag=tag)
+        push_logs = bundler_audit_image.push("kiln/bundler-audit", tag=tag)
+        print(push_logs)
 
     (safety_image, build_logs) = docker_client.images.build(
             path=os.path.join(kiln_repo.path, "tool-images", "python", "safety"),
@@ -112,9 +118,13 @@ def main(version, github_personal_access_token):
             print(line['stream'], end='')
         except KeyError:
             pass
+    push_logs = safety_image.push("kiln/safety", tag=image_tags[0])
+    print(push_logs)
 
     for tag in image_tags[1:]:
         safety_image.tag("kiln/safety", tag=tag)
+        push_logs = python_image.push("kiln/python", tag=tag)
+        print(push_logs)
 
     for component in ["data-collector", "report-parser", "slack-connector"]:
         sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, component), _err=sys.stderr)
@@ -127,8 +137,12 @@ def main(version, github_personal_access_token):
                 print(line['stream'], end='')
             except KeyError:
                 pass
+        push_logs = docker_image.push(f"kiln/{component}", tag=image_tags[0])
+        print(push_logs)
         for tag in image_tags[1:]:
             docker_image.tag(f"kiln/{component}", tag=tag)
+            push_logs = docker_image.push(f"kiln/{component}", tag=tag)
+            print(push_logs)
 
     sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, "cli"), _err=sys.stderr)
     base_path = os.path.join(kiln_repo.path, "cli", "target", "x86_64-unknown-linux-musl", "release")
