@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "add249908bb57020ea7e13cd7451945bb44380ea23a934d52c142c0a799ab2ca"
+            "sha256": "8c08bbb50a433337ae4cd9633c56b111b2ba1acd75491a29db8172dec688fdf2"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -145,6 +145,14 @@
             ],
             "markers": "python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==0.58.0"
+        },
+        "whatthepatch": {
+            "hashes": [
+                "sha256:6d920d6c328eda006f12ec05bc9eadb405957b18460520db195f9a21eb3336e1",
+                "sha256:c540ea59173e0a291e19c742dd8b406c56e2be039a600edb7c6fc3ae4bbdfa9f"
+            ],
+            "index": "pypi",
+            "version": "==1.0.2"
         },
         "wrapt": {
             "hashes": [
