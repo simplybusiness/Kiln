@@ -86,6 +86,7 @@ def main(version, github_personal_access_token):
 
     sh.cargo.make("build-data-forwarder-musl", _cwd=os.path.join(kiln_repo.path, "data-forwarder"), _err=sys.stderr)
     shutil.copy2(os.path.join(kiln_repo.path, "bin", "data-forwarder"), os.path.join(kiln_repo.path, "tool-images", "ruby", "bundler-audit"))
+    shutil.copy2(os.path.join(kiln_repo.path, "bin", "data-forwarder"), os.path.join(kiln_repo.path, "tool-images", "python", "safety"))
     docker_client = docker.from_env()
 
     image_tags = docker_image_tags(version)
@@ -101,6 +102,19 @@ def main(version, github_personal_access_token):
 
     for tag in image_tags[1:]:
         bundler_audit_image.tag("kiln/bundler-audit", tag=tag)
+
+    (safety_image, build_logs) = docker_client.images.build(
+            path=os.path.join(kiln_repo.path, "tool-images", "python", "safety"),
+            tag=f"kiln/safety:{image_tags[0]}",
+            rm=True)
+    for line in build_logs:
+        try:
+            print(line['stream'], end='')
+        except KeyError:
+            pass
+
+    for tag in image_tags[1:]:
+        safety_image.tag("kiln/safety", tag=tag)
 
     for component in ["data-collector", "report-parser", "slack-connector"]:
         sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, component), _err=sys.stderr)
