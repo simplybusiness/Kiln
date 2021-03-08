@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
     reviewers:
       - "DanHatesNumbers"
   - package-ecosystem: "cargo"
@@ -14,7 +14,7 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
     reviewers:
       - "DanHatesNumbers"
   - package-ecosystem: "cargo"
@@ -22,7 +22,7 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
     reviewers:
       - "DanHatesNumbers"
   - package-ecosystem: "cargo"
@@ -30,7 +30,7 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
     reviewers:
       - "DanHatesNumbers"
   - package-ecosystem: "cargo"
@@ -38,7 +38,7 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
     reviewers:
       - "DanHatesNumbers"
   - package-ecosystem: "github-actions"
@@ -46,7 +46,7 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
     reviewers:
       - "DanHatesNumbers"
   - package-ecosystem: "docker"
@@ -54,7 +54,7 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
     reviewers:
       - "DanHatesNumbers"
   - package-ecosystem: "docker"
@@ -62,6 +62,6 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "all"
+      - dependency-type: "direct"
     reviewers:
       - "DanHatesNumbers"
