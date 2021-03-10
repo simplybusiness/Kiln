@@ -98,9 +98,9 @@ dependencies = [
 
 [[package]]
 name = "actix-http"
-version = "3.0.0-beta.3"
+version = "3.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a12706e793a92377f85cec219514b72625b3b89f9b4912d8bfb53ab6a615bf0"
+checksum = "8a01f9e0681608afa887d4269a0857ac4226f09ba5ceda25939e8391c9da610a"
 dependencies = [
  "actix-codec 0.4.0-beta.1",
  "actix-rt 2.1.0",
@@ -113,22 +113,21 @@ dependencies = [
  "brotli2",
  "bytes 1.0.1",
  "bytestring",
+ "cfg-if 1.0.0",
  "cookie",
  "derive_more",
  "encoding_rs",
  "flate2",
- "futures-channel",
  "futures-core",
  "futures-util",
  "h2 0.3.1",
  "http",
  "httparse",
- "indexmap",
  "itoa",
  "language-tags",
- "lazy_static",
  "log",
  "mime",
+ "once_cell",
  "percent-encoding",
  "pin-project 1.0.5",
  "rand 0.8.3",
@@ -137,9 +136,9 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "sha-1",
- "slab",
  "smallvec",
  "time 0.2.25",
+ "tokio 1.2.0",
 ]
 
 [[package]]
@@ -308,12 +307,12 @@ dependencies = [
 
 [[package]]
 name = "actix-web"
-version = "4.0.0-beta.3"
+version = "4.0.0-beta.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc9683dc8c3037ea524e0fec6032d34e1cb1ee72c4eb8689f428a60c2a544ea3"
+checksum = "1d95e50c9e32e8456220b5804867de76e97a86ab8c38b51c9edcccc0f0fddca7"
 dependencies = [
  "actix-codec 0.4.0-beta.1",
- "actix-http 3.0.0-beta.3",
+ "actix-http 3.0.0-beta.4",
  "actix-macros 0.2.0",
  "actix-router",
  "actix-rt 2.1.0",
@@ -344,9 +343,9 @@ dependencies = [
 
 [[package]]
 name = "actix-web-codegen"
-version = "0.5.0-beta.1"
+version = "0.5.0-beta.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8313dc4cbcae1785a7f14c3dfb7dfeb25fe96a03b20e5c38fe026786def5aa70"
+checksum = "7f138ac357a674c3b480ddb7bbd894b13c1b6e8927d728bc9ea5e17eee2f8fc9"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -455,12 +454,12 @@ dependencies = [
 
 [[package]]
 name = "awc"
-version = "3.0.0-beta.2"
+version = "3.0.0-beta.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da7225ad81fbad09ef56ccc61e0688abe8494a68722c5d0df5e2fc8b724a200b"
+checksum = "09aecd8728f6491a62b27454ea4b36fb7e50faf32928b0369b644e402c651f4e"
 dependencies = [
  "actix-codec 0.4.0-beta.1",
- "actix-http 3.0.0-beta.3",
+ "actix-http 3.0.0-beta.4",
  "actix-rt 2.1.0",
  "actix-service 2.0.0-beta.4",
  "base64",
@@ -468,9 +467,11 @@ dependencies = [
  "cfg-if 1.0.0",
  "derive_more",
  "futures-core",
+ "itoa",
  "log",
  "mime",
  "percent-encoding",
+ "pin-project-lite 0.2.4",
  "rand 0.8.3",
  "serde",
  "serde_json",
