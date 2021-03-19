@@ -7,7 +7,7 @@ edition = "2018"
 anyhow = "1"
 avro-rs = { version = "0.13", optional = true }
 chrono = { version = "0.4", features = [ "serde",] }
-actix-web = { version = "4.0.0-beta.3", optional = true }
+actix-web = { version = "4.0.0-beta.4", optional = true }
 hex = { version = "0.4", features = [ "serde",] }
 http = { version = "0.2", optional = true }
 serde_json = { version = "1.0", optional = true }
