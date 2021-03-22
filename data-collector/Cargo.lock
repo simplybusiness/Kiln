@@ -844,7 +844,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.4.3"
-source = "git+https://github.com/simplybusiness/Kiln?branch=main#387325344089ee3c397152c51c231d91320a5002"
+source = "git+https://github.com/simplybusiness/Kiln?branch=main#20e19b1798a63ea6e8142c1e73666cfc569e2006"
 dependencies = [
  "actix-web",
  "addr",
