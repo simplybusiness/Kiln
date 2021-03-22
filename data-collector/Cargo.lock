@@ -28,7 +28,7 @@ dependencies = [
  "futures-sink",
  "log",
  "pin-project-lite 0.2.4",
- "tokio 1.2.0",
+ "tokio 1.4.0",
  "tokio-util 0.6.3",
 ]
 
@@ -138,7 +138,7 @@ dependencies = [
  "sha-1",
  "smallvec",
  "time 0.2.25",
- "tokio 1.2.0",
+ "tokio 1.4.0",
 ]
 
 [[package]]
@@ -197,7 +197,7 @@ checksum = "0b4e57bc1a3915e71526d128baf4323700bd1580bc676239e2298a4c5b001f18"
 dependencies = [
  "actix-macros 0.2.0",
  "futures-core",
- "tokio 1.2.0",
+ "tokio 1.4.0",
 ]
 
 [[package]]
@@ -215,7 +215,7 @@ dependencies = [
  "mio 0.7.9",
  "num_cpus",
  "slab",
- "tokio 1.2.0",
+ "tokio 1.4.0",
 ]
 
 [[package]]
@@ -697,7 +697,7 @@ dependencies = [
  "slog-async",
  "slog_derive",
  "thiserror",
- "tokio 1.2.0",
+ "tokio 1.4.0",
  "uuid",
 ]
 
@@ -1001,7 +1001,7 @@ dependencies = [
  "http",
  "indexmap",
  "slab",
- "tokio 1.2.0",
+ "tokio 1.4.0",
  "tokio-util 0.6.3",
  "tracing",
 ]
@@ -1736,7 +1736,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "slab",
- "tokio 1.2.0",
+ "tokio 1.4.0",
 ]
 
 [[package]]
@@ -2263,9 +2263,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.2.0"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8190d04c665ea9e6b6a0dc45523ade572c088d2e6566244c1122671dbf4ae3a"
+checksum = "134af885d758d645f0f0505c9a8b3f9bf8a348fd822e112ab5248138348f1722"
 dependencies = [
  "autocfg",
  "bytes 1.0.1",
@@ -2317,7 +2317,7 @@ dependencies = [
  "futures-sink",
  "log",
  "pin-project-lite 0.2.4",
- "tokio 1.2.0",
+ "tokio 1.4.0",
 ]
 
 [[package]]
