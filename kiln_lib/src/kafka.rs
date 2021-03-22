@@ -1,4 +1,4 @@
-use addr::{psl::List, parser::DomainName};
+use addr::{parser::DomainName, psl::List};
 use openssl_probe::ProbeResult;
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::stream_consumer::StreamConsumer;
@@ -91,7 +91,9 @@ where
                     let domain_valid = if disable_kafka_domain_validation {
                         true
                     } else {
-                        List.parse_domain_name(parts[0]).map(|name| name.has_known_suffix()).unwrap_or(false)
+                        List.parse_domain_name(parts[0])
+                            .map(|name| name.has_known_suffix())
+                            .unwrap_or(false)
                     };
                     let port_valid = u16::from_str_radix(parts[1], 10).is_ok();
                     domain_valid && port_valid
