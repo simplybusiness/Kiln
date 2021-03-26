@@ -1,17 +1,16 @@
+use actix_http::error::PayloadError;
 use actix_web::dev::{
     MessageBody, ResponseBody, Service, ServiceRequest, ServiceResponse, Transform,
 };
 use actix_web::error::{Error, Result};
 use actix_web::http::header::{HOST, USER_AGENT};
-use actix_http::{error::PayloadError, h1::Payload as HttpPayload};
 use chrono::{SecondsFormat, Utc};
-use futures::{future::{ok, Ready}, io::copy};
+use futures::future::{ok, Ready};
 use futures::stream::{Stream, StreamExt};
 use kiln_lib::validation::ValidationError;
 use serde::{Deserialize, Serialize};
 use slog::{error, info, o, Logger};
 use slog_derive::SerdeValue;
-use std::{borrow::{BorrowMut, ToOwned}, ops::{Deref, DerefMut}};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::future::Future;
@@ -19,22 +18,26 @@ use std::pin::Pin;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::task::Poll;
+use std::{
+    borrow::ToOwned,
+    ops::{Deref, DerefMut},
+};
 use uuid::Uuid;
 
 #[derive(Clone)]
 struct CopyStream {
     buffer: Rc<RefCell<Vec<u8>>>,
-    input: Rc<RefCell<actix_web::dev::Payload>>
+    input: Rc<RefCell<actix_web::dev::Payload>>,
 }
 
-impl Into<Pin<Box<dyn Stream<Item=Result<bytes::Bytes, PayloadError>>>>> for CopyStream {
-    fn into(self) -> Pin<Box<dyn Stream<Item=Result<bytes::Bytes, PayloadError>>>> {
+impl Into<Pin<Box<dyn Stream<Item = Result<bytes::Bytes, PayloadError>>>>> for CopyStream {
+    fn into(self) -> Pin<Box<dyn Stream<Item = Result<bytes::Bytes, PayloadError>>>> {
         Box::pin(self)
     }
 }
 
 impl Stream for CopyStream {
-    type Item= Result<bytes::Bytes, PayloadError>;
+    type Item = Result<bytes::Bytes, PayloadError>;
 
     fn poll_next(
         self: Pin<&mut Self>,
@@ -42,23 +45,43 @@ impl Stream for CopyStream {
     ) -> Poll<Option<Self::Item>> {
         let mut input = self.input.deref().borrow_mut();
         match input.deref_mut() {
-            actix_http::Payload::None => {
-                Poll::Ready(None)
-            },
+            actix_http::Payload::None => Poll::Ready(None),
             actix_http::Payload::H1(ref mut p) => {
                 let res = p.readany(cx);
                 match res {
                     Poll::Ready(b) => {
                         if let Some(Ok(ref b)) = b {
-                            self.buffer.deref().borrow_mut().extend_from_slice(&b);
+                            self.buffer.deref().borrow_mut().extend_from_slice(b);
                         }
                         Poll::Ready(b)
-                    },
-                    Poll::Pending => Poll::Pending
+                    }
+                    Poll::Pending => Poll::Pending,
                 }
-            },
-            actix_http::Payload::H2(p) => {todo!()},
-            actix_http::Payload::Stream(p) => {todo!()},
+            }
+            actix_http::Payload::H2(p) => {
+                let res = p.poll_next_unpin(cx);
+                match res {
+                    Poll::Ready(b) => {
+                        if let Some(Ok(ref b)) = b {
+                            self.buffer.deref().borrow_mut().extend_from_slice(b);
+                        }
+                        Poll::Ready(b)
+                    }
+                    Poll::Pending => Poll::Pending,
+                }
+            }
+            actix_http::Payload::Stream(p) => {
+                let res = p.poll_next_unpin(cx);
+                match res {
+                    Poll::Ready(b) => {
+                        if let Some(Ok(ref b)) = b {
+                            self.buffer.deref().borrow_mut().extend_from_slice(b);
+                        }
+                        Poll::Ready(b)
+                    }
+                    Poll::Pending => Poll::Pending,
+                }
+            }
         }
     }
 }
@@ -167,27 +190,15 @@ where
             req.head_mut().extensions_mut().insert(transaction_id);
 
             // read request body
-            let (req_http, mut payload) = req.into_parts();
-
-            //let mut req_body_bytes_mut = bytes::BytesMut::new();
-            //while let Some(chunk) = payload.by_ref().next().await {
-            //    req_body_bytes_mut.extend_from_slice(&chunk?);
-            //}
-            //let req_body_bytes = req_body_bytes_mut.freeze();
-            //println!("{:?}", req_body_bytes);
-            //let req_body = String::from_utf8(req_body_bytes.clone().to_vec()).unwrap();
-
-            //let (mut http_payload_sender, http_payload) = HttpPayload::create(true);
-
-            //http_payload_sender.feed_data(req_body_bytes.clone());
-            //println!("{:?}", http_payload);
+            let (req_http, payload) = req.into_parts();
 
             let copy_payload = CopyStream {
-                buffer: Rc::new(RefCell::new(vec!())),
-                input: Rc::new(RefCell::new(payload))
+                buffer: Rc::new(RefCell::new(vec![])),
+                input: Rc::new(RefCell::new(payload)),
             };
 
-            let boxed_payload: Pin<Box<dyn Stream<Item=Result<bytes::Bytes, PayloadError>>>> = copy_payload.clone().into();
+            let boxed_payload: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, PayloadError>>>> =
+                copy_payload.clone().into();
 
             req = ServiceRequest::from_parts(req_http, boxed_payload.into());
 
@@ -326,26 +337,26 @@ mod tests {
     async fn request_logger_passes_through_request_body() {
         let drain = NestedJsonFmt::new(std::io::sink()).fuse();
         let drain = slog_async::Async::new(drain).build().fuse();
-        let root_logger = slog::Logger::root(
-            drain,
-            o!()
-        );
+        let root_logger = slog::Logger::root(drain, o!());
         let sut = StructuredLogger::new(root_logger.clone()).exclude("/health");
 
         let expected_body = "Test body";
-        let app = actix_web::test::init_service(
-            actix_web::App::new()
-                .wrap(sut)
-                .service(actix_web::web::resource("/test").to(move |actual_body: actix_web::web::Bytes| async move {
+        let app = actix_web::test::init_service(actix_web::App::new().wrap(sut).service(
+            actix_web::web::resource("/test").to(
+                move |actual_body: actix_web::web::Bytes| async move {
                     println!("{:?}", expected_body);
                     println!("{:?}", actual_body);
                     assert_eq!(expected_body, actual_body);
                     actix_web::HttpResponse::Ok()
-                }))
-        ).await;
+                },
+            ),
+        ))
+        .await;
 
         // Create request object
-        let req = TestRequest::with_uri("/test").set_payload(expected_body).to_request();
+        let req = TestRequest::with_uri("/test")
+            .set_payload(expected_body)
+            .to_request();
 
         // Call application
         let resp = actix_web::test::call_service(&app, req).await;
