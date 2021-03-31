@@ -130,7 +130,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
         .arg("--exclude=*HEAD*")
         .arg("HEAD")
         .output()
-        .expect("failed to execute process");
+        .ok();
 
     let git_branch_name = String::from_utf8_lossy(&git_branch_name_cmd.stdout);
     let git_commit = head.peel_to_commit()?.id().to_string();
