@@ -16,8 +16,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::process::Command;
+use std::str::FromStr;
 use uuid::Uuid;
 
 fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
@@ -125,12 +125,12 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     let repo = Repository::discover(curr_dir)?;
     let head = repo.head()?;
     let git_branch_name_cmd = Command::new("git")
-              .arg("name-rev")
-              .arg("--name-only")
-              .arg("--exclude=*HEAD*")
-              .arg("HEAD")
-              .output()
-              .expect("failed to execute process");
+        .arg("name-rev")
+        .arg("--name-only")
+        .arg("--exclude=*HEAD*")
+        .arg("HEAD")
+        .output()
+        .expect("failed to execute process");
 
     let git_branch_name = String::from_utf8_lossy(&git_branch_name_cmd.stdout);
     let git_commit = head.peel_to_commit()?.id().to_string();
