@@ -132,7 +132,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
         .output()
         .ok();
 
-    let git_branch_name = String::from_utf8_lossy(&git_branch_name_cmd.stdout);
+    let git_branch_name = git_branch_name_cmd.map(|v| String::from_utf8_lossy(&v.stdout).into_owned());
     let git_commit = head.peel_to_commit()?.id().to_string();
 
     let kiln_cfg_path = PathBuf::from_str("./kiln.toml")?;
@@ -163,7 +163,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
         event_version: EventVersion::try_from("1".to_string())?,
         event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
         application_name: ApplicationName::try_from(app_name.to_string())?,
-        git_branch: GitBranch::try_from(Some(git_branch_name.into_owned()))?,
+        git_branch: GitBranch::try_from(git_branch_name)?,
         git_commit_hash: GitCommitHash::try_from(git_commit)?,
         tool_name: ToolName::try_from(tool_name.to_string())?,
         tool_output: ToolOutput::try_from(tool_output)?,
@@ -188,7 +188,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
                 }
                 OperationResult::Retry(err_msg(err))
             }
-            Ok(mut res) => match res.status() {
+            Ok(res) => match res.status() {
                 StatusCode::OK => OperationResult::Ok(()),
                 _ => OperationResult::Err(err_msg(res.text().unwrap())),
             },
