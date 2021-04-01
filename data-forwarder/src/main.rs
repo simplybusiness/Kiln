@@ -16,6 +16,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::Command;
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -123,11 +124,16 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
     let curr_dir = env::current_dir()?;
     let repo = Repository::discover(curr_dir)?;
     let head = repo.head()?;
-    let git_branch_name = if head.is_branch() {
-        head.shorthand().map(|t| t.to_string())
-    } else {
-        None
-    };
+    let git_branch_name_cmd = Command::new("git")
+        .arg("name-rev")
+        .arg("--name-only")
+        .arg("--exclude=*HEAD*")
+        .arg("HEAD")
+        .output()
+        .ok();
+
+    let git_branch_name =
+        git_branch_name_cmd.map(|v| String::from_utf8_lossy(&v.stdout).into_owned());
     let git_commit = head.peel_to_commit()?.id().to_string();
 
     let kiln_cfg_path = PathBuf::from_str("./kiln.toml")?;
@@ -183,7 +189,7 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
                 }
                 OperationResult::Retry(err_msg(err))
             }
-            Ok(mut res) => match res.status() {
+            Ok(res) => match res.status() {
                 StatusCode::OK => OperationResult::Ok(()),
                 _ => OperationResult::Err(err_msg(res.text().unwrap())),
             },
