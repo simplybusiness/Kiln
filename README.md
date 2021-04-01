@@ -3,10 +3,15 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v1.4%20adopted-ff69b4.svg)](CODE_OF_CONDUCT.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Join the chat at https://gitter.im/Kiln-security/community](https://badges.gitter.im/Kiln-security/community.svg)](https://gitter.im/Kiln-security/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+Kiln is a tool that makes it easy to run a range of security tools on project repositories, automatically notify teams of issues via connectors such as Slack, and monitor trends in findings to guide AppSec efforts within an organisation.  Kiln has been designed as a collection of dockerised application security tools, a validating HTTP proxy to forward the tool output to an Apache Kafka cluster and a collection of connectors to consume data from the Apache Kafka cluster.
+Some of the current use cases for Kiln are: 
 
-Kiln is a collection of dockerised application security tools, a validating HTTP proxy to forward the tool output to an Apache Kafka cluster and a collection of connectors to consume data from the Apache Kafka cluster and perform tasks like Slack notifications, raising items on a team's backlog, or determine trends in security findings.
-
-The main goal of Kiln is to make security tools easy for teams to adopt while also gathering useful data for a security team.
+- Collect application dependency security issues for Ruby and Python, with other languages to follow.
+- Notify teams on Slack about issues in their application dependencies.
+- Suppress issues if they are false positives (either for a specific period of time or indefinitely).
+- Build custom service integrations by consuming events from Kafka.
+- Stream event data from Kafka to a data lake or process the event stream directly to perform analysis, reporting and metric calculation.
+- Run analyses on the data and monitor trends such as which repositories have most vulnerable dependencies, what is the average time to fix issues within and across teams. 
 
 ## Architecture
 Kiln is architected as a modular, event sourcing system with only two required components: the Kiln Data Collector and an Apache Kafka cluster. When you run a Kiln Security Scanner, the tool output is send to the data-collector, which acts as a data validation point and HTTP interface to the Apache Kafka cluster. The data-collector then inserts the tool output and some additional metadata into a Kafka topic. For an introduction to Event Sourcing, checkout https://dev.to/barryosull/event-sourcing-what-it-is-and-why-its-awesome.
