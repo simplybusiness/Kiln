@@ -132,7 +132,8 @@ fn main() -> Result<(), std::boxed::Box<dyn std::error::Error>> {
         .output()
         .ok();
 
-    let git_branch_name = git_branch_name_cmd.map(|v| String::from_utf8_lossy(&v.stdout).into_owned());
+    let git_branch_name =
+        git_branch_name_cmd.map(|v| String::from_utf8_lossy(&v.stdout).into_owned());
     let git_commit = head.peel_to_commit()?.id().to_string();
 
     let kiln_cfg_path = PathBuf::from_str("./kiln.toml")?;
