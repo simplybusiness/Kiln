@@ -11,21 +11,14 @@ jobs:
             - uses: davidB/rust-cargo-make@v1
               with:
                 version: 0.22.2
-            - name: Cache cargo registry
+            - name: Cache cargo registry, index and build
               uses: actions/cache@v2.1.4
               with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-collector/Cargo.lock') }}
-            - name: Cache cargo index
-              uses: actions/cache@v2.1.4
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-collector/Cargo.lock') }}
-            - name: Cache cargo build
-              uses: actions/cache@v2.1.4
-              with:
-                path: data-collector/target
-                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-collector/Cargo.lock') }}
+                path: |
+                    ~/.cargo/registry
+                    ~/.cargo/git
+                    data-collector/target
+                key: ${{ runner.os }}-cargo-cache-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Check formatting
               run: cargo fmt -- --check
               working-directory: data-collector/
@@ -44,21 +37,14 @@ jobs:
             - uses: davidB/rust-cargo-make@v1
               with:
                 version: 0.22.2
-            - name: Cache cargo registry
+            - name: Cache cargo registry, index and build
               uses: actions/cache@v2.1.4
               with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-forwarder/Cargo.lock') }}
-            - name: Cache cargo index
-              uses: actions/cache@v2.1.4
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-forwarder/Cargo.lock') }}
-            - name: Cache cargo build
-              uses: actions/cache@v2.1.4
-              with:
-                path: data-forwarder/target
-                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('data-forwarder/Cargo.lock') }}
+                path: |
+                    ~/.cargo/registry
+                    ~/.cargo/git
+                    data-forwarder/target
+                key: ${{ runner.os }}-cargo-cache-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Check formatting
               run: cargo fmt -- --check
               working-directory: data-forwarder/
@@ -77,21 +63,14 @@ jobs:
             - uses: davidB/rust-cargo-make@v1
               with:
                 version: 0.22.2
-            - name: Cache cargo registry
+            - name: Cache cargo registry, index and build
               uses: actions/cache@v2.1.4
               with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('cli/Cargo.lock') }}
-            - name: Cache cargo index
-              uses: actions/cache@v2.1.4
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-cargo-index-${{ hashFiles('cli/Cargo.lock') }}
-            - name: Cache cargo build
-              uses: actions/cache@v2.1.4
-              with:
-                path: cli/target
-                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('cli/Cargo.lock') }}
+                path: |
+                    ~/.cargo/registry
+                    ~/.cargo/git
+                    cli/target
+                key: ${{ runner.os }}-cargo-cache-${{ hashFiles('cli/Cargo.lock') }}
             - name: Check formatting
               run: cargo fmt -- --check
               working-directory: cli/
@@ -113,21 +92,14 @@ jobs:
             - uses: davidB/rust-cargo-make@v1
               with:
                 version: 0.22.2
-            - name: Cache cargo registry
+            - name: Cache cargo registry, index and build
               uses: actions/cache@v2.1.4
               with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('report-parser/Cargo.lock') }}
-            - name: Cache cargo index
-              uses: actions/cache@v2.1.4
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-cargo-index-${{ hashFiles('report-parser/Cargo.lock') }}
-            - name: Cache cargo build
-              uses: actions/cache@v2.1.4
-              with:
-                path: report-parser/target
-                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('report-parser/Cargo.lock') }}
+                path: |
+                    ~/.cargo/registry
+                    ~/.cargo/git
+                    report-parser/target
+                key: ${{ runner.os }}-cargo-cache-${{ hashFiles('report-parser/Cargo.lock') }}
             - name: Check formatting
               run: cargo fmt -- --check
               working-directory: report-parser/
@@ -146,21 +118,14 @@ jobs:
             - uses: davidB/rust-cargo-make@v1
               with:
                 version: 0.22.2
-            - name: Cache cargo registry
+            - name: Cache cargo registry, index and build
               uses: actions/cache@v2.1.4
               with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('slack-connector/Cargo.lock') }}
-            - name: Cache cargo index
-              uses: actions/cache@v2.1.4
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-cargo-index-${{ hashFiles('slack-connector/Cargo.lock') }}
-            - name: Cache cargo build
-              uses: actions/cache@v2.1.4
-              with:
-                path: slack-connector/target
-                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('slack-connector/Cargo.lock') }}
+                path: |
+                    ~/.cargo/registry
+                    ~/.cargo/git
+                    slack-connector/target 
+                key: ${{ runner.os }}-cargo-cache-${{ hashFiles('slack-connector/Cargo.lock') }}
             - name: Check formatting
               run: cargo fmt -- --check
               working-directory: slack-connector/
@@ -176,21 +141,14 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
-            - name: Cache cargo registry
+            - name: Cache cargo registry, index and build
               uses: actions/cache@v2.1.4
               with:
-                path: ~/.cargo/registry
-                key: ${{ runner.os }}-cargo-registry-${{ hashFiles('kiln_lib/Cargo.lock') }}
-            - name: Cache cargo index
-              uses: actions/cache@v2.1.4
-              with:
-                path: ~/.cargo/git
-                key: ${{ runner.os }}-cargo-index-${{ hashFiles('kiln_lib/Cargo.lock') }}
-            - name: Cache cargo build
-              uses: actions/cache@v2.1.4
-              with:
-                path: kiln_lib/target
-                key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('kiln_lib/Cargo.lock') }}
+                path: |
+                    ~/.cargo/registry
+                    ~/.cargo/git
+                    kiln_lib/target
+                key: ${{ runner.os }}-cargo-cache-${{ hashFiles('kiln_lib/Cargo.lock') }}
             - name: Check formatting
               run: cargo fmt -- --check
               working-directory: kiln_lib/
