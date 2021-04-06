@@ -8,6 +8,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::str;
 use std::sync::Arc;
+pub mod lib;
 
 use chrono::{SecondsFormat, Utc};
 use slog::o;
@@ -22,7 +23,6 @@ use kiln_lib::log::NestedJsonFmt;
 use kiln_lib::tool_report::ToolReport;
 use kiln_lib::validation::ValidationError;
 
-pub mod lib;
 
 const SERVICE_NAME: &str = "data-collector";
 

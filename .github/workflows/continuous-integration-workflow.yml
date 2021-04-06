@@ -19,6 +19,13 @@ jobs:
                     ~/.cargo/git
                     data-collector/target
                 key: ${{ runner.os }}-cargo-cache-${{ hashFiles('data-collector/Cargo.lock') }}
+            - name: Get changed files using defaults
+              id: changed-files
+              uses: tj-actions/changed-files@v3.1
+            - name: Run step when a file changes in a PR relative to the default branch
+              if: contains(steps.changed-files.outputs.modified_files, 'main.rs') 
+              run: |
+                echo "Your file main.rs has been modified."
             - name: Check formatting
               run: cargo fmt -- --check
               working-directory: data-collector/
