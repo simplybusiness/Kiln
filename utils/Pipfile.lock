@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "8c08bbb50a433337ae4cd9633c56b111b2ba1acd75491a29db8172dec688fdf2"
+            "sha256": "0f3bb0cd817efc5cea5986ba3724b93dca231f9fc8ff9bee4823080ffebbb670"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -57,8 +57,8 @@
         },
         "dulwich": {
             "editable": true,
-            "git": "https://github.com/danhatesnumbers/dulwich.git",
-            "ref": "e4a2877fc31fbf9d8619f7c78d482a1bdba5cebe"
+            "git": "https://github.com/dulwich/dulwich.git",
+            "ref": "76dd8356f9d8870f44226e4232c24fbc1e573e93"
         },
         "gpg": {
             "hashes": [
