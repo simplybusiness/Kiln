@@ -46,7 +46,8 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
     kiln_repo.refs.set_symbolic_ref(b'HEAD', release_branch_ref)
 
     kiln_repo.stage(['CHANGELOG.md'])
-    changelog_commit = kiln_repo.do_commit(message=f"Docs: Update CHANGELOG.md for {version} release.".encode(), no_verify=no_verify)
+    changelog_commit_hash = kiln_repo.do_commit(message=f"Docs: Update CHANGELOG.md for {version} release.".encode(), no_verify=no_verify)
+    changelog_commit = kiln_repo.get_object(changelog_commit_hash)
 
     buf = io.BytesIO()
     dulwich.porcelain.diff_tree(kiln_repo, kiln_repo.get_object(changelog_commit.parents[0]).tree, changelog_commit.tree, buf)
