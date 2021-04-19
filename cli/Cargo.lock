@@ -690,7 +690,7 @@ dependencies = [
 
 [[package]]
 name = "kiln-cli"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "base64",
  "bollard",
