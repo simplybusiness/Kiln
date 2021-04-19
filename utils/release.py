@@ -52,7 +52,7 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
     buf = io.BytesIO()
     dulwich.porcelain.diff_tree(kiln_repo, kiln_repo.get_object(changelog_commit.parents[0]).tree, changelog_commit.tree, buf)
 
-    diffs = whatthepatch.parse(buf.getvalue().decode("utf-8"))
+    diffs = whatthepatch.parse_patch(buf.getvalue().decode("utf-8"))
     changelog_lines = []
     for diff in diffs:
         for change in diff.changes:
