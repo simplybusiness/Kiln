@@ -1254,7 +1254,7 @@ checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
 name = "slack-connector"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "avro-rs",
