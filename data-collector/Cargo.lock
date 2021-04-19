@@ -474,7 +474,7 @@ dependencies = [
 
 [[package]]
 name = "data-collector"
-version = "0.4.3"
+version = "0.5.0"
 dependencies = [
  "actix-http",
  "actix-rt",
