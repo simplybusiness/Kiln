@@ -558,6 +558,28 @@ fn parse_tool_report(
             )
             .into())
         }
+    } else if report.tool_name == "yarn-audit" {
+        if report.output_format == "JSON" {
+            parse_yarn_audit_json(&report, vulns)
+        } else if report.output_format == "PlainText" {
+            Err(Box::new(
+                    err_msg(format!(
+                            "PlainText output not supported for yarn-audit; re-run yarn-audit with --json option in ToolReport: {:?}",
+                            report
+                    ))
+                    .compat(),
+            )
+                .into())
+        } else {
+            Err(Box::new(
+                err_msg(format!(
+                    "Unknown output format for yarn-audit in ToolReport: {:?}",
+                    report
+                ))
+                .compat(),
+            )
+            .into())
+        }
     } else {
         Err(Box::new(err_msg(format!("Unknown tool in ToolReport: {:?}", report)).compat()).into())
     }?;
