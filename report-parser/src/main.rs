@@ -907,8 +907,8 @@ struct JSYarnAuditAdvisory {
     updated: String,
     deleted: Value,
     title: String,
-    found_by: Vec<JSYarnAuditName>,
-    reported_by: Vec<JSYarnAuditName>,
+    found_by: JSYarnAuditName,
+    reported_by: JSYarnAuditName,
     module_name: String,
     cves: Vec<String>,
     vulnerable_versions: String,
@@ -931,7 +931,8 @@ struct JSYarnAuditData {
 
 #[derive(Deserialize, Debug)]
 struct JSYarnAudit {
-    typedata: String,
+    #[serde(rename(deserialize = "type"))]
+    typename: String,
     data: JSYarnAuditData,
 }
 
@@ -1780,9 +1781,10 @@ mod tests {
                             "serverless-cloudflare-workers>webpack>terser-webpack-plugin>cacache>ssri"
                         ] 
                     }, {
-                    "version": "7.1.0",
-                    "paths": ["gatsby>terser-webpack-plugin>cacache>ssri"]
-                }],
+                        "version": "7.1.0",
+                        "paths": ["gatsby>terser-webpack-plugin>cacache>ssri"]
+                    }
+                ],
                 "id": 565,
                 "created": "2018-  04-20T21:20:19.406Z",
                 "updated": "2021-04-14T15:34:03.470Z",
@@ -1801,10 +1803,11 @@ mod tests {
                 "module_name": "ssri",
                 "cves": [],
                 "vulnerable_versions": ">=5.2.2 <6.0.2 || >=7.0.0 <8.0.1",
-                "patched _versions": ">=6.0.2 <7.0.0 || >=8.0.1",
+                "patched_versions": ">=6.0.2 <7.0.0 || >=8.0.1",
                 "overview": "`ssri` 5.2.2-6.0.1 and 7.0.0-8.0.0, processes SRIs using a regular expression which is vulnerable to a denial of service. Malicious SRIs could take an extremely long time to process, leading to denial of service. This issue only affects consumers using the strict option.",
                 "recommendation": "Update to version 6.0.2 or 8.0.1 or later",
                 "references": "- [GitHub Advisory](https://github.com/advisories/GHSA-vx3p-948g-6vhq)\n- [CVE](https://nvd.nist.gov/vuln/detail/CVE-2021-27290)",
+                "access": "public",
                 "severity": "moderate",
                 "cwe": "CWE-400",
                 "metadata": {
