@@ -870,6 +870,169 @@ fn parse_safety_json(
     Ok(events)
 }
 
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditResolution {
+    id: u64,
+    path: String,
+    dev: Value,
+    optional: Value,
+    bundled: Value,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditMetadata {
+    module_type: String,
+    exploitability: Value,
+    affected_components: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditName {
+    link: String,
+    name: String,
+    email: String
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditFinding {
+    version: String,
+    paths: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditAdvisory {
+    findings: Vec<JSYarnAuditFinding>,
+    id: u64,
+    created: String,
+    updated: String,
+    deleted: Value,
+    title: String,
+    found_by: Vec<JSYarnAuditName>,
+    reported_by: Vec<JSYarnAuditName>,
+    module_name: String,
+    cves: Vec<String>,
+    vulnerable_versions: String,
+    patched_versions: String,
+    overview: String,
+    recommendation: String,
+    references: String,
+    access: String,
+    severity: String,
+    cwe: String,
+    metadata: JSYarnAuditMetadata,
+    url: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditData {
+    resolution: JSYarnAuditResolution,
+    advisory: JSYarnAuditAdvisory,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAudit {
+    typedata: String,
+    data: JSYarnAuditData,
+}
+
+
+fn parse_yarn_audit_json(
+    report: &ToolReport,
+    vulns: &HashMap<String, VulnData>,
+) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+    let mut events = Vec::new();
+    let js_dep_vulns: Vec<JSYarnAudit> = serde_json::from_str(report.tool_output.as_ref())?;
+    for item in js_dep_vulns {
+        println!("{:?}", item);
+    }
+    /*let default_cvss = Cvss::builder()
+          .with_version(CvssVersion::Unknown)
+          .build()
+          .unwrap();
+
+          for vuln in python_dep_vulns.iter() {
+          let advisory_id = AdvisoryId::try_from(vuln.advisory_id.to_owned())?;
+
+          let mut event = DependencyEvent {
+          event_version: EventVersion::try_from("1".to_string())?,
+          event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+          parent_event_id: report.event_id.clone(),
+          application_name: report.application_name.clone(),
+          git_branch: report.git_branch.clone(),
+          git_commit_hash: report.git_commit_hash.clone(),
+          timestamp: Timestamp::try_from(report.end_time.to_string())?,
+          affected_package: AffectedPackage::try_from(vuln.affected_package.to_owned())?,
+          installed_version: InstalledVersion::try_from(vuln.installed_version.to_owned())?,
+          advisory_url: AdvisoryUrl::try_from(PYTHON_SAFETY_VULN_URL.to_string())?,
+          advisory_id: advisory_id.clone(),
+          advisory_description: AdvisoryDescription::try_from(
+          vuln.advisory_description.to_string(),
+          )?,
+          cvss: default_cvss.clone(),
+          suppressed: false,
+          };
+          match safety_vulns.get(&format!("pyup.io-{}", advisory_id.to_string())) {
+          Some(res) => match res {
+          Some(s) => {
+          let cve_vec = s
+          .split(',')
+          .collect::<Vec<&str>>()
+          .into_iter()
+          .map(|v| v.trim());
+          for cve_str in cve_vec {
+          let (cvss, advisory_str, advisory_url) = vulns.get(cve_str).map_or(
+          (
+          &default_cvss,
+          vuln.advisory_description.to_string(),
+          PYTHON_SAFETY_VULN_URL.to_string(),
+          ),
+          |v| {
+          (
+          &v.cvss,
+          v.advisory_str.to_string(),
+          v.advisory_url.to_string(),
+          )
+          },
+          );
+
+          event.advisory_url = AdvisoryUrl::try_from(advisory_url)?;
+          event.advisory_description = AdvisoryDescription::try_from(advisory_str)?;
+          event.cvss = cvss.clone();
+          let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+          event.suppressed = should_issue_be_suppressed(
+          &issue_hash,
+          &report.suppressed_issues,
+          &Utc::now(),
+          );
+
+          events.push(event.clone());
+          }
+          }
+          _ => {
+          let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+          event.suppressed = should_issue_be_suppressed(
+          &issue_hash,
+          &report.suppressed_issues,
+          &Utc::now(),
+        );
+        events.push(event.clone());
+    }
+    },
+        None => {
+            let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+
+            event.suppressed =
+                should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
+
+            events.push(event);
+        }
+    };
+    }*/
+    Ok(events)
+}
+
 #[derive(Clone, SerdeValue, Serialize, Deserialize)]
 struct EventType(Vec<String>);
 
@@ -1489,24 +1652,24 @@ mod tests {
     #[test]
     fn parse_python_safety_vulns() {
         let python_safety_vulns = r#"[
-    [
-        "rsa",
-        "<4.3",
-        "3.4.2",
-        "Rsa 4.3 includes two security fixes:\r\n- Choose blinding factor relatively prime to N.\r\n- Reject cyphertexts (when decrypting) and signatures (when verifying) that have  been modified by prepending zero bytes. This resolves CVE-2020-13757.",
-        "38414", 
-        null, 
-        null
-    ],
-    [
-        "pyyaml",
-        "<5.3.1",
-        "5.1.2",
-        "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
-        "38100", 
-        null, 
-        null
-    ]]"#;
+            [
+                "rsa",
+                "<4.3",
+                "3.4.2",
+                "Rsa 4.3 includes two security fixes:\r\n- Choose blinding factor relatively prime to N.\r\n- Reject cyphertexts (when decrypting) and signatures (when verifying) that have  been modified by prepending zero bytes. This resolves CVE-2020-13757.",
+                "38414", 
+                null, 
+                null
+            ],
+            [
+                "pyyaml",
+                "<5.3.1",
+                "5.1.2",
+                "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
+                "38100", 
+                null, 
+                null
+            ]]"#;
 
         let advisory_text_1 = "Some advsiory text CVE-2020-13757";
         let compr_adv_text_1 = ComprString::new(advisory_text_1);
@@ -1590,5 +1753,101 @@ mod tests {
         assert!(events[2].advisory_id.to_string() == "38100".to_string());
         assert!(events[2].affected_package.to_string() == "pyyaml");
         assert!(events[2].advisory_url.to_string() == PYTHON_SAFETY_VULN_URL);
+    }
+
+    #[test]
+    fn parse_js_yarn_audit_vulns() {
+        let js_yarn_audit_vulns = r#"
+        [{
+        "type": "auditAdvisory",
+        "data": {
+            "resolution": {
+                "id": 565,
+                "path": "serverless-cloudflare-workers>webpack>terser-webpack-plugin>cacache>ssri",
+                "dev": false,
+                "optional": false,
+                "bundled": false
+            },
+            "advisory": {
+                "findings": [
+                    {
+                        "version": "6.0.1",
+                        "paths": [
+                            "@storybook/react>@storybook/core>webpack>terser-webpack-plugin>cacache>ssri", 
+                            "@story  book/react>webpack>terser-webpack-plugin>cacache>ssri", 
+                            "webpack>terser-webpack-plugin>cacache>ssri", 
+                            "gatsby>webpack>terser-webpack-plugin>cacache>ssri", 
+                            "serverless-cloudflare-workers>webpack>terser-webpack-plugin>cacache>ssri"
+                        ] 
+                    }, {
+                    "version": "7.1.0",
+                    "paths": ["gatsby>terser-webpack-plugin>cacache>ssri"]
+                }],
+                "id": 565,
+                "created": "2018-  04-20T21:20:19.406Z",
+                "updated": "2021-04-14T15:34:03.470Z",
+                "deleted": null,
+                "title": "Regular Expression Denial of Service",
+                "found_by": {
+                    "link": "",
+                    "name": "Jamie Davis",
+                    "email": ""
+                },
+                "reported_by": {
+                    "link": "",
+                    "name": "Jamie Davis",
+                    "email": ""
+                },
+                "module_name": "ssri",
+                "cves": [],
+                "vulnerable_versions": ">=5.2.2 <6.0.2 || >=7.0.0 <8.0.1",
+                "patched _versions": ">=6.0.2 <7.0.0 || >=8.0.1",
+                "overview": "`ssri` 5.2.2-6.0.1 and 7.0.0-8.0.0, processes SRIs using a regular expression which is vulnerable to a denial of service. Malicious SRIs could take an extremely long time to process, leading to denial of service. This issue only affects consumers using the strict option.",
+                "recommendation": "Update to version 6.0.2 or 8.0.1 or later",
+                "references": "- [GitHub Advisory](https://github.com/advisories/GHSA-vx3p-948g-6vhq)\n- [CVE](https://nvd.nist.gov/vuln/detail/CVE-2021-27290)",
+                "severity": "moderate",
+                "cwe": "CWE-400",
+                "metadata": {
+                    "module_type": "",
+                    "exploitability": 3,
+                    "affected_components": ""
+                },
+                "url": "https://npmjs.com/advisories/565"
+            }
+        }
+        }]"#;
+
+        let vulnshash: HashMap<String, VulnData> = HashMap::new();
+
+        let test_report = ToolReport {
+            event_version: EventVersion::try_from("1".to_owned()).unwrap(),
+            event_id: EventID::try_from("95130bee-95ae-4dac-aecf-5650ff646ea1".to_owned()).unwrap(),
+            application_name: ApplicationName::try_from("Test application".to_owned()).unwrap(),
+            git_branch: GitBranch::try_from(Some("git".to_owned())).unwrap(),
+            git_commit_hash: GitCommitHash::try_from(
+                "e99f715d0fe787cd43de967b8a79b56960fed3e5".to_owned(),
+            )
+            .unwrap(),
+            tool_name: ToolName::try_from("yarn-audit".to_owned()).unwrap(),
+            tool_output: ToolOutput::try_from(js_yarn_audit_vulns.to_owned()).unwrap(),
+            output_format: OutputFormat::JSON,
+            start_time: StartTime::from(DateTime::<Utc>::from(
+                DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap(),
+            )),
+            end_time: EndTime::from(DateTime::<Utc>::from(
+                DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap(),
+            )),
+            environment: Environment::Local,
+            tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
+            suppressed_issues: vec![],
+        };
+        let events_res = parse_yarn_audit_json(&test_report, &vulnshash);
+        match events_res { 
+            Err(e) =>
+                println!("Serde Err: {}", e), 
+            Ok(_) =>
+                println!("Serde OK"),
+        }
+
     }
 }
