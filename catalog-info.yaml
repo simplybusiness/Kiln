@@ -1,0 +1,9 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: Kiln
+  annotations:
+    github.com/project-slug: simplybusiness/Kiln
+spec:
+  type: other
+  lifecycle: unknown
