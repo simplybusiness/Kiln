@@ -2,9 +2,16 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: Kiln
-  annotations:
-    github.com/project-slug: simplybusiness/Kiln
+  description: Kiln test app
+  tags:
+    - rust
+    - appsec
+  links:
+    - url: https://www.rust-lang.org/
+      title: Rust
+      icon: user
 spec:
-  owner: test-owner
-  type: other
-  lifecycle: unknown
+  type: service
+  lifecycle: experimental
+  owner: team-a
+  system: artist-engagement-portal
