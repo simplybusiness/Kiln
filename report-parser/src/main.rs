@@ -941,11 +941,15 @@ fn parse_yarn_audit_json(
     report: &ToolReport,
     vulns: &HashMap<String, VulnData>,
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+
     let mut events = Vec::new();
-    let js_dep_vulns: Vec<JSYarnAudit> = serde_json::from_str(report.tool_output.as_ref())?;
-    for item in js_dep_vulns {
-        println!("{:?}", item);
-    }
+    
+    let json_str:Vec<&str> = report.tool_output.as_ref().lines().collect();
+
+    for json_line in json_str { 
+        let js_vuln: JSYarnAudit = serde_json::from_str(json_line)?;
+        println!("{:?}", js_vuln);
+    };
     /*let default_cvss = Cvss::builder()
           .with_version(CvssVersion::Unknown)
           .build()
