@@ -5,5 +5,6 @@ metadata:
   annotations:
     github.com/project-slug: simplybusiness/Kiln
 spec:
+  owner: test-owner
   type: other
   lifecycle: unknown
