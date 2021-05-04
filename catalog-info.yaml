@@ -3,6 +3,8 @@ kind: Component
 metadata:
   name: Kiln
   description: Kiln test app
+  annotations:
+    backstage.io/techdocs-ref: url:https://github.com/simplybusiness/Kiln/tree/main/docs
   tags:
     - rust
     - appsec
