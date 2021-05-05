@@ -1,0 +1,8 @@
+site_name: 'Kiln'
+site_description: 'Main documentation for Kiln'
+
+plugins:
+  - techdocs-core
+
+nav:
+  - Integration Testing: 'integration_testing.md'
