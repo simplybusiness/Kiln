@@ -5,4 +5,5 @@ plugins:
   - techdocs-core
 
 nav:
-  - Integration Testing: 'integration_testing.md'
+  - Overview: 'README.md'
+  - Integration Testing: 'docs/integration_testing.md'
