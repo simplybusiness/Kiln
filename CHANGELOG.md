@@ -1,7 +1,14 @@
 # UNRELEASED
 * Nothing... yet
 
-# 0.4.3 - 20201/02/03
+# 0.5.0 - 2021/04/19
+## Tool Support
+* Added support for Python Safety dependency checking tool.
+
+## Data Forwarder
+* Fixed branch name detection when in detached head state.
+
+# 0.4.3 - 2021/02/03
 ## Data-collector
 * Fixed a bug in the formatting of log output that was causing logs to be incompatible with Elastic Common Schema. When a value could not be determined, a default of '-' was used, which is incompatible with some fields. Now optional fields with no value are not included in log output.
 

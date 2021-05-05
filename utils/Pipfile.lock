@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "8c08bbb50a433337ae4cd9633c56b111b2ba1acd75491a29db8172dec688fdf2"
+            "sha256": "0f3bb0cd817efc5cea5986ba3724b93dca231f9fc8ff9bee4823080ffebbb670"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -41,24 +41,24 @@
         },
         "deprecated": {
             "hashes": [
-                "sha256:471ec32b2755172046e28102cd46c481f21c6036a0ec027521eba8521aa4ef35",
-                "sha256:924b6921f822b64ec54f49be6700a126bab0640cfafca78f22c9d429ed590560"
+                "sha256:08452d69b6b5bc66e8330adde0a4f8642e969b9e1702904d137eeb29c8ffc771",
+                "sha256:6d2de2de7931a968874481ef30208fd4e08da39177d61d3d4ebdf4366e7dbca1"
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
-            "version": "==1.2.11"
+            "version": "==1.2.12"
         },
         "docker": {
             "hashes": [
-                "sha256:d3393c878f575d3a9ca3b94471a3c89a6d960b35feb92f033c0de36cc9d934db",
-                "sha256:f3607d5695be025fa405a12aca2e5df702a57db63790c73b927eb6a94aac60af"
+                "sha256:3e8bc47534e0ca9331d72c32f2881bb13b93ded0bcdeab3c833fb7cf61c0a9a5",
+                "sha256:fc961d622160e8021c10d1bcabc388c57d55fb1f917175afbe24af442e6879bd"
             ],
             "index": "pypi",
-            "version": "==4.4.4"
+            "version": "==5.0.0"
         },
         "dulwich": {
             "editable": true,
-            "git": "https://github.com/danhatesnumbers/dulwich.git",
-            "ref": "8be727e7983966ed84f05a50e076ccd8bbb52847"
+            "git": "https://github.com/dulwich/dulwich.git",
+            "ref": "76dd8356f9d8870f44226e4232c24fbc1e573e93"
         },
         "gpg": {
             "hashes": [
@@ -132,11 +132,11 @@
         },
         "urllib3": {
             "hashes": [
-                "sha256:1b465e494e3e0d8939b50680403e3aedaa2bc434b7d5af64dfd3c958d7f5ae80",
-                "sha256:de3eedaad74a2683334e282005cd8d7f22f4d55fa690a2a1020a416cb0a47e73"
+                "sha256:2f4da4594db7e1e110a944bb1b551fdf4e6c136ad42e4234131391e21eb5b0df",
+                "sha256:e7b021f7241115872f92f43c6508082facffbd1c048e3c6e2bb9c2a157e28937"
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'",
-            "version": "==1.26.3"
+            "version": "==1.26.4"
         },
         "websocket-client": {
             "hashes": [

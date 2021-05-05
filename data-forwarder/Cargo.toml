@@ -1,13 +1,13 @@
 [package]
 name = "data-forwarder"
-version = "0.4.3"
+version = "0.5.0"
 edition = "2018"
 
 [dependencies]
 kiln_lib = { git = "https://github.com/simplybusiness/Kiln", features = [ "json", "toml",], branch = "main" }
 clap = "2"
 chrono = "0.4"
-reqwest = { version = "0.11", features = ["blocking", "json",] }
+reqwest = { version = "0.11", features = [ "blocking", "json",] }
 git2 = "0.13"
 uuid = { version = "0.8", features = [ "v4",] }
 openssl-probe = "0.1.2"

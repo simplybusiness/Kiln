@@ -46,12 +46,13 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
     kiln_repo.refs.set_symbolic_ref(b'HEAD', release_branch_ref)
 
     kiln_repo.stage(['CHANGELOG.md'])
-    changelog_commit = kiln_repo.do_commit(message=f"Docs: Update CHANGELOG.md for {version} release.".encode(), no_verify=no_verify)
+    changelog_commit_hash = kiln_repo.do_commit(message=f"Docs: Update CHANGELOG.md for {version} release.".encode(), no_verify=no_verify)
+    changelog_commit = kiln_repo.get_object(changelog_commit_hash)
 
     buf = io.BytesIO()
     dulwich.porcelain.diff_tree(kiln_repo, kiln_repo.get_object(changelog_commit.parents[0]).tree, changelog_commit.tree, buf)
 
-    diffs = whatthepatch.parse(buf.getvalue().decode("utf-8"))
+    diffs = whatthepatch.parse_patch(buf.getvalue().decode("utf-8"))
     changelog_lines = []
     for diff in diffs:
         for change in diff.changes:
@@ -102,7 +103,7 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
         except KeyError:
             pass
 
-    push_logs = bundler_audit_image.push("kiln/bundler-audit", tag=image_tags[0])
+    push_logs = docker_client.images.push("kiln/bundler-audit", tag=image_tags[0])
     print(push_logs)
     for tag in image_tags[1:]:
         bundler_audit_image.tag("kiln/bundler-audit", tag=tag)
@@ -118,12 +119,12 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
             print(line['stream'], end='')
         except KeyError:
             pass
-    push_logs = safety_image.push("kiln/safety", tag=image_tags[0])
+    push_logs = docker_client.images.push("kiln/safety", tag=image_tags[0])
     print(push_logs)
 
     for tag in image_tags[1:]:
         safety_image.tag("kiln/safety", tag=tag)
-        push_logs = python_image.push("kiln/python", tag=tag)
+        push_logs = docker_client.images.push("kiln/safety", tag=tag)
         print(push_logs)
 
     for component in ["data-collector", "report-parser", "slack-connector"]:
@@ -141,7 +142,7 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
         print(push_logs)
         for tag in image_tags[1:]:
             docker_image.tag(f"kiln/{component}", tag=tag)
-            push_logs = docker_image.push(f"kiln/{component}", tag=tag)
+            push_logs = docker_client.images.push(f"kiln/{component}", tag=tag)
             print(push_logs)
 
     sh.cargo.make("musl-build", _cwd=os.path.join(kiln_repo.path, "cli"), _err=sys.stderr)
@@ -209,7 +210,7 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
 
     g = Github(github_personal_access_token)
     repo = g.get_repo("simplybusiness/Kiln")
-    release = repo.create_git_release("v{version}", "Version {version}", changelog_lines.join('\n'), draft=True)
+    release = repo.create_git_release(f"v{version}", f"Version {version}", '\n'.join(changelog_lines), draft=True)
     release.upload_asset(tarball_path)
     release.upload_asset(hashfile_path)
     release.upload_asset(sig_path)
@@ -222,9 +223,10 @@ def main(version, github_personal_access_token, kiln_automation_docker_access_to
     kiln_repo.refs.set_symbolic_ref(b'HEAD', main_branch_ref)
     kiln_repo.reset_index()
     sh.git.merge("--no-edit", "--no-ff", f"release/{version}")
+    dulwich.porcelain.push(kiln_repo, remote_location=origin, refspecs=main_branch_ref)
 
     for component in ["data-collector", "data-forwarder", "report-parser", "slack-connector"]:
-        set_kiln_lib_dependency(kiln_repo, component, sha=kiln_lib_version_commit)
+        set_kiln_lib_dependency(kiln_repo, component, branch="main")
         sh.cargo.check("--manifest-path", os.path.join(kiln_repo.path, component, "Cargo.toml"), "--all-features", _err=sys.stderr)
         kiln_repo.stage([f'{component}/Cargo.toml', f'{component}/Cargo.lock'])
         kiln_repo.do_commit(message=f"{component.capitalize()}: Revert kiln_lib dependency to main branch".encode(), no_verify=no_verify)
