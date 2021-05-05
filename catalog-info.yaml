@@ -4,7 +4,7 @@ metadata:
   name: Kiln
   description: Kiln test app
   annotations:
-    backstage.io/techdocs-ref: url:https://github.com/simplybusiness/Kiln
+    backstage.io/techdocs-ref: url:https://github.com/simplybusiness/Kiln/tree/backstage-spike
   tags:
     - rust
     - appsec
