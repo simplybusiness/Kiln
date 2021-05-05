@@ -7,4 +7,4 @@ plugins:
 nav:
   - Welcome: 'index.md'
   - Integration Testing: 'integration_testing.md'
-  - Release Process: 'integration_testing.md'
+  - Release Process: 'release-process.md'
