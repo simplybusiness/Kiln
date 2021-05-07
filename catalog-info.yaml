@@ -17,3 +17,5 @@ spec:
   lifecycle: experimental
   owner: team-a
   system: artist-engagement-portal
+  dependsOn:
+    - Component:twiglet-ruby
