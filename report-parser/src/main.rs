@@ -1762,11 +1762,11 @@ mod tests {
         let advisory_url_1 = "https://npmjs.com/advisories/786";
         
         let advisory_text_2 = "Some advsiory text CVE-2019-10744";
-        let compr_adv_text_2 = ComprString::new(advisory_text_1);
+        let compr_adv_text_2 = ComprString::new(advisory_text_2);
         let advisory_url_2 = "http://someurl-cve-2019-10744.co.uk/";
 
         let advisory_text_3 = "Some advsiory text CVE-2021-23368";
-        let compr_adv_text_3 = ComprString::new(advisory_text_2);
+        let compr_adv_text_3 = ComprString::new(advisory_text_3);
         let advisory_url_3 = "http://someurl-cve-2021-23368.co.uk/";
         let vulnshash: HashMap<String, VulnData> = [
                 (
