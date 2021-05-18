@@ -797,7 +797,7 @@ impl ProgressBarDisplay {
                         if status == "Pull complete" || status == "Already exists" {
                             pgbar.finish();
                         }
-                        pgbar.set_message(format!("{}:{}", id, status).as_ref());
+                        pgbar.set_message(format!("{}:{}", id, status));
                         let total = progress_detail.as_ref().and_then(|pd| pd.total);
                         let current = progress_detail.as_ref().and_then(|pd| pd.current);
                         if let (Some(total), Some(current)) = (total, current) {
