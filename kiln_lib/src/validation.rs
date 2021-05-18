@@ -627,21 +627,20 @@ impl ValidationError {
 }
 
 #[cfg(feature = "web")]
-use actix_web::HttpResponse;
+use actix_web::BaseHttpResponse;
 
 #[cfg(feature = "web")]
-use actix_web::dev::Body;
-
-#[cfg(feature = "web")]
-use actix_web::error::ResponseError;
+use actix_web::body::Body;
 
 #[cfg(feature = "web")]
 use actix_web::http::StatusCode;
 
 #[cfg(feature = "web")]
-impl Into<HttpResponse> for ValidationError {
-    fn into(self) -> HttpResponse {
-        HttpResponse::BadRequest().json(&self)
+impl Into<BaseHttpResponse<Body>> for ValidationError {
+    fn into(self) -> BaseHttpResponse<Body> {
+        BaseHttpResponse::build(StatusCode::BAD_REQUEST)
+            .content_type(mime::APPLICATION_JSON)
+            .body(serde_json::to_string(&self).unwrap())
     }
 }
 
@@ -651,7 +650,9 @@ impl actix_web::ResponseError for ValidationError {
         StatusCode::BAD_REQUEST
     }
 
-    fn error_response(&self) -> HttpResponse<Body> {
-        HttpResponse::BadRequest().json(self)
+    fn error_response(&self) -> BaseHttpResponse<Body> {
+        BaseHttpResponse::build(StatusCode::BAD_REQUEST)
+            .content_type(mime::APPLICATION_JSON)
+            .body(serde_json::to_string(&self).unwrap())
     }
 }
