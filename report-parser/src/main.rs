@@ -890,7 +890,7 @@ struct JSYarnAuditMetadata {
 struct JSYarnAuditName {
     link: String,
     name: String,
-    email: Option<String>
+    email: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -936,15 +936,13 @@ struct JSYarnAudit {
     data: JSYarnAuditData,
 }
 
-
 fn parse_yarn_audit_json(
     report: &ToolReport,
     vulns: &HashMap<String, VulnData>,
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
-
     let mut events = Vec::new();
-
-    let json_str:Vec<&str> = report.tool_output.as_ref().lines().collect();
+    let mut issue_hash_vec = Vec::<IssueHash>::new();
+    let json_str: Vec<&str> = report.tool_output.as_ref().lines().collect();
     println!("Num lines: {}", json_str.len());
 
     let default_cvss = Cvss::builder()
@@ -952,79 +950,86 @@ fn parse_yarn_audit_json(
         .build()
         .unwrap();
 
-
     for json_line in json_str {
-        
-        let vuln: JSYarnAudit = serde_json::from_str(json_line)?;
-        println!("{:?}",vuln);
+        let json_line_deser:Value = serde_json::from_str(json_line)?;
+        if json_line_deser["type"] == "auditAdvisory" { 
+            let vuln: JSYarnAudit = serde_json::from_str(json_line)?;
+            println!("{:?}", vuln);
 
-        let installed_versions = vuln.data.advisory.findings.into_iter().fold(String::new(), |ver, x| 
-            if ver.is_empty()  {
-                x.version 
-            }
-            else {
-                format!("{},{}", ver, x.version)
-            });
+            let installed_versions =
+                vuln.data
+                .advisory
+                .findings
+                .into_iter()
+                .fold(String::new(), |ver, x| {
+                    if ver.is_empty() {
+                        x.version
+                    } else {
+                        format!("{},{}", ver, x.version)
+                    }
+                });
 
-        let mut event = DependencyEvent {
-            event_version: EventVersion::try_from("1".to_string())?,
-            event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
-            parent_event_id: report.event_id.clone(),
-            application_name: report.application_name.clone(),
-            git_branch: report.git_branch.clone(),
-            git_commit_hash: report.git_commit_hash.clone(),
-            timestamp: Timestamp::try_from(report.end_time.to_string())?,
-            affected_package: AffectedPackage::try_from(vuln.data.advisory.module_name.to_owned())?,
-            installed_version: InstalledVersion::try_from(installed_versions.to_owned())?,
-            advisory_url: AdvisoryUrl::try_from(vuln.data.advisory.url.to_string())?,
-            advisory_id: AdvisoryId::try_from(vuln.data.advisory.id.to_string())?,
-            advisory_description: AdvisoryDescription::try_from(
-                vuln.data.advisory.overview.to_string(),
-            )?,
-            cvss: default_cvss.clone(),
-            suppressed: false,
-        };
+            let mut event = DependencyEvent {
+                event_version: EventVersion::try_from("1".to_string())?,
+                event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+                parent_event_id: report.event_id.clone(),
+                application_name: report.application_name.clone(),
+                git_branch: report.git_branch.clone(),
+                git_commit_hash: report.git_commit_hash.clone(),
+                timestamp: Timestamp::try_from(report.end_time.to_string())?,
+                affected_package: AffectedPackage::try_from(vuln.data.advisory.module_name.to_owned())?,
+                installed_version: InstalledVersion::try_from(installed_versions.to_owned())?,
+                advisory_url: AdvisoryUrl::try_from(vuln.data.advisory.url.to_string())?,
+                advisory_id: AdvisoryId::try_from(vuln.data.advisory.id.to_string())?,
+                advisory_description: AdvisoryDescription::try_from(
+                    vuln.data.advisory.overview.to_string(),
+                )?,
+                cvss: default_cvss.clone(),
+                suppressed: false,
+            };
 
-        if vuln.data.advisory.cves.len() > 0 { 
-            for cve_str in vuln.data.advisory.cves {
-                let (cvss, advisory_str, advisory_url) = vulns.get(&cve_str).map_or(
-                    (
-                        &default_cvss,
-                        vuln.data.advisory.overview.to_string(),
-                        vuln.data.advisory.url.to_string(),
-                    ),
-                    |v| {
+            if vuln.data.advisory.cves.len() > 0 {
+                for cve_str in vuln.data.advisory.cves {
+                    let (cvss, advisory_str, advisory_url) = vulns.get(&cve_str).map_or(
                         (
-                            &v.cvss,
-                            v.advisory_str.to_string(),
-                            v.advisory_url.to_string(),
-                        )},
-                );
+                            &default_cvss,
+                            vuln.data.advisory.overview.to_string(),
+                            vuln.data.advisory.url.to_string(),
+                        ),
+                        |v| {
+                            (
+                                &v.cvss,
+                                v.advisory_str.to_string(),
+                                v.advisory_url.to_string(),
+                            )
+                        },
+                    );
 
-                event.advisory_url = AdvisoryUrl::try_from(advisory_url)?;
-                event.advisory_description = AdvisoryDescription::try_from(advisory_str)?;
-                event.cvss = cvss.clone();
+                    event.advisory_url = AdvisoryUrl::try_from(advisory_url)?;
+                    event.advisory_description = AdvisoryDescription::try_from(advisory_str)?;
+                    event.cvss = cvss.clone();
+                    let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+                    if issue_hash_vec.iter().find(|x| **x == issue_hash) == None
+                    {
+                            issue_hash_vec.push(issue_hash.clone());
+                            event.suppressed =
+                                should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
+                            
+                            events.push(event.clone());
+                    }
+                }
+            } else {
                 let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
-
-                event.suppressed = should_issue_be_suppressed(
-                    &issue_hash,
-                    &report.suppressed_issues,
-                    &Utc::now(),
-                );
-
-                events.push(event.clone());
+                if issue_hash_vec.iter().find(|x| **x == issue_hash) == None
+                {
+                    issue_hash_vec.push(issue_hash.clone());
+                    event.suppressed =
+                        should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
+                    events.push(event.clone());
+                }
             }
         }
-        else { 
-            let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
-            event.suppressed = should_issue_be_suppressed(
-                &issue_hash,
-                &report.suppressed_issues,
-                &Utc::now(),
-            );
-            events.push(event.clone());
-        } 
-    } 
+    }
     Ok(events)
 }
 
@@ -1756,11 +1761,10 @@ mod tests {
         {"type":"auditAdvisory","data":{"resolution":{"id":1065,"path":"gatsby-remark-relative-images>lodash","dev":false,"optional":false,"bundled":false},"advisory":{"findings":[{"version":"4.17.11","paths":["gatsby-remark-relative-images>lodash"]}],"id":1065,"created":"2019-07-15T17:22:56.990Z","updated":"2019-07-15T17:25:05.721Z","deleted":null,"title":"Prototype Pollution","found_by":{"link":"","name":"Snyk Security Team"},"reported_by":{"link":"","name":"Snyk Security Team"},"module_name":"lodash","cves":["CVE-2019-10744"],"vulnerable_versions":"<4.17.12","patched_versions":">=4.17.12","overview":"Versions of `lodash` before 4.17.12 are vulnerable to Prototype Pollution.  The function `defaultsDeep` allows a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n","recommendation":"Update to version 4.17.12 or later.","references":"- [Snyk Advisory](https://snyk.io/vuln/SNYK-JS-LODASH-450202)","access":"public","severity":"high","cwe":"CWE-471","metadata":{"module_type":"","exploitability":3,"affected_components":""},"url":"https://npmjs.com/advisories/1065"}}}
         {"type":"auditAdvisory","data":{"resolution":{"id":1693,"path":"gatsby>postcss","dev":false,"optional":false,"bundled":false},"advisory":{"findings":[{"version":"7.0.35","paths":["@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>autoprefixer>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-local-by-default>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-local-by-default>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-values>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-values>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-extract-imports>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-extract-imports>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-local-by-default>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-local-by-default>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-scope>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-scope>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-values>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-values>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>postcss-flexbugs-fixes>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>css-declaration-sorter>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>cssnano-util-raw-cache>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-calc>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-colormin>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-convert-values>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-discard-comments>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-discard-duplicates>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-discard-empty>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-discard-overridden>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-merge-longhand>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-merge-longhand>stylehacks>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-merge-rules>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-minify-font-values>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-minify-gradients>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-minify-params>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-minify-selectors>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-charset>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-display-values>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-positions>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-repeat-style>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-string>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-timing-functions>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-unicode>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-url>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-whitespace>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-ordered-values>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-reduce-initial>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-reduce-transforms>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-svgo>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-unique-selectors>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>postcss","gatsby-transformer-remark>sanitize-html>postcss","postcss-normalize>postcss","postcss-normalize>postcss-browser-comments>postcss"]},{"version":"8.2.6","paths":["gatsby>postcss"]}],"id":1693,"created":"2021-05-10T15:38:31.238Z","updated":"2021-05-10T15:44:02.027Z","deleted":null,"title":"Regular Expression Denial of Service","found_by":{"link":"","name":"Anonymous","email":""},"reported_by":{"link":"","name":"Anonymous","email":""},"module_name":"postcss","cves":["CVE-2021-23368"],"vulnerable_versions":">=7.0.0 <8.2.10","patched_versions":">=8.2.10","overview":"`postcss` from 7.0.0 and before 8.2.10 are vulnerable to Regular Expression Denial of Service (ReDoS) during source map parsing.","recommendation":"Upgrade to version 8.2.10 or later","references":"- [CVE](https://nvd.nist.gov/vuln/detail/CVE-2021-23368)\n- [GitHub Advisory](https://github.com/advisories/GHSA-hwj9-h5mp-3pm3)\n","access":"public","severity":"moderate","cwe":"CWE-400","metadata":{"module_type":"","exploitability":5,"affected_components":""},"url":"https://npmjs.com/advisories/1693"}}}"#;
 
-
-        let advisory_text_1 = "Versions of `braces` prior to 2.3.1 are vulnerable to Regular Expression Denial of Service (ReDoS). Untrusted input may cause catastrophic backtracking while matching regular expressions. This can cause the application to be unresponsive leading to Denial of Service."; 
+        let advisory_text_1 = "Versions of `braces` prior to 2.3.1 are vulnerable to Regular Expression Denial of Service (ReDoS). Untrusted input may cause catastrophic backtracking while matching regular expressions. This can cause the application to be unresponsive leading to Denial of Service.";
         let compr_adv_text_1 = ComprString::new(advisory_text_1);
         let advisory_url_1 = "https://npmjs.com/advisories/786";
-        
+
         let advisory_text_2 = "Some advsiory text CVE-2019-10744";
         let compr_adv_text_2 = ComprString::new(advisory_text_2);
         let advisory_url_2 = "http://someurl-cve-2019-10744.co.uk/";
@@ -1769,34 +1773,34 @@ mod tests {
         let compr_adv_text_3 = ComprString::new(advisory_text_3);
         let advisory_url_3 = "http://someurl-cve-2021-23368.co.uk/";
         let vulnshash: HashMap<String, VulnData> = [
-                (
-                    "CVE-2019-10744".to_string(),
-                    VulnData {
-                        advisory_str: compr_adv_text_2,
-                        advisory_url: advisory_url_2.to_string(),
-                        cvss: Cvss::builder()
-                            .with_version(CvssVersion::V2)
-                            .with_score(Some(7.5))
-                            .build()
-                            .unwrap(),
-                    },
-                ),
-                (
-                    "CVE-2021-23368".to_string(),
-                    VulnData {
-                        advisory_str: compr_adv_text_3,
-                        advisory_url: advisory_url_3.to_string(),
-                        cvss: Cvss::builder()
-                            .with_version(CvssVersion::V2)
-                            .with_score(Some(7.5))
-                            .build()
-                            .unwrap(),
-                    },
-                ),
-                ]
-                    .iter()
-                    .cloned()
-                    .collect();
+            (
+                "CVE-2019-10744".to_string(),
+                VulnData {
+                    advisory_str: compr_adv_text_2,
+                    advisory_url: advisory_url_2.to_string(),
+                    cvss: Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(7.5))
+                        .build()
+                        .unwrap(),
+                },
+            ),
+            (
+                "CVE-2021-23368".to_string(),
+                VulnData {
+                    advisory_str: compr_adv_text_3,
+                    advisory_url: advisory_url_3.to_string(),
+                    cvss: Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(7.5))
+                        .build()
+                        .unwrap(),
+                },
+            ),
+        ]
+        .iter()
+        .cloned()
+        .collect();
         let test_report = ToolReport {
             event_version: EventVersion::try_from("1".to_owned()).unwrap(),
             event_id: EventID::try_from("95130bee-95ae-4dac-aecf-5650ff646ea1".to_owned()).unwrap(),
@@ -1805,24 +1809,24 @@ mod tests {
             git_commit_hash: GitCommitHash::try_from(
                 "e99f715d0fe787cd43de967b8a79b56960fed3e5".to_owned(),
             )
-                .unwrap(),
-                tool_name: ToolName::try_from("yarn-audit".to_owned()).unwrap(),
-                tool_output: ToolOutput::try_from(js_yarn_audit_vulns.to_owned()).unwrap(),
-                output_format: OutputFormat::JSON,
-                start_time: StartTime::from(DateTime::<Utc>::from(
-                        DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap(),
-                )),
-                end_time: EndTime::from(DateTime::<Utc>::from(
-                        DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap(),
-                )),
-                environment: Environment::Local,
-                tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
-                suppressed_issues: vec![],
+            .unwrap(),
+            tool_name: ToolName::try_from("yarn-audit".to_owned()).unwrap(),
+            tool_output: ToolOutput::try_from(js_yarn_audit_vulns.to_owned()).unwrap(),
+            output_format: OutputFormat::JSON,
+            start_time: StartTime::from(DateTime::<Utc>::from(
+                DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap(),
+            )),
+            end_time: EndTime::from(DateTime::<Utc>::from(
+                DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap(),
+            )),
+            environment: Environment::Local,
+            tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
+            suppressed_issues: vec![],
         };
         let events_res = parse_yarn_audit_json(&test_report, &vulnshash);
-        /*match events_res { 
+        /*match events_res {
             Err(e) =>
-                println!("Serde Err: {}", e), 
+                println!("Serde Err: {}", e),
             Ok(_) =>
                 println!("Serde OK"),
         }*/
@@ -1831,18 +1835,36 @@ mod tests {
         assert_eq!(events.len(), 3);
         assert!(events[0].affected_package.to_string() == "braces");
         assert!(events[0].advisory_id.to_string() == "786".to_string());
-        println!("\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}", events[0].advisory_id.to_string(), events[0].affected_package.to_string(), events[0].advisory_url.to_string(), events[0].advisory_description.to_string());
+        println!(
+            "\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}",
+            events[0].advisory_id.to_string(),
+            events[0].affected_package.to_string(),
+            events[0].advisory_url.to_string(),
+            events[0].advisory_description.to_string()
+        );
         assert!(events[0].advisory_url.to_string() == advisory_url_1);
         assert!(events[0].advisory_description.to_string() == advisory_text_1);
         assert!(events[1].advisory_id.to_string() == "1065".to_string());
         assert!(events[1].affected_package.to_string() == "lodash");
-        println!("\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}", events[1].advisory_id.to_string(), events[1].affected_package.to_string(), events[1].advisory_url.to_string(), events[1].advisory_description.to_string());
+        println!(
+            "\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}",
+            events[1].advisory_id.to_string(),
+            events[1].affected_package.to_string(),
+            events[1].advisory_url.to_string(),
+            events[1].advisory_description.to_string()
+        );
         assert!(events[1].advisory_url.to_string() == advisory_url_2);
         assert!(events[1].advisory_description.to_string() == advisory_text_2);
         assert!(events[2].advisory_id.to_string() == "1693".to_string());
         assert!(events[2].affected_package.to_string() == "postcss");
         assert!(events[2].advisory_url.to_string() == advisory_url_3);
         assert!(events[2].advisory_description.to_string() == advisory_text_3);
-        println!("\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}", events[2].advisory_id.to_string(), events[2].affected_package.to_string(), events[2].advisory_url.to_string(), events[2].advisory_description.to_string());
+        println!(
+            "\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}",
+            events[2].advisory_id.to_string(),
+            events[2].affected_package.to_string(),
+            events[2].advisory_url.to_string(),
+            events[2].advisory_description.to_string()
+        );
     }
 }
