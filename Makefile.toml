@@ -9,7 +9,7 @@ dependencies = [
 dependencies = [
 	"build-data-forwarder-musl",
 	"build-bundler-audit-docker",
-	"build-safety-docker"
+	"build-safety-docker",
 	"build-yarn-audit-docker"
 ]
 
