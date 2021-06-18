@@ -180,7 +180,7 @@ where
                 .map(|v| v.to_string());
 
             let http_version = format!("{:?}", req.version());
-            let http_request_method = req.path().to_owned();
+            let http_request_method = req.method().to_string();
             let url_path = req.path().to_owned();
             let url_query = req.query_string().to_string();
 
