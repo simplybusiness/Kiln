@@ -129,7 +129,7 @@ pub fn build_kafka_producer(
         .set("security.protocol", "SSL")
         .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
         .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
-        .set("max.request.size", 10000000)
+        .set("max.request.size", "10000000")
         .create()
         .map_err(|err| err.into())
 }
@@ -152,7 +152,7 @@ pub fn build_kafka_consumer(
         .set("security.protocol", "SSL")
         .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
         .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
-        .set("fetch.message.max.bytes", 10000000)
+        .set("fetch.message.max.bytes", "10000000")
         .create()
         .map_err(|err| err.into())
 }
