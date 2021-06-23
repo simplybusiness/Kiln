@@ -31,8 +31,6 @@ services:
       KAFKA_CREATE_TOPICS: "ToolReports:6:1,DependencyEvents:6:1"
       KAFKA_MESSAGE_MAX_BYTES: 10000000
       KAFKA_REPLICA_FETCH_MAX_BYTES: 10000000
-      KAFKA_MESSAGE_MAX_BYTES: 10000000
-      KAFKA_REPLICA_FETCH_MAX_BYTES: 10000000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./tls:/tls
