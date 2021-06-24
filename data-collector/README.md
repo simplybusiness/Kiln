@@ -8,7 +8,7 @@ First, ensure you have cargo-make installed by running `cargo install cargo-make
 ## Deploying
 See the [suggested Kafka deployment](../docs/suggested_kafka_deployment.md) documentation to understand how this component should be deployed and what it needs to be able to communicate with. The data-collector container is setup with an entrypoint, so no command needs to be passed to the container when calling docker run.
 
-Tool reports are published to a Kafka topic called "ToolReports". If you do not have auto topic creation enabled for your cluster, you will need to crate this topic.
+Tool reports are published to a Kafka topic called "ToolReports". If you do not have auto topic creation enabled for your cluster, you will need to crate this topic. Please note that for the ToolReports topic we recommend changing the default kafka message size from 1MB to 10MB to support potentially large amount of tool output by setting the parameters `max.message.bytes` and `replica.fetch.max.bytes`.
 
 ## Configuration
 This component is configured using environment variables. Ensure that the environment variable `KAFKA_BOOTSTRAP_TLS` is set to a comma separated list of host:port pairs to bootstrap connectivity to your Kafka cluster over TLS.
