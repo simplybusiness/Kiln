@@ -232,10 +232,10 @@ helm install kafka ./ -f kafka-values.yaml
 kubectl get pods -w -l app.kubernetes.io/name=kafka # Wait for pods to be ready
 ```
 
-* Create the Kafka topics for Kiln. The last command in the following block will print the list of Kafka topics that exist in this cluster, it should now contain "ToolReports" and "DependencyEvents"
+* Create the Kafka topics for Kiln. The last command in the following block will print the list of Kafka topics that exist in this cluster, it should now contain "ToolReports" and "DependencyEvents". Please note that for the ToolReports topic we have increased the default kafka message size from 1MB to 10MB to support larger message sizes by setting the parameters `max.message.bytes` and `replica.fetch.max.bytes`. 
 ``` shell
 export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=kafka,app.kubernetes.io/instance=kafka,app.kubernetes.io/component=kafka" -o jsonpath="{.items[0].metadata.name}")
-kubectl --namespace default exec -it $POD_NAME -- kafka-topics.sh --create --zookeeper zk-zookeeper-headless:2181 --replication-factor 3 --partitions 3 --topic ToolReports
+kubectl --namespace default exec -it $POD_NAME -- kafka-topics.sh --create --zookeeper zk-zookeeper-headless:2181 --replication-factor 3 --partitions 3 --topic ToolReports --add-config max.message.bytes=10000000 --add-config replica.fetch.max.bytes=10000000
 kubectl --namespace default exec -it $POD_NAME -- kafka-topics.sh --create --zookeeper zk-zookeeper-headless:2181 --replication-factor 3 --partitions 3 --topic DependencyEvents
 kubectl --namespace default exec -it $POD_NAME -- kafka-topics.sh --list --zookeeper zk-zookeeper-headless:2181
 ```
