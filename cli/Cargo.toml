@@ -6,7 +6,7 @@ edition = "2018"
 [dependencies]
 cfg-if = "1"
 clap = "2"
-bollard = "0.10"
+bollard = "0.11"
 tokio = { version = "1", features = [ "macros", "rt-multi-thread",] }
 tokio-stream = "0.1"
 futures = "0.3"
