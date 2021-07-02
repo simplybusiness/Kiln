@@ -943,7 +943,6 @@ fn parse_yarn_audit_json(
     let mut events = Vec::new();
     let mut issue_hash_vec = Vec::<IssueHash>::new();
     let json_str: Vec<&str> = report.tool_output.as_ref().lines().collect();
-    println!("Num lines: {}", json_str.len());
 
     let default_cvss = Cvss::builder()
         .with_version(CvssVersion::Unknown)
@@ -954,7 +953,6 @@ fn parse_yarn_audit_json(
         let json_line_deser:Value = serde_json::from_str(json_line)?;
         if json_line_deser["type"] == "auditAdvisory" { 
             let vuln: JSYarnAudit = serde_json::from_str(json_line)?;
-            println!("{:?}", vuln);
 
             let installed_versions =
                 vuln.data
@@ -1014,7 +1012,6 @@ fn parse_yarn_audit_json(
                             issue_hash_vec.push(issue_hash.clone());
                             event.suppressed =
                                 should_issue_be_suppressed(&issue_hash, &report.suppressed_issues, &Utc::now());
-                            
                             events.push(event.clone());
                     }
                 }
@@ -1825,47 +1822,21 @@ mod tests {
             suppressed_issues: vec![],
         };
         let events_res = parse_yarn_audit_json(&test_report, &vulnshash);
-        /*match events_res {
-            Err(e) =>
-                println!("Serde Err: {}", e),
-            Ok(_) =>
-                println!("Serde OK"),
-        }*/
-
         let events = events_res.unwrap();
         assert_eq!(events.len(), 3);
         assert!(events[0].affected_package.to_string() == "braces");
         assert!(events[0].advisory_id.to_string() == "786".to_string());
-        println!(
-            "\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}",
-            events[0].advisory_id.to_string(),
-            events[0].affected_package.to_string(),
-            events[0].advisory_url.to_string(),
-            events[0].advisory_description.to_string()
-        );
+
         assert!(events[0].advisory_url.to_string() == advisory_url_1);
         assert!(events[0].advisory_description.to_string() == advisory_text_1);
         assert!(events[1].advisory_id.to_string() == "1065".to_string());
         assert!(events[1].affected_package.to_string() == "lodash");
-        println!(
-            "\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}",
-            events[1].advisory_id.to_string(),
-            events[1].affected_package.to_string(),
-            events[1].advisory_url.to_string(),
-            events[1].advisory_description.to_string()
-        );
+        
         assert!(events[1].advisory_url.to_string() == advisory_url_2);
         assert!(events[1].advisory_description.to_string() == advisory_text_2);
         assert!(events[2].advisory_id.to_string() == "1693".to_string());
         assert!(events[2].affected_package.to_string() == "postcss");
         assert!(events[2].advisory_url.to_string() == advisory_url_3);
         assert!(events[2].advisory_description.to_string() == advisory_text_3);
-        println!(
-            "\nAdvisory ID: {}, Package:{}, URL: {}, Text:{}",
-            events[2].advisory_id.to_string(),
-            events[2].affected_package.to_string(),
-            events[2].advisory_url.to_string(),
-            events[2].advisory_description.to_string()
-        );
     }
 }
