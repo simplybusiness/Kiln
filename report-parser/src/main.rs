@@ -1832,14 +1832,14 @@ mod tests {
         assert_eq!(events.len(), 3);
         assert!(events[0].affected_package.to_string() == "braces");
         assert!(events[0].advisory_id.to_string() == "786".to_string());
-
         assert!(events[0].advisory_url.to_string() == advisory_url_1);
         assert!(events[0].advisory_description.to_string() == advisory_text_1);
+
         assert!(events[1].advisory_id.to_string() == "1065".to_string());
         assert!(events[1].affected_package.to_string() == "lodash");
-
         assert!(events[1].advisory_url.to_string() == advisory_url_2);
         assert!(events[1].advisory_description.to_string() == advisory_text_2);
+
         assert!(events[2].advisory_id.to_string() == "1693".to_string());
         assert!(events[2].affected_package.to_string() == "postcss");
         assert!(events[2].advisory_url.to_string() == advisory_url_3);
