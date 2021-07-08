@@ -62,8 +62,8 @@ async fn main() -> Result<(), anyhow::Error> {
     HttpServer::new(move || {
         App::new()
             .data(shared_producer.clone())
-            .data(web::PayloadConfig::new(1 << 25))
-            .data(web::JsonConfig::default().limit(1024 * 1024 * 50))
+            .data(web::PayloadConfig::new(10 * 1024 * 1024))
+            .data(web::JsonConfig::default().limit(10 * 1024 * 1024))
             .wrap(StructuredLogger::new(root_logger.clone()).exclude("/health"))
             .route("/", web::post().to(handler))
             .route("/health", web::get().to(health_handler))
