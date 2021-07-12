@@ -542,7 +542,7 @@ fn parse_tool_report(
         } else if report.output_format == "PlainText" {
             Err(Box::new(
                     err_msg(format!(
-                            "PlainText output not supported for safety; re-run safety with --json option in ToolReport: {:?}",
+                            "PlainText output not supported for safety; re-run safety with --json option in the tool container entrypoint.sh and also set --output-format=JSON in the data forwarder invocation: {:?}",
                             report
                     ))
                     .compat(),
@@ -564,7 +564,7 @@ fn parse_tool_report(
         } else if report.output_format == "PlainText" {
             Err(Box::new(
                     err_msg(format!(
-                            "PlainText output not supported for yarn-audit; re-run yarn-audit with --json option in ToolReport: {:?}",
+                            "PlainText output not supported for yarn-audit; re-run yarn-audit with --json option in the tool container entrypoint.sh and also set --output-format=JSON in the data forwarder invocation: {:?}",
                             report
                     ))
                     .compat(),
