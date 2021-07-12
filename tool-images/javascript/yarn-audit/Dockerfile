@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=node:13-alpine
+ARG BASE_IMAGE=node:lts-alpine
 FROM $BASE_IMAGE
 RUN apk --no-cache add ca-certificates
 RUN apk --no-cache add git
