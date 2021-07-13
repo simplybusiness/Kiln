@@ -1836,6 +1836,7 @@ dependencies = [
  "hex",
  "httpmock",
  "iter-read",
+ "itertools",
  "kiln_lib",
  "lazy_static",
  "rdkafka",

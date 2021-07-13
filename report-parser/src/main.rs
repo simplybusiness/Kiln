@@ -944,7 +944,6 @@ fn parse_yarn_audit_json(
     vulns: &HashMap<String, VulnData>,
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     let mut events = Vec::new();
-    let mut issue_hash_vec = Vec::<IssueHash>::new();
     let json_str = report.tool_output.as_ref().lines();
 
     let default_cvss = Cvss::builder()
@@ -966,7 +965,7 @@ fn parse_yarn_audit_json(
                     .unique().collect::<Vec<String>>()
                     .join(",");
 
-            let mut event = DependencyEvent {
+            let event = DependencyEvent {
                 event_version: EventVersion::try_from("1".to_string())?,
                 event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
                 parent_event_id: report.event_id.clone(),
@@ -1004,34 +1003,36 @@ fn parse_yarn_audit_json(
                         },
                     );
 
-                    event.advisory_url = AdvisoryUrl::try_from(advisory_url)?;
-                    event.advisory_description = AdvisoryDescription::try_from(advisory_str)?;
-                    event.cvss = cvss.clone();
                     let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
-                    if issue_hash_vec.iter().find(|x| **x == issue_hash) == None {
-                        issue_hash_vec.push(issue_hash.clone());
-                        event.suppressed = should_issue_be_suppressed(
+                    let new_event = DependencyEvent { 
+                        advisory_url: AdvisoryUrl::try_from(advisory_url)?,
+                        advisory_description: AdvisoryDescription::try_from(advisory_str)?,
+                        cvss: cvss.clone(),
+                        suppressed: should_issue_be_suppressed(
                             &issue_hash,
                             &report.suppressed_issues,
                             &Utc::now(),
-                        );
-                        events.push(event.clone());
-                    }
+                        ),
+                        ..event.clone()
+                    };
+                    events.push(new_event);
                 }
             } else {
                 let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
-                if issue_hash_vec.iter().find(|x| **x == issue_hash) == None {
-                    issue_hash_vec.push(issue_hash.clone());
-                    event.suppressed = should_issue_be_suppressed(
+                let new_event = DependencyEvent { 
+                    suppressed: should_issue_be_suppressed(
                         &issue_hash,
                         &report.suppressed_issues,
                         &Utc::now(),
-                    );
-                    events.push(event.clone());
-                }
+                    ),
+                    ..event.clone()
+                }; 
+                events.push(new_event);
             }
         }
     }
+    events.sort_by_cached_key(|k| k.hash());
+    events.dedup_by(|a, b| a.hash() == b.hash());
     Ok(events)
 }
 
@@ -1828,19 +1829,19 @@ mod tests {
         let events_res = parse_yarn_audit_json(&test_report, &vulnshash);
         let events = events_res.unwrap();
         assert_eq!(events.len(), 3);
-        assert!(events[0].affected_package.to_string() == "braces");
-        assert!(events[0].advisory_id.to_string() == "786".to_string());
-        assert!(events[0].advisory_url.to_string() == advisory_url_1);
-        assert!(events[0].advisory_description.to_string() == advisory_text_1);
+        assert!(events[0].advisory_id.to_string() == "1693".to_string());
+        assert!(events[0].affected_package.to_string() == "postcss");
+        assert!(events[0].advisory_url.to_string() == advisory_url_3);
+        assert!(events[0].advisory_description.to_string() == advisory_text_3);
 
         assert!(events[1].advisory_id.to_string() == "1065".to_string());
         assert!(events[1].affected_package.to_string() == "lodash");
         assert!(events[1].advisory_url.to_string() == advisory_url_2);
         assert!(events[1].advisory_description.to_string() == advisory_text_2);
-
-        assert!(events[2].advisory_id.to_string() == "1693".to_string());
-        assert!(events[2].affected_package.to_string() == "postcss");
-        assert!(events[2].advisory_url.to_string() == advisory_url_3);
-        assert!(events[2].advisory_description.to_string() == advisory_text_3);
+        
+        assert!(events[2].affected_package.to_string() == "braces");
+        assert!(events[2].advisory_id.to_string() == "786".to_string());
+        assert!(events[2].advisory_url.to_string() == advisory_url_1);
+        assert!(events[2].advisory_description.to_string() == advisory_text_1);
     }
 }
