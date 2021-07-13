@@ -942,7 +942,7 @@ fn parse_yarn_audit_json(
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     let mut events = Vec::new();
     let mut issue_hash_vec = Vec::<IssueHash>::new();
-    let json_str: Vec<&str> = report.tool_output.as_ref().lines().collect();
+    let json_str = report.tool_output.as_ref().lines();
 
     let default_cvss = Cvss::builder()
         .with_version(CvssVersion::Unknown)
