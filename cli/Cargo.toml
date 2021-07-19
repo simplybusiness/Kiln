@@ -23,7 +23,7 @@ http = "0.2"
 base64 = "0.13"
 
 [dev-dependencies]
-mockall = "0.9"
+mockall = "0.10"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 procfs = "0.9"
