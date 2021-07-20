@@ -9,7 +9,8 @@ dependencies = [
 dependencies = [
 	"build-data-forwarder-musl",
 	"build-bundler-audit-docker",
-	"build-safety-docker"
+	"build-safety-docker",
+	"build-yarn-audit-docker"
 ]
 
 [tasks.cli]
@@ -39,3 +40,8 @@ args = ["make", "--cwd", "tool-images/ruby/bundler-audit", "build-bundler-audit-
 [tasks.build-safety-docker]
 command = "cargo"
 args = ["make", "--cwd", "tool-images/python/safety", "build-safety-docker"]
+
+
+[tasks.build-yarn-audit-docker]
+command = "cargo"
+args = ["make", "--cwd", "tool-images/javascript/yarn-audit", "build-yarn-audit-docker"]

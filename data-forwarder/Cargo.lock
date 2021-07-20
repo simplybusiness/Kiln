@@ -491,11 +491,12 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.5.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=main#a91159e65c69eb9f4a9b59c4f4351d36c1fbedef"
+source = "git+https://github.com/simplybusiness/Kiln?branch=main#884e96059622c72e99254ac737bee25aee964adf"
 dependencies = [
  "anyhow",
  "chrono",
  "hex",
+ "mime",
  "openssl-probe",
  "regex",
  "ring",

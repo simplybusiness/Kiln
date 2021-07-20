@@ -470,6 +470,7 @@ dependencies = [
  "slog_derive",
  "thiserror",
  "tokio",
+ "ubyte",
  "uuid",
 ]
 
@@ -818,7 +819,7 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.5.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=main#9fe83cb53d0a8eb8bb1e610c5ab4c84771b3f99e"
+source = "git+https://github.com/simplybusiness/Kiln?branch=main#884e96059622c72e99254ac737bee25aee964adf"
 dependencies = [
  "actix-web",
  "addr",
@@ -1869,6 +1870,12 @@ name = "typenum"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f6906492a7cd215bfa4cf595b600146ccfac0c79bcbd1f3000162af5e8b06"
+
+[[package]]
+name = "ubyte"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42756bb9e708855de2f8a98195643dff31a97f0485d90d8467b39dc24be9e8fe"
 
 [[package]]
 name = "unicode-bidi"

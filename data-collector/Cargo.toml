@@ -25,6 +25,7 @@ slog-async = { version = "2.5", features = [ "nested-values",] }
 slog_derive = "0.2"
 erased-serde = "0.3"
 uuid = { version = "0.8", features = [ "serde", "v4",] }
+ubyte = "0.10"
 
 [dev-dependencies]
 serial_test = "0.5"

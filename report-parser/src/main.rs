@@ -13,6 +13,7 @@ use failure::err_msg;
 use flate2::read::GzDecoder;
 use futures_util::stream::StreamExt;
 use iter_read::IterRead;
+use itertools::Itertools;
 use kiln_lib::avro_schema::DEPENDENCY_EVENT_SCHEMA;
 use kiln_lib::dependency_event::{
     AdvisoryDescription, AdvisoryId, AdvisoryUrl, AffectedPackage, Cvss, CvssVersion,
@@ -30,7 +31,7 @@ use reqwest::blocking::Client;
 use reqwest::header::ETAG;
 use ring::digest;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Deserializer, Value};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -542,7 +543,7 @@ fn parse_tool_report(
         } else if report.output_format == "PlainText" {
             Err(Box::new(
                     err_msg(format!(
-                            "PlainText output not supported for safety; re-run safety with --json option in ToolReport: {:?}",
+                            "PlainText output not supported for safety; re-run safety with --json option in the tool container entrypoint.sh and also set --output-format=JSON in the data forwarder invocation: {:?}",
                             report
                     ))
                     .compat(),
@@ -552,6 +553,28 @@ fn parse_tool_report(
             Err(Box::new(
                 err_msg(format!(
                     "Unknown output format for safety in ToolReport: {:?}",
+                    report
+                ))
+                .compat(),
+            )
+            .into())
+        }
+    } else if report.tool_name == "yarn-audit" {
+        if report.output_format == "JSON" {
+            parse_yarn_audit_json(&report, vulns)
+        } else if report.output_format == "PlainText" {
+            Err(Box::new(
+                    err_msg(format!(
+                            "PlainText output not supported for yarn-audit; re-run yarn-audit with --json option in the tool container entrypoint.sh and also set --output-format=JSON in the data forwarder invocation: {:?}",
+                            report
+                    ))
+                    .compat(),
+            )
+                .into())
+        } else {
+            Err(Box::new(
+                err_msg(format!(
+                    "Unknown output format for yarn-audit in ToolReport: {:?}",
                     report
                 ))
                 .compat(),
@@ -845,6 +868,168 @@ fn parse_safety_json(
             }
         };
     }
+    Ok(events)
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditResolution {
+    id: u64,
+    path: String,
+    dev: Value,
+    optional: Value,
+    bundled: Value,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditMetadata {
+    module_type: String,
+    exploitability: Value,
+    affected_components: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditName {
+    link: String,
+    name: String,
+    email: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditFinding {
+    version: String,
+    paths: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditAdvisory {
+    findings: Vec<JSYarnAuditFinding>,
+    id: u32,
+    created: String,
+    updated: String,
+    deleted: Value,
+    title: String,
+    found_by: JSYarnAuditName,
+    reported_by: JSYarnAuditName,
+    module_name: String,
+    cves: Vec<String>,
+    vulnerable_versions: String,
+    patched_versions: String,
+    overview: String,
+    recommendation: String,
+    references: String,
+    access: String,
+    severity: String,
+    cwe: String,
+    metadata: JSYarnAuditMetadata,
+    url: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAuditData {
+    resolution: JSYarnAuditResolution,
+    advisory: JSYarnAuditAdvisory,
+}
+
+#[derive(Deserialize, Debug)]
+struct JSYarnAudit {
+    #[serde(rename(deserialize = "type"))]
+    typename: String,
+    data: JSYarnAuditData,
+}
+
+fn parse_yarn_audit_json(
+    report: &ToolReport,
+    vulns: &HashMap<String, VulnData>,
+) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
+    let mut events = Vec::new();
+    //let json_str = report.tool_output.as_ref().lines();
+
+    let default_cvss = Cvss::builder()
+        .with_version(CvssVersion::Unknown)
+        .build()
+        .unwrap();
+
+    let tool_report_string = report.tool_output.to_string();
+    let json_iter = Deserializer::from_str(&tool_report_string).into_iter::<Value>();
+    for vuln in json_iter
+        .filter_map(|val| val.ok().filter(|v| v["type"] == "auditAdvisory"))
+        .filter_map(|val| serde_json::from_value::<JSYarnAudit>(val).ok())
+    {
+        let installed_versions = vuln
+            .data
+            .advisory
+            .findings
+            .into_iter()
+            .map(|x| x.version)
+            .unique()
+            .collect::<Vec<String>>()
+            .join(",");
+
+        let event = DependencyEvent {
+            event_version: EventVersion::try_from("1".to_string())?,
+            event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+            parent_event_id: report.event_id.clone(),
+            application_name: report.application_name.clone(),
+            git_branch: report.git_branch.clone(),
+            git_commit_hash: report.git_commit_hash.clone(),
+            timestamp: Timestamp::try_from(report.end_time.to_string())?,
+            affected_package: AffectedPackage::try_from(vuln.data.advisory.module_name.to_owned())?,
+            installed_version: InstalledVersion::try_from(installed_versions.to_owned())?,
+            advisory_url: AdvisoryUrl::try_from(vuln.data.advisory.url.to_string())?,
+            advisory_id: AdvisoryId::try_from(vuln.data.advisory.id.to_string())?,
+            advisory_description: AdvisoryDescription::try_from(
+                vuln.data.advisory.overview.to_string(),
+            )?,
+            cvss: default_cvss.clone(),
+            suppressed: false,
+        };
+
+        if vuln.data.advisory.cves.len() > 0 {
+            for cve_str in vuln.data.advisory.cves {
+                let (cvss, advisory_str, advisory_url) = vulns.get(&cve_str).map_or(
+                    (
+                        &default_cvss,
+                        vuln.data.advisory.overview.to_string(),
+                        vuln.data.advisory.url.to_string(),
+                    ),
+                    |v| {
+                        (
+                            &v.cvss,
+                            v.advisory_str.to_string(),
+                            v.advisory_url.to_string(),
+                        )
+                    },
+                );
+
+                let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+                let new_event = DependencyEvent {
+                    advisory_url: AdvisoryUrl::try_from(advisory_url)?,
+                    advisory_description: AdvisoryDescription::try_from(advisory_str)?,
+                    cvss: cvss.clone(),
+                    suppressed: should_issue_be_suppressed(
+                        &issue_hash,
+                        &report.suppressed_issues,
+                        &Utc::now(),
+                    ),
+                    ..event.clone()
+                };
+                events.push(new_event);
+            }
+        } else {
+            let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+            let new_event = DependencyEvent {
+                suppressed: should_issue_be_suppressed(
+                    &issue_hash,
+                    &report.suppressed_issues,
+                    &Utc::now(),
+                ),
+                ..event.clone()
+            };
+            events.push(new_event);
+        }
+    }
+    events.sort_by_cached_key(|k| k.hash());
+    events.dedup_by(|a, b| a.hash() == b.hash());
     Ok(events)
 }
 
@@ -1467,24 +1652,24 @@ mod tests {
     #[test]
     fn parse_python_safety_vulns() {
         let python_safety_vulns = r#"[
-    [
-        "rsa",
-        "<4.3",
-        "3.4.2",
-        "Rsa 4.3 includes two security fixes:\r\n- Choose blinding factor relatively prime to N.\r\n- Reject cyphertexts (when decrypting) and signatures (when verifying) that have  been modified by prepending zero bytes. This resolves CVE-2020-13757.",
-        "38414", 
-        null, 
-        null
-    ],
-    [
-        "pyyaml",
-        "<5.3.1",
-        "5.1.2",
-        "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
-        "38100", 
-        null, 
-        null
-    ]]"#;
+            [
+                "rsa",
+                "<4.3",
+                "3.4.2",
+                "Rsa 4.3 includes two security fixes:\r\n- Choose blinding factor relatively prime to N.\r\n- Reject cyphertexts (when decrypting) and signatures (when verifying) that have  been modified by prepending zero bytes. This resolves CVE-2020-13757.",
+                "38414", 
+                null, 
+                null
+            ],
+            [
+                "pyyaml",
+                "<5.3.1",
+                "5.1.2",
+                "A vulnerability was discovered in the PyYAML library in versions before 5.3.1, where it is susceptible to arbitrary code execution when it processes untrusted YAML files through the full_load method or with the FullLoader loader. Applications that use the library to process untrusted input may be vulnerable to this flaw. An attacker could use this flaw to execute arbitrary code on the system by abusing the python/object/new constructor. See: CVE-2020-1747.",
+                "38100", 
+                null, 
+                null
+            ]]"#;
 
         let advisory_text_1 = "Some advsiory text CVE-2020-13757";
         let compr_adv_text_1 = ComprString::new(advisory_text_1);
@@ -1568,5 +1753,92 @@ mod tests {
         assert!(events[2].advisory_id.to_string() == "38100".to_string());
         assert!(events[2].affected_package.to_string() == "pyyaml");
         assert!(events[2].advisory_url.to_string() == PYTHON_SAFETY_VULN_URL);
+    }
+
+    #[test]
+    fn parse_js_yarn_audit_vulns() {
+        let js_yarn_audit_vulns = r#"{"type":"auditAdvisory","data":{"resolution":{"id":786,"path":"gatsby-source-youtube-v3>gatsby-source-filesystem>chokidar>anymatch>micromatch>braces","dev":false,"optional":false,"bundled":false},"advisory":{"findings":[{"version":"1.8.5","paths":["gatsby-source-youtube-v3>gatsby-source-filesystem>babel-cli>chokidar>anymatch>micromatch>braces"]},{"version":"1.8.5","paths":["gatsby-source-youtube-v3>gatsby-source-filesystem>chokidar>anymatch>micromatch>braces"]}],"id":786,"created":"2019-02-15T21:44:30.680Z","updated":"2019-04-02T18:18:29.356Z","deleted":null,"title":"Regular Expression Denial of Service","found_by":{"link":"","name":"Santosh Rao"},"reported_by":{"link":"","name":"Santosh Rao"},"module_name":"braces","cves":[],"vulnerable_versions":"<2.3.1","patched_versions":">=2.3.1","overview":"Versions of `braces` prior to 2.3.1 are vulnerable to Regular Expression Denial of Service (ReDoS). Untrusted input may cause catastrophic backtracking while matching regular expressions. This can cause the application to be unresponsive leading to Denial of Service.","recommendation":"Upgrade to version 2.3.1 or higher.","references":"- [GitHub Commit](https://github.com/micromatch/braces/commit/abdafb0cae1e0c00f184abbadc692f4eaa98f451)","access":"public","severity":"low","cwe":"CWE-185","metadata":{"module_type":"","exploitability":4,"affected_components":""},"url":"https://npmjs.com/advisories/786"}}}
+        {"type":"auditAdvisory","data":{"resolution":{"id":1065,"path":"gatsby-images>lodash","dev":false,"optional":false,"bundled":false},"advisory":{"findings":[{"version":"4.17.11","paths":["gatsby-images>lodash"]}],"id":1065,"created":"2019-07-15T17:22:56.990Z","updated":"2019-07-15T17:25:05.721Z","deleted":null,"title":"Prototype Pollution","found_by":{"link":"","name":"Snyk Security Team"},"reported_by":{"link":"","name":"Snyk Security Team"},"module_name":"lodash","cves":["CVE-2019-10744"],"vulnerable_versions":"<4.17.12","patched_versions":">=4.17.12","overview":"Versions of `lodash` before 4.17.12 are vulnerable to Prototype Pollution.  The function `defaultsDeep` allows a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n","recommendation":"Update to version 4.17.12 or later.","references":"- [Snyk Advisory](https://snyk.io/vuln/SNYK-JS-LODASH-450202)","access":"public","severity":"high","cwe":"CWE-471","metadata":{"module_type":"","exploitability":3,"affected_components":""},"url":"https://npmjs.com/advisories/1065"}}}
+        {"type":"auditAdvisory","data":{"resolution":{"id":1065,"path":"gatsby-remark-relative-images>lodash","dev":false,"optional":false,"bundled":false},"advisory":{"findings":[{"version":"4.17.11","paths":["gatsby-remark-relative-images>lodash"]}],"id":1065,"created":"2019-07-15T17:22:56.990Z","updated":"2019-07-15T17:25:05.721Z","deleted":null,"title":"Prototype Pollution","found_by":{"link":"","name":"Snyk Security Team"},"reported_by":{"link":"","name":"Snyk Security Team"},"module_name":"lodash","cves":["CVE-2019-10744"],"vulnerable_versions":"<4.17.12","patched_versions":">=4.17.12","overview":"Versions of `lodash` before 4.17.12 are vulnerable to Prototype Pollution.  The function `defaultsDeep` allows a malicious user to modify the prototype of `Object` via `{constructor: {prototype: {...}}}` causing the addition or modification of an existing property that will exist on all objects.\n\n","recommendation":"Update to version 4.17.12 or later.","references":"- [Snyk Advisory](https://snyk.io/vuln/SNYK-JS-LODASH-450202)","access":"public","severity":"high","cwe":"CWE-471","metadata":{"module_type":"","exploitability":3,"affected_components":""},"url":"https://npmjs.com/advisories/1065"}}}
+        {"type":"auditAdvisory","data":{"resolution":{"id":1693,"path":"gatsby>postcss","dev":false,"optional":false,"bundled":false},"advisory":{"findings":[{"version":"7.0.35","paths":["@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>autoprefixer>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-local-by-default>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-local-by-default>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-values>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-values>icss-utils>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-extract-imports>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-extract-imports>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-local-by-default>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-local-by-default>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-scope>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-scope>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>css-loader>postcss-modules-values>postcss","@storybook/react>@storybook/core>@storybook/core-server>css-loader>postcss-modules-values>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>postcss","@storybook/react>@storybook/core>@storybook/core-server>@storybook/builder-webpack4>postcss-flexbugs-fixes>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>css-declaration-sorter>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>cssnano-util-raw-cache>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-calc>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-colormin>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-convert-values>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-discard-comments>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-discard-duplicates>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-discard-empty>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-discard-overridden>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-merge-longhand>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-merge-longhand>stylehacks>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-merge-rules>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-minify-font-values>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-minify-gradients>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-minify-params>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-minify-selectors>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-charset>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-display-values>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-positions>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-repeat-style>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-string>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-timing-functions>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-unicode>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-url>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-normalize-whitespace>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-ordered-values>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-reduce-initial>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-reduce-transforms>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-svgo>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>cssnano-preset-default>postcss-unique-selectors>postcss","gatsby>css-minimizer-webpack-plugin>cssnano>postcss","gatsby-transformer-remark>sanitize-html>postcss","postcss-normalize>postcss","postcss-normalize>postcss-browser-comments>postcss"]},{"version":"8.2.6","paths":["gatsby>postcss"]}],"id":1693,"created":"2021-05-10T15:38:31.238Z","updated":"2021-05-10T15:44:02.027Z","deleted":null,"title":"Regular Expression Denial of Service","found_by":{"link":"","name":"Anonymous","email":""},"reported_by":{"link":"","name":"Anonymous","email":""},"module_name":"postcss","cves":["CVE-2021-23368"],"vulnerable_versions":">=7.0.0 <8.2.10","patched_versions":">=8.2.10","overview":"`postcss` from 7.0.0 and before 8.2.10 are vulnerable to Regular Expression Denial of Service (ReDoS) during source map parsing.","recommendation":"Upgrade to version 8.2.10 or later","references":"- [CVE](https://nvd.nist.gov/vuln/detail/CVE-2021-23368)\n- [GitHub Advisory](https://github.com/advisories/GHSA-hwj9-h5mp-3pm3)\n","access":"public","severity":"moderate","cwe":"CWE-400","metadata":{"module_type":"","exploitability":5,"affected_components":""},"url":"https://npmjs.com/advisories/1693"}}}"#;
+
+        let advisory_text_1 = "Versions of `braces` prior to 2.3.1 are vulnerable to Regular Expression Denial of Service (ReDoS). Untrusted input may cause catastrophic backtracking while matching regular expressions. This can cause the application to be unresponsive leading to Denial of Service.";
+        let advisory_url_1 = "https://npmjs.com/advisories/786";
+
+        let advisory_text_2 = "Some advsiory text CVE-2019-10744";
+        let compr_adv_text_2 = ComprString::new(advisory_text_2);
+        let advisory_url_2 = "http://someurl-cve-2019-10744.co.uk/";
+
+        let advisory_text_3 = "Some advsiory text CVE-2021-23368";
+        let compr_adv_text_3 = ComprString::new(advisory_text_3);
+        let advisory_url_3 = "http://someurl-cve-2021-23368.co.uk/";
+        let vulnshash: HashMap<String, VulnData> = [
+            (
+                "CVE-2019-10744".to_string(),
+                VulnData {
+                    advisory_str: compr_adv_text_2,
+                    advisory_url: advisory_url_2.to_string(),
+                    cvss: Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(7.5))
+                        .build()
+                        .unwrap(),
+                },
+            ),
+            (
+                "CVE-2021-23368".to_string(),
+                VulnData {
+                    advisory_str: compr_adv_text_3,
+                    advisory_url: advisory_url_3.to_string(),
+                    cvss: Cvss::builder()
+                        .with_version(CvssVersion::V2)
+                        .with_score(Some(7.5))
+                        .build()
+                        .unwrap(),
+                },
+            ),
+        ]
+        .iter()
+        .cloned()
+        .collect();
+        let test_report = ToolReport {
+            event_version: EventVersion::try_from("1".to_owned()).unwrap(),
+            event_id: EventID::try_from("95130bee-95ae-4dac-aecf-5650ff646ea1".to_owned()).unwrap(),
+            application_name: ApplicationName::try_from("Test application".to_owned()).unwrap(),
+            git_branch: GitBranch::try_from(Some("git".to_owned())).unwrap(),
+            git_commit_hash: GitCommitHash::try_from(
+                "e99f715d0fe787cd43de967b8a79b56960fed3e5".to_owned(),
+            )
+            .unwrap(),
+            tool_name: ToolName::try_from("yarn-audit".to_owned()).unwrap(),
+            tool_output: ToolOutput::try_from(js_yarn_audit_vulns.to_owned()).unwrap(),
+            output_format: OutputFormat::JSON,
+            start_time: StartTime::from(DateTime::<Utc>::from(
+                DateTime::parse_from_rfc3339("2019-09-13T19:35:38+00:00").unwrap(),
+            )),
+            end_time: EndTime::from(DateTime::<Utc>::from(
+                DateTime::parse_from_rfc3339("2019-09-13T19:37:14+00:00").unwrap(),
+            )),
+            environment: Environment::Local,
+            tool_version: ToolVersion::try_from(Some("1.0".to_owned())).unwrap(),
+            suppressed_issues: vec![],
+        };
+        let events_res = parse_yarn_audit_json(&test_report, &vulnshash);
+        let events = events_res.unwrap();
+        assert_eq!(events.len(), 3);
+        assert!(events[0].advisory_id.to_string() == "1693".to_string());
+        assert!(events[0].affected_package.to_string() == "postcss");
+        assert!(events[0].advisory_url.to_string() == advisory_url_3);
+        assert!(events[0].advisory_description.to_string() == advisory_text_3);
+
+        assert!(events[1].advisory_id.to_string() == "1065".to_string());
+        assert!(events[1].affected_package.to_string() == "lodash");
+        assert!(events[1].advisory_url.to_string() == advisory_url_2);
+        assert!(events[1].advisory_description.to_string() == advisory_text_2);
+
+        assert!(events[2].affected_package.to_string() == "braces");
+        assert!(events[2].advisory_id.to_string() == "786".to_string());
+        assert!(events[2].advisory_url.to_string() == advisory_url_1);
+        assert!(events[2].advisory_description.to_string() == advisory_text_1);
     }
 }
