@@ -15,6 +15,7 @@ use slog::Drain;
 use slog::{FnValue, PushFnValue};
 
 use crate::lib::StructuredLogger;
+use ubyte::ToByteUnit;
 
 use kiln_lib::avro_schema::TOOL_REPORT_SCHEMA;
 use kiln_lib::kafka::*;
@@ -62,8 +63,8 @@ async fn main() -> Result<(), anyhow::Error> {
     HttpServer::new(move || {
         App::new()
             .data(shared_producer.clone())
-            .data(web::PayloadConfig::new(10 * 1024 * 1024))
-            .data(web::JsonConfig::default().limit(10 * 1024 * 1024))
+            .data(web::PayloadConfig::new(10.mebibytes().as_u64() as usize))
+            .data(web::JsonConfig::default().limit(10.mebibytes().as_u64() as usize))
             .wrap(StructuredLogger::new(root_logger.clone()).exclude("/health"))
             .route("/", web::post().to(handler))
             .route("/health", web::get().to(health_handler))
