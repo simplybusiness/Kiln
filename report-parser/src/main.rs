@@ -13,6 +13,7 @@ use failure::err_msg;
 use flate2::read::GzDecoder;
 use futures_util::stream::StreamExt;
 use iter_read::IterRead;
+use itertools::Itertools;
 use kiln_lib::avro_schema::DEPENDENCY_EVENT_SCHEMA;
 use kiln_lib::dependency_event::{
     AdvisoryDescription, AdvisoryId, AdvisoryUrl, AffectedPackage, Cvss, CvssVersion,
@@ -30,7 +31,7 @@ use reqwest::blocking::Client;
 use reqwest::header::ETAG;
 use ring::digest;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Deserializer, Value};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -39,9 +40,6 @@ use std::error::Error;
 use std::io::Read;
 use std::str::FromStr;
 use url::Url;
-use itertools::Itertools;
-
-
 
 use slog::o;
 use slog::Drain;
@@ -944,91 +942,90 @@ fn parse_yarn_audit_json(
     vulns: &HashMap<String, VulnData>,
 ) -> Result<Vec<DependencyEvent>, Box<dyn Error>> {
     let mut events = Vec::new();
-    let json_str = report.tool_output.as_ref().lines();
+    //let json_str = report.tool_output.as_ref().lines();
 
     let default_cvss = Cvss::builder()
         .with_version(CvssVersion::Unknown)
         .build()
         .unwrap();
 
-    for json_line in json_str {
-        let json_line_deser: Value = serde_json::from_str(json_line)?;
-        if json_line_deser["type"] == "auditAdvisory" {
-            let vuln: JSYarnAudit = serde_json::from_str(json_line)?;
+    let tool_report_string = report.tool_output.to_string();
+    let json_iter = Deserializer::from_str(&tool_report_string).into_iter::<Value>();
+    for vuln in json_iter
+        .filter_map(|val| val.ok().filter(|v| v["type"] == "auditAdvisory"))
+        .filter_map(|val| serde_json::from_value::<JSYarnAudit>(val).ok())
+    {
+        let installed_versions = vuln
+            .data
+            .advisory
+            .findings
+            .into_iter()
+            .map(|x| x.version)
+            .unique()
+            .collect::<Vec<String>>()
+            .join(",");
 
-            let installed_versions =
-                vuln.data
-                    .advisory
-                    .findings
-                    .into_iter()
-                    .map(|x| x.version)
-                    .unique().collect::<Vec<String>>()
-                    .join(",");
+        let event = DependencyEvent {
+            event_version: EventVersion::try_from("1".to_string())?,
+            event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
+            parent_event_id: report.event_id.clone(),
+            application_name: report.application_name.clone(),
+            git_branch: report.git_branch.clone(),
+            git_commit_hash: report.git_commit_hash.clone(),
+            timestamp: Timestamp::try_from(report.end_time.to_string())?,
+            affected_package: AffectedPackage::try_from(vuln.data.advisory.module_name.to_owned())?,
+            installed_version: InstalledVersion::try_from(installed_versions.to_owned())?,
+            advisory_url: AdvisoryUrl::try_from(vuln.data.advisory.url.to_string())?,
+            advisory_id: AdvisoryId::try_from(vuln.data.advisory.id.to_string())?,
+            advisory_description: AdvisoryDescription::try_from(
+                vuln.data.advisory.overview.to_string(),
+            )?,
+            cvss: default_cvss.clone(),
+            suppressed: false,
+        };
 
-            let event = DependencyEvent {
-                event_version: EventVersion::try_from("1".to_string())?,
-                event_id: EventID::try_from(Uuid::new_v4().to_hyphenated().to_string())?,
-                parent_event_id: report.event_id.clone(),
-                application_name: report.application_name.clone(),
-                git_branch: report.git_branch.clone(),
-                git_commit_hash: report.git_commit_hash.clone(),
-                timestamp: Timestamp::try_from(report.end_time.to_string())?,
-                affected_package: AffectedPackage::try_from(
-                    vuln.data.advisory.module_name.to_owned(),
-                )?,
-                installed_version: InstalledVersion::try_from(installed_versions.to_owned())?,
-                advisory_url: AdvisoryUrl::try_from(vuln.data.advisory.url.to_string())?,
-                advisory_id: AdvisoryId::try_from(vuln.data.advisory.id.to_string())?,
-                advisory_description: AdvisoryDescription::try_from(
-                    vuln.data.advisory.overview.to_string(),
-                )?,
-                cvss: default_cvss.clone(),
-                suppressed: false,
-            };
-
-            if vuln.data.advisory.cves.len() > 0 {
-                for cve_str in vuln.data.advisory.cves {
-                    let (cvss, advisory_str, advisory_url) = vulns.get(&cve_str).map_or(
+        if vuln.data.advisory.cves.len() > 0 {
+            for cve_str in vuln.data.advisory.cves {
+                let (cvss, advisory_str, advisory_url) = vulns.get(&cve_str).map_or(
+                    (
+                        &default_cvss,
+                        vuln.data.advisory.overview.to_string(),
+                        vuln.data.advisory.url.to_string(),
+                    ),
+                    |v| {
                         (
-                            &default_cvss,
-                            vuln.data.advisory.overview.to_string(),
-                            vuln.data.advisory.url.to_string(),
-                        ),
-                        |v| {
-                            (
-                                &v.cvss,
-                                v.advisory_str.to_string(),
-                                v.advisory_url.to_string(),
-                            )
-                        },
-                    );
+                            &v.cvss,
+                            v.advisory_str.to_string(),
+                            v.advisory_url.to_string(),
+                        )
+                    },
+                );
 
-                    let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
-                    let new_event = DependencyEvent { 
-                        advisory_url: AdvisoryUrl::try_from(advisory_url)?,
-                        advisory_description: AdvisoryDescription::try_from(advisory_str)?,
-                        cvss: cvss.clone(),
-                        suppressed: should_issue_be_suppressed(
-                            &issue_hash,
-                            &report.suppressed_issues,
-                            &Utc::now(),
-                        ),
-                        ..event.clone()
-                    };
-                    events.push(new_event);
-                }
-            } else {
                 let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
-                let new_event = DependencyEvent { 
+                let new_event = DependencyEvent {
+                    advisory_url: AdvisoryUrl::try_from(advisory_url)?,
+                    advisory_description: AdvisoryDescription::try_from(advisory_str)?,
+                    cvss: cvss.clone(),
                     suppressed: should_issue_be_suppressed(
                         &issue_hash,
                         &report.suppressed_issues,
                         &Utc::now(),
                     ),
                     ..event.clone()
-                }; 
+                };
                 events.push(new_event);
             }
+        } else {
+            let issue_hash = IssueHash::try_from(hex::encode(event.hash()))?;
+            let new_event = DependencyEvent {
+                suppressed: should_issue_be_suppressed(
+                    &issue_hash,
+                    &report.suppressed_issues,
+                    &Utc::now(),
+                ),
+                ..event.clone()
+            };
+            events.push(new_event);
         }
     }
     events.sort_by_cached_key(|k| k.hash());
@@ -1838,7 +1835,7 @@ mod tests {
         assert!(events[1].affected_package.to_string() == "lodash");
         assert!(events[1].advisory_url.to_string() == advisory_url_2);
         assert!(events[1].advisory_description.to_string() == advisory_text_2);
-        
+
         assert!(events[2].affected_package.to_string() == "braces");
         assert!(events[2].advisory_id.to_string() == "786".to_string());
         assert!(events[2].advisory_url.to_string() == advisory_url_1);
