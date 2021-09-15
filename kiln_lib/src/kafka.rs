@@ -15,7 +15,7 @@ pub enum ValidationFailureReason {
 
 #[derive(Debug,Clone)]
 pub struct KafkaAuthConfig { 
-    auth_required: bool,
+    pub auth_required: bool,
     username: Option<String>,
     password: Option<String>
 } 
