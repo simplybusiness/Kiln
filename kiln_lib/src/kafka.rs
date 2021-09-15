@@ -23,7 +23,7 @@ pub struct KafkaAuthConfig {
 #[derive(Debug, Clone)]
 pub struct KafkaBootstrapConfig { 
     tls_config: Vec<String>,
-    auth_config: KafkaAuthConfig
+pub auth_config: KafkaAuthConfig
 }
 
 impl Display for ValidationFailureReason {
