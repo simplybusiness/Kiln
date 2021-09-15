@@ -396,17 +396,17 @@ mod tests {
     #[test]
     fn get_bootstrap_config_returns_correct_auth_config() {
         let hostname = "my.kafka.host.example.com:1234".to_owned();
-        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLSa.to_owned(), hostname.clone()),
+        let mut fake_vars = vec![("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()),
             ("ENABLE_KAFKA_AUTH".to_owned(),"true".to_owned()),
             ("KAFKA_SASL_AUTH_USERNAME".to_owned(),"admin".to_owned()),
-            ("KAFKA_SASL_AUTH_PASSWORD".to_owned(),"admin\-password".to_owned()),
+            ("KAFKA_SASL_AUTH_PASSWORD".to_owned(),"adminpassword".to_owned()),
         ].into_iter();
 
         let actual = get_bootstrap_config(&mut fake_vars).expect("No errors should be returned when values are set correctly");
 
         assert_eq!(actual.auth_config.auth_required,true);
         assert_eq!(actual.auth_config.username.unwrap(),"admin".to_string());
-        assert_eq!(actual.auth_config.password.unwrap(),"admin\-password".to_string());
+        assert_eq!(actual.auth_config.password.unwrap(),"adminpassword".to_string());
     }
 
 
