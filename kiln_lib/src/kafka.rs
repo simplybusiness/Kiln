@@ -162,12 +162,10 @@ pub fn build_kafka_producer(
             .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
             .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
             .set("message.max.bytes", "10000000")
-            .set("sasl.mechanism", "PLAIN")
             .set("security.protocol","SASL_SSL")
-            .set("sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule", format!("required \
-                username=\"{}\" \
-                password=\"{}\"", config.auth_config.username.unwrap(), config.auth_config.password.unwrap())
-            )
+            .set("sasl.mechanism", "PLAIN")
+            .set("sasl.username", config.auth_config.username.unwrap())
+            .set("sasl.password", config.auth_config.password.unwrap())
             .create()
             .map_err(|err| err.into())
     } else { 
@@ -205,10 +203,8 @@ pub fn build_kafka_consumer(
             .set("fetch.message.max.bytes", "10000000")
             .set("sasl.mechanism", "PLAIN")
             .set("security.protocol","SASL_SSL")
-            .set("sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule", format!("required \
-                username=\"{}\" \
-                password=\"{}\"", config.auth_config.username.unwrap(), config.auth_config.password.unwrap())
-            )
+            .set("sasl.username", config.auth_config.username.unwrap())
+            .set("sasl.password", config.auth_config.password.unwrap())
             .create()
             .map_err(|err| err.into())
     } else { 
