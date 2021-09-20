@@ -198,6 +198,7 @@ pub fn build_kafka_consumer(
         ClientConfig::new()
             .set("metadata.broker.list", &config.tls_config.join(","))
             .set("compression.type", "gzip")
+            .set("group.id", &consumer_group_name)
             .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
             .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
             .set("fetch.message.max.bytes", "10000000")
