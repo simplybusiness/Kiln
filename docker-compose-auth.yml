@@ -1,0 +1,90 @@
+version: '2'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      SERVER_JVMFLAGS: -Djava.security.auth.login.config=/opt/zookeeper_jaas.conf
+        -Dzookeeper.authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
+        -Dzookeeper.authProvider.2=org.apache.zookeeper.server.auth.DigestAuthenticationProvider
+        -DjaasLoginRenew=3600000
+        -DrequireClientAuthScheme=sasl
+    volumes:
+         - ./zookeeper_jaas.conf:/opt/zookeeper_jaas.conf
+
+  kafka:
+    image: wurstmeister/kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    hostname: kafka
+    environment:
+      KAFKA_ADVERTISED_HOSTNAME: kafka
+      KAFKA_LISTENERS:  "SASL_SSL://kafka:9092"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""
+      KAFKA_SSL_TLS_VERSION: TLSv1.2
+      KAFKA_SSL_PROTOCOL: TLSv1.2
+      KAFKA_SSL_ENABLED_PROTOCOLS: TLSv1.2
+      KAFKA_SSL_SECURE_RANDOM_IMPLEMENTATION: NativePRNG
+      KAFKA_SSL_CIPHER_SUITES: TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      KAFKA_SSL_KEYSTORE_LOCATION: /tls/kafka.keystore.jks
+      KAFKA_SSL_KEYSTORE_PASSWORD: password
+      KAFKA_SSL_KEY_PASSWORD: password
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /tls/kafka.truststore.jks
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: password
+      KAFKA_CREATE_TOPICS: "ToolReports:6:1,DependencyEvents:6:1"
+      KAFKA_MESSAGE_MAX_BYTES: 10000000
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 10000000
+      KAFKA_SECURITY_PROTOCOL: SASL_SSL
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_SECURITY_INTER_BROKER_PROTOCOL: SASL_SSL
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_OPTS: "-Djava.security.auth.login.config=/etc/kafka/broker-jaas.conf"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./tls:/tls
+      - ./broker-jaas.conf:/etc/kafka/broker-jaas.conf
+  data-collector:
+    depends_on: 
+      - kafka
+    image: kiln/data-collector:git-latest
+    ports:
+      - "8081:8080"
+    environment:
+      - KAFKA_BOOTSTRAP_TLS=kafka:9092
+      - ENABLE_KAFKA_AUTH=true
+      - KAFKA_SASL_AUTH_USERNAME=admin
+      - KAFKA_SASL_AUTH_PASSWORD=admin-secret
+      - DISABLE_KAFKA_DOMAIN_VALIDATION=true
+    volumes:
+      - ./tls:/tls
+  report-parser:
+    depends_on:
+      - kafka
+    image: kiln/report-parser:git-latest
+    environment:
+      - KAFKA_BOOTSTRAP_TLS=kafka:9092
+      - ENABLE_KAFKA_AUTH=true
+      - KAFKA_SASL_AUTH_USERNAME=admin
+      - KAFKA_SASL_AUTH_PASSWORD=admin-secret
+      - DISABLE_KAFKA_DOMAIN_VALIDATION=true
+    volumes:
+      - ./tls:/tls
+  slack-connector:
+    depends_on:
+      - kafka
+    image: kiln/slack-connector:git-latest
+    environment:
+      - KAFKA_BOOTSTRAP_TLS=kafka:9092
+      - RUST_LOG=info
+      - DISABLE_KAFKA_DOMAIN_VALIDATION=true
+      - ENABLE_KAFKA_AUTH=true
+      - KAFKA_SASL_AUTH_USERNAME=admin
+      - KAFKA_SASL_AUTH_PASSWORD=admin
+      - OAUTH2_TOKEN
+      - SLACK_CHANNEL_ID
+    volumes:
+      - ./tls:/tls
