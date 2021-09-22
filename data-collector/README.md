@@ -17,7 +17,7 @@ By default, this component will validate that hosts in the `KAFKA_BOOTSTRAP_TLS`
 
 If your Kafka cluster uses TLS certificates issued by a private Certificate Authority, you will need to provide the CA Certificate in PEM format so that certificate validation can be performed when connecting to the Kafka cluster. You should do this by including the CA certificate in PEM format in the `/tls` directory of the container, probably through a volume mount. 
 
-At present Kiln supports authentication between brokers and producers/consumers using the SASL_PLAIN mechanism. Authentication is optional and configured by setting the `ENABLE_KAFKA_AUTH` environment variable. If this variable is set, you also need to supply the username and password for authentication using `AFKA_SASL_AUTH_USERNAME` and `AFKA_SASL_AUTH_PASSWORD` environment variables respectively.  
+At present Kiln supports authentication between brokers and producers/consumers using the SASL_PLAIN mechanism. Authentication is optional and configured by setting the `ENABLE_KAFKA_AUTH` environment variable. If this variable is set, you also need to supply the username and password for authentication using `KAFKA_SASL_AUTH_USERNAME` and `KAFKA_SASL_AUTH_PASSWORD` environment variables respectively.  
 
 ## Request & Response Documentation
 
