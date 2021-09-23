@@ -6,14 +6,24 @@ use rdkafka::error::KafkaError;
 use rdkafka::producer::future_producer::FutureProducer;
 use std::fmt::Display;
 
-#[derive(Debug, Clone)]
-pub struct KafkaBootstrapTlsConfig(Vec<String>);
-
 #[derive(Debug)]
 pub enum ValidationFailureReason {
     Missing,
     PresentButEmpty,
     CouldNotBeParsed,
+}
+
+#[derive(Debug, Clone)]
+pub struct KafkaAuthConfig {
+    auth_required: bool,
+    username: Option<String>,
+    password: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct KafkaBootstrapConfig {
+    tls_config: Vec<String>,
+    auth_config: KafkaAuthConfig,
 }
 
 impl Display for ValidationFailureReason {
@@ -44,7 +54,7 @@ pub enum KafkaConfigError {
     TlsTrustStore,
 }
 
-pub fn get_bootstrap_config<I>(vars: &mut I) -> Result<KafkaBootstrapTlsConfig, KafkaConfigError>
+pub fn get_bootstrap_config<I>(vars: &mut I) -> Result<KafkaBootstrapConfig, KafkaConfigError>
 where
     I: Iterator<Item = (String, String)>,
 {
@@ -52,26 +62,26 @@ where
     let disable_kafka_domain_validation = match local_vars
         .iter()
         .find(|var| var.0 == "DISABLE_KAFKA_DOMAIN_VALIDATION")
-    {
-        None => Ok(false),
-        Some(var) => {
-            if var.1.is_empty() {
-                return Err(KafkaConfigError::OptionalValueValidationFailure {
-                    var: "DISABLE_KAFKA_DOMAIN_VALIDATION".into(),
-                    reason: ValidationFailureReason::PresentButEmpty,
-                });
-            } else {
-                match var.1.as_ref() {
-                    "true" => Ok(true),
-                    "false" => Ok(false),
-                    _ => Err(KafkaConfigError::OptionalValueValidationFailure {
+        {
+            None => Ok(false),
+            Some(var) => {
+                if var.1.is_empty() {
+                    return Err(KafkaConfigError::OptionalValueValidationFailure {
                         var: "DISABLE_KAFKA_DOMAIN_VALIDATION".into(),
-                        reason: ValidationFailureReason::CouldNotBeParsed,
-                    }),
+                        reason: ValidationFailureReason::PresentButEmpty,
+                    });
+                } else {
+                    match var.1.as_ref() {
+                        "true" => Ok(true),
+                        "false" => Ok(false),
+                        _ => Err(KafkaConfigError::OptionalValueValidationFailure {
+                            var: "DISABLE_KAFKA_DOMAIN_VALIDATION".into(),
+                            reason: ValidationFailureReason::CouldNotBeParsed,
+                        }),
+                    }
                 }
             }
-        }
-    }?;
+        }?;
 
     let kafka_bootstrap_tls = match local_vars.iter().find(|var| var.0 == "KAFKA_BOOTSTRAP_TLS") {
         None => Err(KafkaConfigError::RequiredValueValidationFailure {
@@ -110,11 +120,51 @@ where
         }
     }?;
 
-    Ok(KafkaBootstrapTlsConfig(kafka_bootstrap_tls))
+    let check_config_var = |x: String|
+        match local_vars.iter().find(|var| var.0 == x) {
+            None => 
+                Err(KafkaConfigError::OptionalValueValidationFailure {
+                    var: x,
+                    reason: ValidationFailureReason::Missing,
+                }),
+            Some(v) => 
+                if v.1.is_empty(){
+                    Err(KafkaConfigError::OptionalValueValidationFailure {
+                        var: x,
+                        reason: ValidationFailureReason::PresentButEmpty,
+                    })
+                } else { 
+                    Ok(Some(v.1.to_owned()))
+                }
+        };
+
+
+    let kafka_auth_config = match local_vars.iter().find(|var| var.0 == "ENABLE_KAFKA_AUTH") {
+        None => 
+            KafkaAuthConfig {
+                auth_required: false,
+                username: None,
+                password: None,
+            },
+        Some(_) => {
+            let username = check_config_var("KAFKA_SASL_AUTH_USERNAME".into())?;
+            let password = check_config_var("KAFKA_SASL_AUTH_PASSWORD".into())?;
+            KafkaAuthConfig {
+                auth_required: true,
+                username: username,
+                password: password,
+            }
+        },
+    };
+
+    Ok(KafkaBootstrapConfig {
+        tls_config: kafka_bootstrap_tls,
+        auth_config: kafka_auth_config,
+    })
 }
 
 pub fn build_kafka_producer(
-    config: KafkaBootstrapTlsConfig,
+    config: KafkaBootstrapConfig,
 ) -> Result<FutureProducer, KafkaConfigError> {
     let cert_probe_result = openssl_probe::probe();
     let cert_location = match cert_probe_result {
@@ -122,20 +172,34 @@ pub fn build_kafka_producer(
         ProbeResult { cert_dir, .. } if cert_dir.is_some() => Ok(cert_dir),
         _ => Err(KafkaConfigError::TlsTrustStore),
     }?;
-
-    ClientConfig::new()
-        .set("metadata.broker.list", &config.0.join(","))
-        .set("compression.type", "gzip")
-        .set("security.protocol", "SSL")
-        .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
-        .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
-        .set("message.max.bytes", "10000000")
-        .create()
-        .map_err(|err| err.into())
+    if config.auth_config.auth_required {
+        ClientConfig::new()
+            .set("metadata.broker.list", &config.tls_config.join(","))
+            .set("compression.type", "gzip")
+            .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
+            .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
+            .set("message.max.bytes", "10000000")
+            .set("security.protocol","SASL_SSL")
+            .set("sasl.mechanism", "PLAIN")
+            .set("sasl.username", config.auth_config.username.unwrap())
+            .set("sasl.password", config.auth_config.password.unwrap())
+            .create()
+            .map_err(|err| err.into())
+    } else {
+        ClientConfig::new()
+            .set("metadata.broker.list", &config.tls_config.join(","))
+            .set("compression.type", "gzip")
+            .set("security.protocol", "SSL")
+            .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
+            .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
+            .set("message.max.bytes", "10000000")
+            .create()
+            .map_err(|err| err.into())
+    }
 }
 
 pub fn build_kafka_consumer(
-    config: KafkaBootstrapTlsConfig,
+    config: KafkaBootstrapConfig,
     consumer_group_name: String,
 ) -> Result<StreamConsumer, KafkaConfigError> {
     let cert_probe_result = openssl_probe::probe();
@@ -145,16 +209,32 @@ pub fn build_kafka_consumer(
         _ => Err(KafkaConfigError::TlsTrustStore),
     }?;
 
-    ClientConfig::new()
-        .set("metadata.broker.list", &config.0.join(","))
-        .set("group.id", &consumer_group_name)
-        .set("compression.type", "gzip")
-        .set("security.protocol", "SSL")
-        .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
-        .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
-        .set("fetch.message.max.bytes", "10000000")
-        .create()
-        .map_err(|err| err.into())
+    if config.auth_config.auth_required {
+        ClientConfig::new()
+            .set("metadata.broker.list", &config.tls_config.join(","))
+            .set("compression.type", "gzip")
+            .set("group.id", &consumer_group_name)
+            .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
+            .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
+            .set("fetch.message.max.bytes", "10000000")
+            .set("sasl.mechanism", "PLAIN")
+            .set("security.protocol","SASL_SSL")
+            .set("sasl.username", config.auth_config.username.unwrap())
+            .set("sasl.password", config.auth_config.password.unwrap())
+            .create()
+            .map_err(|err| err.into())
+    } else {
+        ClientConfig::new()
+            .set("metadata.broker.list", &config.tls_config.join(","))
+            .set("group.id", &consumer_group_name)
+            .set("compression.type", "gzip")
+            .set("security.protocol", "SSL")
+            .set("ssl.cipher.suites", "ECDHE-ECDSA-AES256-GCM-SHA384,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-ECDSA-AES128-GCM-SHA256,ECDHE-RSA-AES128-GCM-SHA256")
+            .set("ssl.ca.location", cert_location.unwrap().to_string_lossy())
+            .set("fetch.message.max.bytes", "10000000")
+            .create()
+            .map_err(|err| err.into())
+    }
 }
 
 #[cfg(test)]
@@ -164,16 +244,28 @@ mod tests {
     #[allow(unused_must_use)]
     #[tokio::test]
     async fn creating_kafka_producer_does_not_return_a_client_config_error() {
-        let config =
-            KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
+        let config = KafkaBootstrapConfig {
+            tls_config: vec!["host1:1234".to_string(), "host2:1234".to_string()],
+            auth_config: KafkaAuthConfig {
+                auth_required: false,
+                username: None,
+                password: None,
+            },
+        };
         build_kafka_producer(config).unwrap();
     }
 
     #[allow(unused_must_use)]
     #[tokio::test]
     async fn creating_kafka_consumer_does_not_return_a_client_config_error() {
-        let config =
-            KafkaBootstrapTlsConfig(vec!["host1:1234".to_string(), "host2:1234".to_string()]);
+        let config = KafkaBootstrapConfig {
+            tls_config: vec!["host1:1234".to_string(), "host2:1234".to_string()],
+            auth_config: KafkaAuthConfig {
+                auth_required: false,
+                username: None,
+                password: None,
+            },
+        };
         build_kafka_consumer(config, "TestConsumerGroup".to_string()).unwrap();
     }
 
@@ -190,7 +282,7 @@ mod tests {
 
         let actual = get_bootstrap_config(&mut fake_vars).expect("expected Ok(_) value");
 
-        assert_eq!(actual.0, expected);
+        assert_eq!(actual.tls_config, expected);
     }
 
     #[test]
@@ -242,12 +334,12 @@ mod tests {
                 "true".to_owned(),
             ),
         ]
-        .into_iter();
+            .into_iter();
         let expected = vec![hostname.clone()];
 
         let actual = get_bootstrap_config(&mut fake_vars).expect("expected Ok(_) value");
 
-        assert_eq!(actual.0, expected)
+        assert_eq!(actual.tls_config, expected)
     }
 
     #[test]
@@ -282,12 +374,113 @@ mod tests {
             "DISABLE_KAFKA_DOMAIN_VALIDATION".to_owned(),
             "blah".to_owned(),
         )]
-        .into_iter();
+            .into_iter();
         let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
 
         assert_eq!(
             actual.to_string(),
             "Optional environment variable DISABLE_KAFKA_DOMAIN_VALIDATION failed validation because value could not be parsed"
         )
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_error_auth_enabled_but_username_unset() {
+        let hostname = "my.kafka.host.example.com:1234".to_owned();
+        let mut fake_vars = vec![
+            ("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()),
+            ("ENABLE_KAFKA_AUTH".to_owned(), "true".to_owned()),
+        ]
+            .into_iter();
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Optional environment variable KAFKA_SASL_AUTH_USERNAME failed validation because value is missing"
+        )
+    }
+
+
+    #[test]
+    fn get_bootstrap_config_returns_error_auth_enabled_but_username_empty() {
+        let hostname = "my.kafka.host.example.com:1234".to_owned();
+        let mut fake_vars = vec![
+            ("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()),
+            ("ENABLE_KAFKA_AUTH".to_owned(), "true".to_owned()),
+            ("KAFKA_SASL_AUTH_USERNAME".to_owned(), "".to_owned()),
+        ]
+            .into_iter();
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Optional environment variable KAFKA_SASL_AUTH_USERNAME failed validation because value is present but empty"
+        )
+    }
+
+
+    #[test]
+    fn get_bootstrap_config_returns_error_auth_enabled_but_password_unset() {
+        let hostname = "my.kafka.host.example.com:1234".to_owned();
+        let mut fake_vars = vec![
+            ("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()),
+            ("ENABLE_KAFKA_AUTH".to_owned(), "true".to_owned()),
+            ("KAFKA_SASL_AUTH_USERNAME".to_owned(), "admin".to_owned()),
+        ]
+            .into_iter();
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Optional environment variable KAFKA_SASL_AUTH_PASSWORD failed validation because value is missing"
+        )
+    }
+
+    #[test]
+    fn get_bootstrap_config_returns_error_auth_enabled_but_password_empty() {
+        let hostname = "my.kafka.host.example.com:1234".to_owned();
+        let mut fake_vars = vec![
+            ("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()),
+            ("ENABLE_KAFKA_AUTH".to_owned(), "true".to_owned()),
+            ("KAFKA_SASL_AUTH_USERNAME".to_owned(), "admin".to_owned()),
+            ("KAFKA_SASL_AUTH_PASSWORD".to_owned(), "".to_owned()),
+        ]
+            .into_iter();
+
+        let actual = get_bootstrap_config(&mut fake_vars).expect_err("expected Err(_) value");
+
+        assert_eq!(
+            actual.to_string(),
+            "Optional environment variable KAFKA_SASL_AUTH_PASSWORD failed validation because value is present but empty"
+        )
+    }
+
+
+
+    #[test]
+    fn get_bootstrap_config_returns_correct_auth_config() {
+        let hostname = "my.kafka.host.example.com:1234".to_owned();
+        let mut fake_vars = vec![
+            ("KAFKA_BOOTSTRAP_TLS".to_owned(), hostname.clone()),
+            ("ENABLE_KAFKA_AUTH".to_owned(), "true".to_owned()),
+            ("KAFKA_SASL_AUTH_USERNAME".to_owned(), "admin".to_owned()),
+            (
+                "KAFKA_SASL_AUTH_PASSWORD".to_owned(),
+                "adminpassword".to_owned(),
+            ),
+        ]
+            .into_iter();
+
+        let actual = get_bootstrap_config(&mut fake_vars)
+            .expect("No errors should be returned when values are set correctly");
+
+        assert_eq!(actual.auth_config.auth_required, true);
+        assert_eq!(actual.auth_config.username.unwrap(), "admin".to_string());
+        assert_eq!(
+            actual.auth_config.password.unwrap(),
+            "adminpassword".to_string()
+        );
     }
 }

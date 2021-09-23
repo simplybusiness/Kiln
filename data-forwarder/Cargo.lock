@@ -310,9 +310,9 @@ checksum = "f6503fe142514ca4799d4c26297c4248239fe8838d827db6bd6065c6ed29a6ce"
 
 [[package]]
 name = "git2"
-version = "0.13.19"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17929de7239dea9f68aa14f94b2ab4974e7b24c1314275ffcc12a7758172fa18"
+checksum = "26e07ef27260a78f7e8d218ebac2c72f2c4db50493741b190b6e8eade1da7c68"
 dependencies = [
  "bitflags",
  "libc",
@@ -491,11 +491,12 @@ dependencies = [
 [[package]]
 name = "kiln_lib"
 version = "0.5.0"
-source = "git+https://github.com/simplybusiness/Kiln?branch=main#a91159e65c69eb9f4a9b59c4f4351d36c1fbedef"
+source = "git+https://github.com/simplybusiness/Kiln?branch=main#884e96059622c72e99254ac737bee25aee964adf"
 dependencies = [
  "anyhow",
  "chrono",
  "hex",
+ "mime",
  "openssl-probe",
  "regex",
  "ring",
@@ -521,9 +522,9 @@ checksum = "ba4aede83fc3617411dc6993bc8c70919750c1c257c6ca6a502aed6e0e2394ae"
 
 [[package]]
 name = "libgit2-sys"
-version = "0.12.20+1.1.0"
+version = "0.11.0+0.99.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e2f09917e00b9ad194ae72072bb5ada2cca16d8171a43e91ddba2afbb02664b"
+checksum = "4d5d1459353d397a029fb18862166338de938e6be976606bd056cf8f1a912ecf"
 dependencies = [
  "cc",
  "libc",

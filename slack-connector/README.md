@@ -22,3 +22,6 @@ If your Kafka cluster uses TLS certificates issued by a private Certificate Auth
 You will also need the Channel ID for the Slack Channel you want to route notifications to. This can be found by opening Slack in a web browser and loading the channel you want Kiln to send notifications to. The last components of the URL path will contain the channel ID and will begin with a 'C'. This is supplied to the connector using the `SLACK_CHANNEL_ID` environment variable.
 
 Lastly, you will need to supply the OAuth2 access token you created earlier as the `OAUTH2_TOKEN` environment variable. This value is a secret and should be handled accordingly to avoid accidental disclosure in shell history, logs etc. Unfortunately the topic of secrets management is out of the scope of this documentation.
+
+At present Kiln supports authentication between brokers and producers/consumers using the SASL_PLAIN mechanism. Authentication is optional and configured by setting the `ENABLE_KAFKA_AUTH` environment variable. If this variable is set, you also need to supply the username and password for authentication using `KAFKA_SASL_AUTH_USERNAME` and `KAFKA_SASL_AUTH_PASSWORD` environment variables respectively.  
+
