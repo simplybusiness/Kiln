@@ -123,19 +123,19 @@ where
     let check_config_var = |x: String|
         match local_vars.iter().find(|var| var.0 == x) {
             None => 
+                Err(KafkaConfigError::OptionalValueValidationFailure {
+                    var: x,
+                    reason: ValidationFailureReason::Missing,
+                }),
+            Some(v) => 
+                if v.1.is_empty(){
                     Err(KafkaConfigError::OptionalValueValidationFailure {
                         var: x,
-                        reason: ValidationFailureReason::Missing,
-                    }),
-            Some(v) => 
-                    if v.1.is_empty(){
-                        Err(KafkaConfigError::OptionalValueValidationFailure {
-                            var: x,
-                            reason: ValidationFailureReason::PresentButEmpty,
-                        })
-                    } else { 
-                        Ok(Some(v.1.to_owned()))
-                    }
+                        reason: ValidationFailureReason::PresentButEmpty,
+                    })
+                } else { 
+                    Ok(Some(v.1.to_owned()))
+                }
         };
 
 
