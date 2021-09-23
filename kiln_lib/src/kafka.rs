@@ -15,7 +15,7 @@ pub enum ValidationFailureReason {
 
 #[derive(Debug, Clone)]
 pub struct KafkaAuthConfig {
-    pub auth_required: bool,
+    auth_required: bool,
     username: Option<String>,
     password: Option<String>,
 }
@@ -23,7 +23,7 @@ pub struct KafkaAuthConfig {
 #[derive(Debug, Clone)]
 pub struct KafkaBootstrapConfig {
     tls_config: Vec<String>,
-    pub auth_config: KafkaAuthConfig,
+    auth_config: KafkaAuthConfig,
 }
 
 impl Display for ValidationFailureReason {
