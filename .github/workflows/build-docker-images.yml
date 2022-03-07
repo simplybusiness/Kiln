@@ -71,7 +71,7 @@ jobs:
               run: cargo make build-data-forwarder-musl
               working-directory: data-forwarder/
             - name: Upload data-forwarder
-              uses: actions/upload-artifact@v2.2.3
+              uses: actions/upload-artifact@v3
               with:
                 name: data-forwarder
                 path: bin/data-forwarder
