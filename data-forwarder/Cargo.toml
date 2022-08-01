@@ -8,7 +8,7 @@ kiln_lib = { git = "https://github.com/simplybusiness/Kiln", features = [ "json"
 clap = "2"
 chrono = "0.4"
 reqwest = { version = "0.11", features = [ "blocking", "json",] }
-git2 = "0.13"
+git2 = "0.15"
 uuid = { version = "0.8", features = [ "v4",] }
 openssl-probe = "0.1.4"
 toml = "0.5"
