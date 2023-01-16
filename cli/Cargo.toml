@@ -13,7 +13,7 @@ futures = "0.3"
 toml = "0.5"
 serde = { version = "1.0", features = [ "derive",] }
 serde_json = "1.0"
-indicatif = "0.16"
+indicatif = "0.17"
 reqwest = { version = "0.11", features = [ "json",] }
 regex = "1"
 failure = "0.1"
