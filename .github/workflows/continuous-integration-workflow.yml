@@ -4,7 +4,7 @@ on: [push]
 jobs:
     data-collector:
         name: Data-collector build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -30,7 +30,7 @@ jobs:
               working-directory: data-collector/
     data-forwarder:
         name: Data-forwarder build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -56,7 +56,7 @@ jobs:
               working-directory: data-forwarder/
     kiln-cli:
         name: CLI build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -85,7 +85,7 @@ jobs:
               working-directory: cli/
     report-parser:
         name: Report-parser build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -111,7 +111,7 @@ jobs:
               working-directory: report-parser/
     slack-connector:
         name: Slack-connector build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -137,7 +137,7 @@ jobs:
               working-directory: slack-connector/
     kiln_lib:
         name: Kiln_lib build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -163,7 +163,7 @@ jobs:
               working-directory: kiln_lib/
     check-cargo-makefile-syntax:
         name: Check cargo Makefile syntax is valid
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - uses: davidB/rust-cargo-make@v1
               with:

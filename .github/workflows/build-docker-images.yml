@@ -7,7 +7,7 @@ on:
 jobs:
     data-collector:
         name: Data-collector build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -45,7 +45,7 @@ jobs:
               working-directory: data-collector/
     data-forwarder:
         name: Data-forwarder build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -77,7 +77,7 @@ jobs:
                 path: bin/data-forwarder
     build-bundler-audit-docker:
         name: Build Bundler-Audit tool docker image
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         needs: data-forwarder
         steps:
             - uses: davidB/rust-cargo-make@v1
@@ -106,7 +106,7 @@ jobs:
               working-directory: tool-images/ruby/bundler-audit
     build-safety-docker:
         name: Build Safety tool docker image
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         needs: data-forwarder
         steps:
             - uses: davidB/rust-cargo-make@v1
@@ -135,7 +135,7 @@ jobs:
               working-directory: tool-images/python/safety
     report-parser:
         name: Report-parser build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
@@ -173,7 +173,7 @@ jobs:
               working-directory: report-parser/
     slack-connector:
         name: Slack-connector build
-        runs-on: ubuntu-18.04
+        runs-on: ubuntu-latest
         steps:
             - name: Checkout
               uses: actions/checkout@v2.3.4
