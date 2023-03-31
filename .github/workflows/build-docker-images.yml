@@ -15,17 +15,17 @@ jobs:
               with:
                 version: 0.22.2
             - name: Cache cargo registry
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: ~/.cache/docker/cargo/registry
                 key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Cache cargo index
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: ~/.cache/docker/cargo/git
                 key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-collector/Cargo.lock') }}
             - name: Cache cargo build
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: data-collector/target
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('data-collector/Cargo.lock') }}
@@ -53,17 +53,17 @@ jobs:
               with:
                 version: 0.22.2
             - name: Cache cargo registry
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: ~/.cache/docker/cargo/registry
                 key: ${{ runner.os }}-cargo-registry-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Cache cargo index
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: ~/.cache/docker/cargo/git
                 key: ${{ runner.os }}-cargo-index-${{ hashFiles('data-forwarder/Cargo.lock') }}
             - name: Cache cargo build
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: data-forwarder/target
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('data-forwarder/Cargo.lock') }}
@@ -143,17 +143,17 @@ jobs:
               with:
                 version: 0.22.2
             - name: Cache cargo registry
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: ~/.cache/docker/cargo/registry
                 key: ${{ runner.os }}-cargo-registry-${{ hashFiles('report-parser/Cargo.lock') }}
             - name: Cache cargo index
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: ~/.cache/docker/cargo/git
                 key: ${{ runner.os }}-cargo-index-${{ hashFiles('report-parser/Cargo.lock') }}
             - name: Cache cargo build
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: report-parser/target
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('report-parser/Cargo.lock') }}
@@ -181,17 +181,17 @@ jobs:
               with:
                 version: 0.22.2
             - name: Cache cargo registry
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: ~/.cache/docker/cargo/registry
                 key: ${{ runner.os }}-cargo-registry-${{ hashFiles('slack-connector/Cargo.lock') }}
             - name: Cache cargo index
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: ~/.cache/docker/cargo/git
                 key: ${{ runner.os }}-cargo-index-${{ hashFiles('slack-connector/Cargo.lock') }}
             - name: Cache cargo build
-              uses: actions/cache@v2.1.5
+              uses: actions/cache@v3.3.1
               with:
                 path: slack-connector/target
                 key: ${{ runner.os }}-cargo-build-target-musl-${{ hashFiles('slack-connector/Cargo.lock') }}
